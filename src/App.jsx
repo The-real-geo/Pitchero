@@ -1,4 +1,129 @@
-import React, { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, getDocs, query, where } from "firebase/firestore";
+
+
+// --- Firebase Config (replace with your own from Firebase Console) ---
+const firebaseConfig = {
+  apiKey: "AIzaSyC96Yt2uRUrkSkBD3urTK_7s5geQjFZkkI",
+  authDomain: "pitchero-eae06.firebaseapp.com",
+  projectId: "pitchero-eae06",
+  storageBucket: "pitchero-eae06.firebasestorage.app",
+  messagingSenderId: "1083501668068",
+  appId: "1:1083501668068:web:fb52dc9468fffb63f5eef1",
+  measurementId: "G-YHQSHKNRRZ"
+};
+
+
+// Initialize Firebase + Firestore
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+
+// --- Firestore helper functions ---
+const saveAllocation = async (allocatorType, allocation, date) => {
+try {
+await addDoc(collection(db, allocatorType), {
+...allocation,
+date: date,
+created: Date.now()
+});
+} catch (err) {
+console.error("Error saving allocation:", err);
+}
+};
+
+
+const loadAllocations = async (allocatorType, date) => {
+try {
+const q = query(collection(db, allocatorType), where("date", "==", date));
+const querySnapshot = await getDocs(q);
+return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+} catch (err) {
+console.error("Error loading allocations:", err);
+return [];
+}
+};
+
+
+// --- Your existing App component ---
+function App() {
+const [selectedDate, setSelectedDate] = useState("");
+const [trainingAllocations, setTrainingAllocations] = useState({});
+const [matchAllocations, setMatchAllocations] = useState({});
+
+
+// Load allocations whenever the date changes
+useEffect(() => {
+if (!selectedDate) return;
+
+
+const fetchAllocations = async () => {
+const training = await loadAllocations("trainingAllocations", selectedDate);
+setTrainingAllocations(training.reduce((acc, a) => ({ ...acc, [a.teamName]: a }), {}));
+
+
+const matches = await loadAllocations("matchAllocations", selectedDate);
+setMatchAllocations(matches.reduce((acc, a) => ({ ...acc, [a.teamName]: a }), {}));
+};
+
+
+fetchAllocations();
+}, [selectedDate]);
+
+
+// Hook Firestore into Training Day Allocator save logic
+const handleSaveTraining = async (teamName, allocation) => {
+const newAllocation = { ...allocation, teamName };
+await saveAllocation("trainingAllocations", newAllocation, selectedDate);
+const updated = await loadAllocations("trainingAllocations", selectedDate);
+setTrainingAllocations(updated.reduce((acc, a) => ({ ...acc, [a.teamName]: a }), {}));
+};
+
+
+// Hook Firestore into Match Day Allocator save logic
+const handleSaveMatch = async (teamName, allocation) => {
+const newAllocation = { ...allocation, teamName };
+await saveAllocation("matchAllocations", newAllocation, selectedDate);
+const updated = await loadAllocations("matchAllocations", selectedDate);
+setMatchAllocations(updated.reduce((acc, a) => ({ ...acc, [a.teamName]: a }), {}));
+};
+
+
+// ==============================
+// Updated allocator functions
+// ==============================
+
+
+const trainingDayAllocator = (teamName, allocation) => {
+// Update state instantly for UI
+setTrainingAllocations(prev => ({
+...prev,
+[teamName]: allocation
+}));
+
+
+// Persist to Firestore
+handleSaveTraining(teamName, allocation);
+};
+
+
+const matchDayAllocator = (teamName, allocation) => {
+// Update state instantly for UI
+setMatchAllocations(prev => ({
+...prev,
+[teamName]: allocation
+}));
+
+
+// Persist to Firestore
+handleSaveMatch(teamName, allocation);
+};
+
+
+return (
+<div>
+{import React, { useState, useMemo } from "react";
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const pitches = [
@@ -3010,4 +3135,10 @@ export default function App() {
     default:
       return <Menu onNavigate={navigate} />;
   }
+}}
+</div>
+);
 }
+
+
+export default App;
