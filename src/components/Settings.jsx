@@ -1,151 +1,110 @@
-// src/components/Settings.jsx
-import React, { useState, useEffect } from 'react';
-import { saveAppConfiguration, loadAppConfiguration } from '../utils/firebase';
-import { defaultTeams, pitches, getDefaultPitchAreaForTeam } from '../utils/constants';
+import React, { useState } from 'react';
 
-function Settings({ 
-  onBack, 
-  teams, 
-  addTeam, 
-  removeTeam, 
-  pitchOrientations, 
-  updatePitchOrientation, 
-  showGrassArea, 
-  updateGrassAreaVisibility, 
-  matchDayPitchAreaRequired, 
-  updateMatchDayPitchAreaRequired 
-}) {
+const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
+const pitches = [
+  { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
+  { id: "pitch1", name: "Pitch 1 - Astro", hasGrassArea: false }
+];
+
+const defaultTeams = [
+  { name: "Under 6", color: "#00FFFF" },
+  { name: "Under 8", color: "#FF0000" },
+  { name: "Under 9", color: "#0000FF" },
+  { name: "Under 10", color: "#00AA00" },
+  { name: "Under 11 - Red", color: "#CC0000" },
+  { name: "Under 11 - Black", color: "#000000" },
+  { name: "Under 12 YPL", color: "#FFD700" },
+  { name: "Under 12 YSL", color: "#FF6600" },
+  { name: "Under 13 YCC", color: "#8B00FF" },
+  { name: "Under 14 YCC", color: "#FF1493" },
+  { name: "Under 14 YSL", color: "#00CED1" },
+  { name: "Under 15 YCC", color: "#8B4513" },
+  { name: "Under 16 YCC", color: "#696969" }
+];
+
+function getDefaultPitchAreaForTeam(teamName) {
+  if (teamName.includes('Under 6') || teamName.includes('Under 7')) {
+    return 'Under 6 & 7';
+  } else if (teamName.includes('Under 8') || teamName.includes('Under 9')) {
+    return 'Under 8 & 9';
+  } else if (teamName.includes('Under 10') || teamName.includes('Under 11') || teamName.includes('Under 12') || teamName.includes('Under 13')) {
+    return 'Under 10-13';
+  } else if (teamName.includes('Under 14') || teamName.includes('Under 15') || teamName.includes('Under 16')) {
+    return 'Under 14+';
+  } else {
+    return 'Under 10-13';
+  }
+}
+
+function Settings({ onBack }) {
+  // State for teams
+  const [teams, setTeams] = useState(defaultTeams);
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamColor, setNewTeamColor] = useState('#3B82F6');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [saveStatus, setSaveStatus] = useState(null);
 
-  // Auto-save configuration when settings change
-  const saveConfigurationToFirebase = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      await saveAppConfiguration({
-        teams,
-        pitchOrientations,
-        showGrassArea,
-        matchDayPitchAreaRequired,
-        lastUpdated: new Date().toISOString()
-      });
-      
-      setSaveStatus('Configuration saved successfully!');
-      setTimeout(() => setSaveStatus(null), 3000);
-    } catch (err) {
-      setError(`Failed to save configuration: ${err.message}`);
-      console.error('Error saving configuration:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // State for pitch configurations
+  const [pitchOrientations, setPitchOrientations] = useState({
+    'pitch1': 'portrait',
+    'pitch2': 'portrait'
+  });
+  const [showGrassArea, setShowGrassArea] = useState({
+    'pitch1': false,
+    'pitch2': true
+  });
 
-  // Load configuration from Firebase
-  const loadConfigurationFromFirebase = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const config = await loadAppConfiguration();
-      if (config) {
-        // Note: In a real implementation, you'd want to update the parent component's state
-        // For now, we'll just show a success message
-        setSaveStatus('Configuration loaded from database!');
-        setTimeout(() => setSaveStatus(null), 3000);
-      } else {
-        setSaveStatus('No saved configuration found in database.');
-        setTimeout(() => setSaveStatus(null), 3000);
-      }
-    } catch (err) {
-      setError(`Failed to load configuration: ${err.message}`);
-      console.error('Error loading configuration:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // State for match day settings
+  const [matchDayPitchAreaRequired, setMatchDayPitchAreaRequired] = useState(() => {
+    const defaults = {};
+    defaultTeams.forEach(team => {
+      defaults[team.name] = getDefaultPitchAreaForTeam(team.name);
+    });
+    return defaults;
+  });
 
-  // Reset to default configuration
-  const resetToDefaults = async () => {
-    if (!window.confirm('Reset all settings to defaults? This will clear all custom teams and settings.')) {
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const defaultConfig = {
-        teams: defaultTeams,
-        pitchOrientations: {
-          'pitch1': 'portrait',
-          'pitch2': 'portrait'
-        },
-        showGrassArea: {
-          'pitch1': false,
-          'pitch2': true
-        },
-        matchDayPitchAreaRequired: {},
-        lastUpdated: new Date().toISOString()
-      };
-
-      await saveAppConfiguration(defaultConfig);
-      
-      // Note: In a real implementation, you'd want to reset the parent component's state
-      // This would require lifting this logic up or using a global state manager
-      setSaveStatus('Settings reset to defaults and saved to database!');
-      setTimeout(() => setSaveStatus(null), 3000);
-    } catch (err) {
-      setError(`Failed to reset configuration: ${err.message}`);
-      console.error('Error resetting configuration:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddTeam = async () => {
+  const handleAddTeam = () => {
     if (newTeamName.trim() && !teams.find(t => t.name === newTeamName.trim())) {
       const newTeam = {
         name: newTeamName.trim(),
         color: newTeamColor
       };
-      
-      // Add team locally
-      addTeam(newTeam);
-      
-      // Save to Firebase
-      await saveConfigurationToFirebase();
-      
-      // Reset form
+      setTeams(prev => [...prev, newTeam]);
+      setMatchDayPitchAreaRequired(prev => ({
+        ...prev,
+        [newTeam.name]: getDefaultPitchAreaForTeam(newTeam.name)
+      }));
       setNewTeamName('');
       setNewTeamColor('#3B82F6');
     }
   };
 
-  const handleRemoveTeam = async (teamName) => {
-    if (window.confirm(`Remove team "${teamName}"? This will also clear their match day settings.`)) {
-      removeTeam(teamName);
-      await saveConfigurationToFirebase();
-    }
+  const removeTeam = (teamName) => {
+    setTeams(prevTeams => prevTeams.filter(team => team.name !== teamName));
+    setMatchDayPitchAreaRequired(prev => {
+      const updated = { ...prev };
+      delete updated[teamName];
+      return updated;
+    });
   };
 
-  const handlePitchOrientationChange = async (pitchId, orientation) => {
-    updatePitchOrientation(pitchId, orientation);
-    await saveConfigurationToFirebase();
+  const updatePitchOrientation = (pitchId, orientation) => {
+    setPitchOrientations(prev => ({
+      ...prev,
+      [pitchId]: orientation
+    }));
   };
 
-  const handleGrassAreaChange = async (pitchId, visible) => {
-    updateGrassAreaVisibility(pitchId, visible);
-    await saveConfigurationToFirebase();
+  const updateGrassAreaVisibility = (pitchId, visible) => {
+    setShowGrassArea(prev => ({
+      ...prev,
+      [pitchId]: visible
+    }));
   };
 
-  const handleMatchDayAreaChange = async (teamName, pitchAreaReq) => {
-    updateMatchDayPitchAreaRequired(teamName, pitchAreaReq);
-    await saveConfigurationToFirebase();
+  const updateMatchDayPitchAreaRequired = (teamName, pitchAreaReq) => {
+    setMatchDayPitchAreaRequired(prev => ({
+      ...prev,
+      [teamName]: pitchAreaReq
+    }));
   };
 
   const generateRandomColor = () => {
@@ -158,17 +117,17 @@ function Settings({
     setNewTeamColor(randomColor);
   };
 
-  const exportConfiguration = () => {
-    const config = {
+  const exportSettings = () => {
+    const settingsData = {
       teams,
       pitchOrientations,
       showGrassArea,
       matchDayPitchAreaRequired,
       exportDate: new Date().toISOString(),
-      appVersion: "PitcHero v1.0"
+      appVersion: "PitcHero Settings v1.0"
     };
     
-    const dataStr = JSON.stringify(config, null, 2);
+    const dataStr = JSON.stringify(settingsData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     
@@ -181,39 +140,49 @@ function Settings({
     URL.revokeObjectURL(url);
   };
 
-  const importConfiguration = () => {
+  const importSettings = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    input.onchange = async (e) => {
+    input.onchange = (e) => {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = async (e) => {
+        reader.onload = (e) => {
           try {
-            const importedConfig = JSON.parse(e.target.result);
-            
-            // Validate the configuration structure
-            if (importedConfig.teams && Array.isArray(importedConfig.teams)) {
-              // Save imported configuration to Firebase
-              await saveAppConfiguration({
-                ...importedConfig,
-                lastUpdated: new Date().toISOString()
-              });
-              
-              setSaveStatus('Configuration imported and saved to database! Please refresh to see changes.');
-              setTimeout(() => setSaveStatus(null), 5000);
-            } else {
-              setError('Invalid configuration file format.');
-            }
+            const importData = JSON.parse(e.target.result);
+            if (importData.teams) setTeams(importData.teams);
+            if (importData.pitchOrientations) setPitchOrientations(importData.pitchOrientations);
+            if (importData.showGrassArea) setShowGrassArea(importData.showGrassArea);
+            if (importData.matchDayPitchAreaRequired) setMatchDayPitchAreaRequired(importData.matchDayPitchAreaRequired);
           } catch (error) {
-            setError('Error importing configuration: ' + error.message);
+            console.error('Error importing settings:', error);
+            alert('Error importing settings file. Please check the file format.');
           }
         };
         reader.readAsText(file);
       }
     };
     input.click();
+  };
+
+  const resetToDefaults = () => {
+    if (confirm('Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
+      setTeams(defaultTeams);
+      setPitchOrientations({
+        'pitch1': 'portrait',
+        'pitch2': 'portrait'
+      });
+      setShowGrassArea({
+        'pitch1': false,
+        'pitch2': true
+      });
+      const defaults = {};
+      defaultTeams.forEach(team => {
+        defaults[team.name] = getDefaultPitchAreaForTeam(team.name);
+      });
+      setMatchDayPitchAreaRequired(defaults);
+    }
   };
 
   return (
@@ -224,208 +193,76 @@ function Settings({
       fontFamily: 'system-ui, sans-serif'
     }}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        {/* Loading indicator */}
-        {loading && (
-          <div style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '4px',
-            fontSize: '14px',
-            zIndex: 1000
-          }}>
-            Saving to database...
-          </div>
-        )}
-
-        {/* Success message */}
-        {saveStatus && (
-          <div style={{
-            backgroundColor: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            borderRadius: '6px',
-            padding: '12px',
-            margin: '0 0 24px 0',
-            fontSize: '14px',
-            color: '#166534'
-          }}>
-            ✅ {saveStatus}
-          </div>
-        )}
-
-        {/* Error message */}
-        {error && (
-          <div style={{
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '6px',
-            padding: '12px',
-            margin: '0 0 24px 0',
-            fontSize: '14px',
-            color: '#dc2626'
-          }}>
-            <strong>Error:</strong> {error}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button
-              onClick={() => setError(null)}
+              onClick={onBack}
               style={{
-                marginLeft: '12px',
-                padding: '2px 6px',
-                backgroundColor: '#dc2626',
+                padding: '8px 16px',
+                backgroundColor: '#6b7280',
                 color: 'white',
                 border: 'none',
-                borderRadius: '3px',
+                borderRadius: '4px',
                 cursor: 'pointer',
-                fontSize: '12px'
+                fontSize: '14px'
               }}
             >
-              ✕
+              ← Back to Menu
             </button>
+            <h1 style={{
+              fontSize: '30px',
+              fontWeight: 'bold',
+              color: '#1f2937',
+              margin: 0
+            }}>Settings</h1>
           </div>
-        )}
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-          <button
-            onClick={onBack}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            ← Back to Menu
-          </button>
-          <h1 style={{
-            fontSize: '30px',
-            fontWeight: 'bold',
-            color: '#1f2937',
-            margin: 0
-          }}>Settings</h1>
-        </div>
-
-        {/* Configuration Management */}
-        <div style={{
-          backgroundColor: 'white',
-          padding: '32px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          marginBottom: '24px'
-        }}>
-          <h2 style={{
-            fontSize: '24px',
-            fontWeight: '600',
-            color: '#374151',
-            marginBottom: '24px'
-          }}>Configuration Management</h2>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '16px'
-          }}>
+          
+          <div style={{ display: 'flex', gap: '8px' }}>
             <button
-              onClick={saveConfigurationToFirebase}
-              disabled={loading}
+              onClick={exportSettings}
               style={{
-                padding: '12px 20px',
-                backgroundColor: loading ? '#9ca3af' : '#10b981',
+                padding: '8px 16px',
+                backgroundColor: '#0891b2',
                 color: 'white',
                 border: 'none',
-                borderRadius: '6px',
-                cursor: loading ? 'not-allowed' : 'pointer',
+                borderRadius: '4px',
+                cursor: 'pointer',
                 fontSize: '14px',
                 fontWeight: '500'
               }}
             >
-              💾 Save to Database
+              Export Settings
             </button>
-
             <button
-              onClick={loadConfigurationFromFirebase}
-              disabled={loading}
+              onClick={importSettings}
               style={{
-                padding: '12px 20px',
-                backgroundColor: loading ? '#9ca3af' : '#3b82f6',
+                padding: '8px 16px',
+                backgroundColor: '#7c3aed',
                 color: 'white',
                 border: 'none',
-                borderRadius: '6px',
-                cursor: loading ? 'not-allowed' : 'pointer',
+                borderRadius: '4px',
+                cursor: 'pointer',
                 fontSize: '14px',
                 fontWeight: '500'
               }}
             >
-              📥 Load from Database
+              Import Settings
             </button>
-
-            <button
-              onClick={exportConfiguration}
-              disabled={loading}
-              style={{
-                padding: '12px 20px',
-                backgroundColor: loading ? '#9ca3af' : '#f59e0b',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              📤 Export to File
-            </button>
-
-            <button
-              onClick={importConfiguration}
-              disabled={loading}
-              style={{
-                padding: '12px 20px',
-                backgroundColor: loading ? '#9ca3af' : '#8b5cf6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              📁 Import from File
-            </button>
-
             <button
               onClick={resetToDefaults}
-              disabled={loading}
               style={{
-                padding: '12px 20px',
-                backgroundColor: loading ? '#9ca3af' : '#ef4444',
+                padding: '8px 16px',
+                backgroundColor: '#ef4444',
                 color: 'white',
                 border: 'none',
-                borderRadius: '6px',
-                cursor: loading ? 'not-allowed' : 'pointer',
+                borderRadius: '4px',
+                cursor: 'pointer',
                 fontSize: '14px',
                 fontWeight: '500'
               }}
             >
-              🔄 Reset to Defaults
+              Reset to Defaults
             </button>
-          </div>
-
-          <div style={{
-            backgroundColor: '#f0f9ff',
-            border: '1px solid #0ea5e9',
-            borderRadius: '6px',
-            padding: '12px',
-            marginTop: '20px',
-            fontSize: '13px',
-            color: '#0c4a6e'
-          }}>
-            <strong>💡 Tip:</strong> Your settings are automatically saved to the Firebase database when you make changes. 
-            Use "Export to File" to create local backups of your configuration.
           </div>
         </div>
         
@@ -478,19 +315,12 @@ function Settings({
                   value={newTeamName}
                   onChange={(e) => setNewTeamName(e.target.value)}
                   placeholder="Enter team name..."
-                  disabled={loading}
                   style={{
                     width: '100%',
                     padding: '8px 12px',
                     border: '1px solid #d1d5db',
                     borderRadius: '4px',
-                    fontSize: '14px',
-                    opacity: loading ? 0.6 : 1
-                  }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleAddTeam();
-                    }
+                    fontSize: '14px'
                   }}
                 />
               </div>
@@ -507,50 +337,47 @@ function Settings({
                   type="color"
                   value={newTeamColor}
                   onChange={(e) => setNewTeamColor(e.target.value)}
-                  disabled={loading}
                   style={{
                     width: '60px',
                     height: '36px',
                     border: '1px solid #d1d5db',
                     borderRadius: '4px',
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    opacity: loading ? 0.6 : 1
+                    cursor: 'pointer'
                   }}
                 />
               </div>
               
               <button
                 onClick={generateRandomColor}
-                disabled={loading}
                 style={{
                   padding: '8px 12px',
-                  backgroundColor: loading ? '#9ca3af' : '#8b5cf6',
+                  backgroundColor: '#8b5cf6',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
-                  cursor: loading ? 'not-allowed' : 'pointer',
+                  cursor: 'pointer',
                   fontSize: '12px',
                   whiteSpace: 'nowrap'
                 }}
               >
-                🎲 Random
+                Random Color
               </button>
               
               <button
                 onClick={handleAddTeam}
-                disabled={!newTeamName.trim() || loading}
+                disabled={!newTeamName.trim()}
                 style={{
                   padding: '8px 16px',
-                  backgroundColor: (!newTeamName.trim() || loading) ? '#9ca3af' : '#10b981',
+                  backgroundColor: newTeamName.trim() ? '#10b981' : '#9ca3af',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
-                  cursor: (!newTeamName.trim() || loading) ? 'not-allowed' : 'pointer',
+                  cursor: newTeamName.trim() ? 'pointer' : 'not-allowed',
                   fontSize: '14px',
                   fontWeight: '500'
                 }}
               >
-                {loading ? 'Adding...' : 'Add Team'}
+                Add Team
               </button>
             </div>
           </div>
@@ -600,32 +427,22 @@ function Settings({
                         fontWeight: '500',
                         color: '#374151'
                       }}>{team.name}</span>
-                      {isDefaultTeam && (
-                        <span style={{
-                          fontSize: '11px',
-                          backgroundColor: '#dbeafe',
-                          color: '#1e40af',
-                          padding: '2px 6px',
-                          borderRadius: '10px'
-                        }}>Default</span>
-                      )}
                     </div>
                     
                     {!isDefaultTeam && (
                       <button
-                        onClick={() => handleRemoveTeam(team.name)}
-                        disabled={loading}
+                        onClick={() => removeTeam(team.name)}
                         style={{
                           padding: '4px 8px',
-                          backgroundColor: loading ? '#9ca3af' : '#ef4444',
+                          backgroundColor: '#ef4444',
                           color: 'white',
                           border: 'none',
                           borderRadius: '4px',
-                          cursor: loading ? 'not-allowed' : 'pointer',
+                          cursor: 'pointer',
                           fontSize: '12px'
                         }}
                       >
-                        {loading ? '...' : 'Remove'}
+                        Remove
                       </button>
                     )}
                   </div>
@@ -686,20 +503,18 @@ function Settings({
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      fontSize: '14px',
-                      opacity: loading ? 0.6 : 1
+                      cursor: 'pointer',
+                      fontSize: '14px'
                     }}>
                       <input
                         type="radio"
                         name={`orientation-${pitch.id}`}
                         value="portrait"
                         checked={pitchOrientations[pitch.id] === 'portrait'}
-                        onChange={() => handlePitchOrientationChange(pitch.id, 'portrait')}
-                        disabled={loading}
+                        onChange={() => updatePitchOrientation(pitch.id, 'portrait')}
                         style={{
                           margin: 0,
-                          cursor: loading ? 'not-allowed' : 'pointer'
+                          cursor: 'pointer'
                         }}
                       />
                       <span>Portrait</span>
@@ -709,20 +524,18 @@ function Settings({
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      fontSize: '14px',
-                      opacity: loading ? 0.6 : 1
+                      cursor: 'pointer',
+                      fontSize: '14px'
                     }}>
                       <input
                         type="radio"
                         name={`orientation-${pitch.id}`}
                         value="landscape"
                         checked={pitchOrientations[pitch.id] === 'landscape'}
-                        onChange={() => handlePitchOrientationChange(pitch.id, 'landscape')}
-                        disabled={loading}
+                        onChange={() => updatePitchOrientation(pitch.id, 'landscape')}
                         style={{
                           margin: 0,
-                          cursor: loading ? 'not-allowed' : 'pointer'
+                          cursor: 'pointer'
                         }}
                       />
                       <span>Landscape</span>
@@ -744,18 +557,16 @@ function Settings({
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      fontSize: '14px',
-                      opacity: loading ? 0.6 : 1
+                      cursor: 'pointer',
+                      fontSize: '14px'
                     }}>
                       <input
                         type="checkbox"
                         checked={showGrassArea[pitch.id]}
-                        onChange={(e) => handleGrassAreaChange(pitch.id, e.target.checked)}
-                        disabled={loading}
+                        onChange={(e) => updateGrassAreaVisibility(pitch.id, e.target.checked)}
                         style={{
                           margin: 0,
-                          cursor: loading ? 'not-allowed' : 'pointer'
+                          cursor: 'pointer'
                         }}
                       />
                       <span>Show grass area</span>
@@ -847,17 +658,15 @@ function Settings({
               
               <select 
                 value={matchDayPitchAreaRequired[team.name] || getDefaultPitchAreaForTeam(team.name)} 
-                onChange={(e) => handleMatchDayAreaChange(team.name, e.target.value)}
-                disabled={loading}
+                onChange={(e) => updateMatchDayPitchAreaRequired(team.name, e.target.value)}
                 style={{
                   padding: '6px 8px',
                   border: '1px solid #d1d5db',
                   borderRadius: '4px',
                   fontSize: '12px',
                   backgroundColor: 'white',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  minWidth: '120px',
-                  opacity: loading ? 0.6 : 1
+                  cursor: 'pointer',
+                  minWidth: '120px'
                 }}
               >
                 <option value="Under 6 & 7">Under 6 & 7</option>
@@ -867,19 +676,6 @@ function Settings({
               </select>
             </div>
           ))}
-        </div>
-
-        {/* Database Info */}
-        <div style={{
-          backgroundColor: '#f8fafc',
-          border: '1px solid #e2e8f0',
-          borderRadius: '8px',
-          padding: '16px',
-          fontSize: '13px',
-          color: '#475569'
-        }}>
-          <strong>🔥 Firebase Integration:</strong> Your settings are automatically saved to Firestore when you make changes. 
-          All teams, pitch configurations, and match day settings are stored in the cloud and will persist across browser sessions.
         </div>
       </div>
     </div>

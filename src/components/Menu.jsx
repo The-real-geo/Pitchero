@@ -1,3 +1,4 @@
+// src/components/Menu.jsx
 import React from 'react';
 
 function Menu({ onNavigate }) {
@@ -25,8 +26,16 @@ function Menu({ onNavigate }) {
           fontSize: '36px',
           fontWeight: 'bold',
           color: '#1f2937',
-          margin: '0 0 32px 0'
+          margin: '0 0 16px 0'
         }}>PitcHero</h1>
+        
+        <p style={{
+          fontSize: '16px',
+          color: '#6b7280',
+          margin: '0 0 32px 0'
+        }}>
+          Football Pitch Allocation System
+        </p>
         
         <div style={{
           display: 'flex',
@@ -44,10 +53,16 @@ function Menu({ onNavigate }) {
               cursor: 'pointer',
               fontSize: '18px',
               fontWeight: '600',
-              transition: 'background-color 0.2s'
+              transition: 'background-color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}
+            onMouseOver={(e) => e.target.style.backgroundColor = '#2563eb'}
+            onMouseOut={(e) => e.target.style.backgroundColor = '#3b82f6'}
           >
-            Training Pitch Allocator
+            ⚽ Training Pitch Allocator
           </button>
           
           <button
@@ -61,10 +76,16 @@ function Menu({ onNavigate }) {
               cursor: 'pointer',
               fontSize: '18px',
               fontWeight: '600',
-              transition: 'background-color 0.2s'
+              transition: 'background-color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}
+            onMouseOver={(e) => e.target.style.backgroundColor = '#047857'}
+            onMouseOut={(e) => e.target.style.backgroundColor = '#059669'}
           >
-            Match Day Pitch Allocator
+            🏆 Match Day Allocator
           </button>
           
           <button
@@ -78,11 +99,31 @@ function Menu({ onNavigate }) {
               cursor: 'pointer',
               fontSize: '18px',
               fontWeight: '600',
-              transition: 'background-color 0.2s'
+              transition: 'background-color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}
+            onMouseOver={(e) => e.target.style.backgroundColor = '#4b5563'}
+            onMouseOut={(e) => e.target.style.backgroundColor = '#6b7280'}
           >
-            Settings
+            ⚙️ Settings
           </button>
+        </div>
+        
+        <div style={{
+          marginTop: '32px',
+          padding: '16px',
+          backgroundColor: '#f3f4f6',
+          borderRadius: '8px',
+          fontSize: '12px',
+          color: '#6b7280'
+        }}>
+          <div style={{ fontWeight: '600', marginBottom: '8px' }}>System Status:</div>
+          <div>🔥 Firebase: Connected</div>
+          <div>⚡ Components: Ready</div>
+          <div>📊 13 Teams • 2 Pitches</div>
         </div>
       </div>
     </div>

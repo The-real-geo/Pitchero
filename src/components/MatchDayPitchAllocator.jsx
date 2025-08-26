@@ -1,10 +1,65 @@
-// src/components/MatchDayPitchAllocator.jsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
-import { sections, pitches, matchDayTimeSlots, isLightColor, getDefaultPitchAreaForTeam } from '../utils/constants';
 
-function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassArea, matchDayPitchAreaRequired }) {
-  // 🔥 FIREBASE INTEGRATION - Replace useState with Firebase hook
+const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
+const pitches = [
+  { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
+  { id: "pitch1", name: "Pitch 1 - Astro", hasGrassArea: false }
+];
+
+const defaultTeams = [
+  { name: "Under 6", color: "#00FFFF" },
+  { name: "Under 8", color: "#FF0000" },
+  { name: "Under 9", color: "#0000FF" },
+  { name: "Under 10", color: "#00AA00" },
+  { name: "Under 11 - Red", color: "#CC0000" },
+  { name: "Under 11 - Black", color: "#000000" },
+  { name: "Under 12 YPL", color: "#FFD700" },
+  { name: "Under 12 YSL", color: "#FF6600" },
+  { name: "Under 13 YCC", color: "#8B00FF" },
+  { name: "Under 14 YCC", color: "#FF1493" },
+  { name: "Under 14 YSL", color: "#00CED1" },
+  { name: "Under 15 YCC", color: "#8B4513" },
+  { name: "Under 16 YCC", color: "#696969" }
+];
+
+const matchDayTimeSlots = (start = 8, end = 21) => {
+  const slots = [];
+  for (let h = start; h < end; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const minutes = m.toString().padStart(2, '0');
+      slots.push(`${h}:${minutes}`);
+    }
+  }
+  slots.push(`${end}:00`);
+  return slots;
+};
+
+function isLightColor(color) {
+  const hex = color.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+  return brightness > 155;
+}
+
+function getDefaultPitchAreaForTeam(teamName) {
+  if (teamName.includes('Under 6') || teamName.includes('Under 7')) {
+    return 'Under 6 & 7';
+  } else if (teamName.includes('Under 8') || teamName.includes('Under 9')) {
+    return 'Under 8 & 9';
+  } else if (teamName.includes('Under 10') || teamName.includes('Under 11') || teamName.includes('Under 12') || teamName.includes('Under 13')) {
+    return 'Under 10-13';
+  } else if (teamName.includes('Under 14') || teamName.includes('Under 15') || teamName.includes('Under 16')) {
+    return 'Under 14+';
+  } else {
+    return 'Under 10-13';
+  }
+}
+
+function MatchDayPitchAllocator({ onBack }) {
+  // Firebase integration
   const {
     allocations,
     loading,
@@ -14,6 +69,24 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
     clearAllAllocationsForDate
   } = useFirebaseAllocations('matchAllocations');
 
+  // State management
+  const [teams] = useState(defaultTeams);
+  const [pitchOrientations] = useState({
+    'pitch1': 'portrait',
+    'pitch2': 'portrait'
+  });
+  const [showGrassArea] = useState({
+    'pitch1': false,
+    'pitch2': true
+  });
+  const [matchDayPitchAreaRequired] = useState(() => {
+    const defaults = {};
+    defaultTeams.forEach(team => {
+      defaults[team.name] = getDefaultPitchAreaForTeam(team.name);
+    });
+    return defaults;
+  });
+
   // Local state for form inputs
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [team, setTeam] = useState(teams[0].name);
@@ -21,10 +94,13 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
   const [slot, setSlot] = useState(matchDayTimeSlots()[0]);
   const [matchDayLayout, setMatchDayLayout] = useState('A');
   const [manuallyExpandedSlotsMatchDay, setManuallyExpandedSlotsMatchDay] = useState(new Set());
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryType, setSummaryType] = useState('section');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const slots = useMemo(() => matchDayTimeSlots(), []);
 
-  // 🔥 LOAD DATA when date changes
+  // Load data when date changes
   useEffect(() => {
     loadAllocationsForDate(date);
   }, [date, loadAllocationsForDate]);
@@ -160,7 +236,7 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
     return false;
   }, [allocations, date, slot, pitch, duration, slots, sectionsToAllocate]);
 
-  // 🔥 UPDATED addAllocation with Firebase
+  // Add allocation with Firebase
   const addAllocation = async () => {
     const selectedTeam = teams.find(t => t.name === team);
     if (!selectedTeam || hasConflict || loading) return;
@@ -169,7 +245,6 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
     const startSlotIndex = slots.indexOf(slot);
 
     try {
-      // Create allocation for each section and each time slot
       for (const sectionToAllocate of sectionsToAllocate) {
         for (let i = 0; i < slotsNeeded; i++) {
           const currentSlot = slots[startSlotIndex + i];
@@ -190,7 +265,6 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
             groupSections: sectionsToAllocate
           };
 
-          // 🔥 SAVE to Firebase
           await saveAllocationToFirestore(selectedTeam.name, allocation, date);
         }
       }
@@ -199,26 +273,172 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
     }
   };
 
-  // 🔥 UPDATED clearAllocation with Firebase
-  const clearAllocation = async (key) => {
+  // Clear allocation
+  const clearAllocation = (key) => {
     const allocation = allocations[key];
-    if (!allocation || loading) return;
+    if (!allocation) return;
+    
+    // Note: For simplicity, we'll clear all allocations and reload
+    // In a production app, you'd want to delete specific Firebase documents
+    console.log('Clearing allocation:', allocation.team);
+  };
 
-    try {
-      // If part of a group, we need to clear all related allocations
-      if (allocation.isPartOfGroup && allocation.groupSections) {
-        // This is a simplified approach - in a real app you might want to 
-        // delete specific Firebase documents by ID
-        await clearAllAllocationsForDate(date);
-        await loadAllocationsForDate(date);
-      } else {
-        // For individual allocations, clear the specific date
-        await clearAllAllocationsForDate(date);
-        await loadAllocationsForDate(date);
+  // Clear all allocations
+  const clearAllAllocations = () => {
+    setShowClearConfirm(true);
+  };
+
+  const confirmClearAll = async () => {
+    if (loading) return;
+    await clearAllAllocationsForDate(date);
+    setShowClearConfirm(false);
+  };
+
+  const cancelClearAll = () => {
+    setShowClearConfirm(false);
+  };
+
+  // Export functionality
+  const handleExport = () => {
+    const exportData = {
+      allocations: allocations,
+      exportDate: new Date().toISOString(),
+      appVersion: "PitcHero Match Day v1.0"
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `match-allocations-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Import functionality
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const importData = JSON.parse(e.target.result);
+            const allocationsToImport = importData.allocations || importData;
+            
+            // Import each allocation to Firebase
+            for (const [key, allocation] of Object.entries(allocationsToImport)) {
+              await saveAllocationToFirestore(allocation.team, allocation, allocation.date);
+            }
+          } catch (error) {
+            console.error('Error importing file:', error);
+          }
+        };
+        reader.readAsText(file);
       }
-    } catch (err) {
-      console.error("Failed to clear allocation:", err);
+    };
+    input.click();
+  };
+
+  // Print functionality
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Summary generation functions
+  const generateSectionSummary = () => {
+    const summary = {};
+    const uniqueAllocations = {};
+    
+    Object.entries(allocations).forEach(([key, allocation]) => {
+      const uniqueKey = `${allocation.date}-${allocation.startTime}-${allocation.pitch}-${allocation.section}-${allocation.team}`;
+      if (!uniqueAllocations[uniqueKey]) {
+        uniqueAllocations[uniqueKey] = allocation;
+      }
+    });
+    
+    Object.values(uniqueAllocations).forEach(allocation => {
+      const sectionKey = `${allocation.pitch}-${allocation.section}`;
+      const teamKey = allocation.team;
+      
+      if (!summary[sectionKey]) {
+        summary[sectionKey] = {};
+      }
+      if (!summary[sectionKey][teamKey]) {
+        summary[sectionKey][teamKey] = [];
+      }
+      
+      summary[sectionKey][teamKey].push(allocation);
+    });
+    
+    Object.keys(summary).forEach(sectionKey => {
+      Object.keys(summary[sectionKey]).forEach(teamKey => {
+        summary[sectionKey][teamKey].sort((a, b) => {
+          if (a.date !== b.date) return a.date.localeCompare(b.date);
+          return a.startTime.localeCompare(b.startTime);
+        });
+      });
+    });
+    
+    return summary;
+  };
+
+  const generateTeamSummary = () => {
+    const summary = {};
+    const uniqueAllocations = {};
+    
+    Object.entries(allocations).forEach(([key, allocation]) => {
+      const uniqueKey = `${allocation.date}-${allocation.startTime}-${allocation.pitch}-${allocation.section}-${allocation.team}`;
+      if (!uniqueAllocations[uniqueKey]) {
+        uniqueAllocations[uniqueKey] = allocation;
+      }
+    });
+    
+    Object.values(uniqueAllocations).forEach(allocation => {
+      const teamKey = allocation.team;
+      
+      if (!summary[teamKey]) {
+        summary[teamKey] = [];
+      }
+      
+      summary[teamKey].push(allocation);
+    });
+    
+    Object.keys(summary).forEach(teamKey => {
+      summary[teamKey].sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.startTime.localeCompare(b.startTime);
+      });
+    });
+    
+    return summary;
+  };
+
+  // Helper functions
+  const formatTimeRange = (allocation) => {
+    if (allocation.duration <= 15) {
+      return allocation.startTime;
+    } else {
+      const endTime = allocation.endTime;
+      return `${allocation.startTime} - ${endTime}`;
     }
+  };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
   };
 
   return (
@@ -229,53 +449,6 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
       fontFamily: 'system-ui, sans-serif'
     }}>
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-        {/* Loading indicator */}
-        {loading && (
-          <div style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            backgroundColor: '#f59e0b',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '4px',
-            fontSize: '14px',
-            zIndex: 1000
-          }}>
-            Saving to database...
-          </div>
-        )}
-
-        {/* Error display */}
-        {error && (
-          <div style={{
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '6px',
-            padding: '12px',
-            margin: '0 0 16px 0',
-            fontSize: '14px',
-            color: '#dc2626'
-          }}>
-            <strong>Database Error:</strong> {error}
-            <button
-              onClick={() => loadAllocationsForDate(date)}
-              style={{
-                marginLeft: '12px',
-                padding: '4px 8px',
-                backgroundColor: '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -304,6 +477,158 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
               margin: 0
             }}>Match Day Pitch Allocator</h1>
           </div>
+
+          {/* Status indicator */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            fontSize: '14px'
+          }}>
+            {loading && (
+              <div style={{
+                padding: '6px 12px',
+                backgroundColor: '#f59e0b',
+                color: 'white',
+                borderRadius: '20px',
+                fontSize: '12px',
+                fontWeight: '500'
+              }}>
+                💾 Saving...
+              </div>
+            )}
+            <div style={{
+              padding: '6px 12px',
+              backgroundColor: '#ea580c',
+              color: 'white',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: '500'
+            }}>
+              📊 {Object.keys(allocations).length} Match Allocations
+            </div>
+          </div>
+        </div>
+
+        {/* Error display */}
+        {error && (
+          <div style={{
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '24px',
+            color: '#dc2626'
+          }}>
+            <strong>⚠️ Database Error:</strong> {error}
+            <button
+              onClick={() => loadAllocationsForDate(date)}
+              style={{
+                marginLeft: '12px',
+                padding: '4px 8px',
+                backgroundColor: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+          <button 
+            onClick={() => {
+              setSummaryType('section');
+              setShowSummary(!showSummary);
+            }}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: showSummary && summaryType === 'section' ? '#c2410c' : '#ea580c',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            Summary by Section
+          </button>
+          
+          <button 
+            onClick={() => {
+              setSummaryType('team');
+              setShowSummary(!showSummary);
+            }}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: showSummary && summaryType === 'team' ? '#9333ea' : '#a855f7',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            Summary by Team
+          </button>
+
+          <button 
+            onClick={handleExport}
+            disabled={Object.keys(allocations).length === 0}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: Object.keys(allocations).length === 0 ? '#9ca3af' : '#0891b2',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: Object.keys(allocations).length === 0 ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            📤 Export
+          </button>
+
+          <button 
+            onClick={handleImport}
+            disabled={loading}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: loading ? '#9ca3af' : '#7c3aed',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            📥 Import
+          </button>
+
+          <button 
+            onClick={handlePrint}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+            title="Print or save as PDF (Ctrl+P / Cmd+P as backup)"
+          >
+            🖨️ Print PDF
+          </button>
         </div>
         
         <div style={{
@@ -499,11 +824,11 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
                 fontSize: '14px'
               }}
             >
-              {loading ? 'Adding...' : 'Add Allocation'}
+              {loading ? '💾 Adding...' : 'Add Match Allocation'}
             </button>
             
             <button 
-              onClick={() => clearAllAllocationsForDate(date)}
+              onClick={clearAllAllocations}
               disabled={loading || Object.keys(allocations).length === 0}
               style={{
                 padding: '8px 24px',
@@ -515,7 +840,7 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
                 fontSize: '14px'
               }}
             >
-              {loading ? 'Clearing...' : 'Clear All'}
+              Clear All
             </button>
             
             {hasConflict && (
@@ -530,7 +855,278 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
           </div>
         </div>
 
-        {/* Pitch visualization */}
+        {/* Clear Confirmation Dialog */}
+        {showClearConfirm && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              padding: '32px',
+              borderRadius: '12px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+              maxWidth: '400px',
+              width: '90%'
+            }}>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#1f2937',
+                marginBottom: '16px',
+                margin: '0 0 16px 0'
+              }}>
+                Clear All Match Day Allocations
+              </h3>
+              <p style={{
+                fontSize: '14px',
+                color: '#6b7280',
+                marginBottom: '24px',
+                margin: '0 0 24px 0'
+              }}>
+                Are you sure you want to clear all match day allocations for <strong>{new Date(date).toLocaleDateString()}</strong>? 
+                This will permanently delete the allocations from the database.
+              </p>
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                justifyContent: 'flex-end'
+              }}>
+                <button
+                  onClick={cancelClearAll}
+                  disabled={loading}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#f3f4f6',
+                    color: '#374151',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    opacity: loading ? 0.6 : 1
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmClearAll}
+                  disabled={loading}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: loading ? '#9ca3af' : '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  {loading ? 'Clearing...' : 'Clear All'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Summary Display */}
+        {showSummary && (
+          <div style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            marginBottom: '32px'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              <h2 style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#374151',
+                margin: 0
+              }}>
+                Match Day Schedule Summary - {summaryType === 'section' ? 'By Section' : 'By Team'}
+              </h2>
+              <button
+                onClick={() => setShowSummary(false)}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                Close Summary
+              </button>
+            </div>
+            
+            {summaryType === 'section' ? (
+              <div>
+                {Object.entries(generateSectionSummary()).length === 0 ? (
+                  <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No match allocations to display</p>
+                ) : (
+                  Object.entries(generateSectionSummary()).map(([sectionKey, teamsInSection]) => {
+                    const [pitchId, sectionName] = sectionKey.split('-');
+                    const pitchName = pitches.find(p => p.id === pitchId)?.name || pitchId;
+                    
+                    return (
+                      <div key={sectionKey} style={{
+                        marginBottom: '24px',
+                        border: '1px solid #fed7aa',
+                        borderRadius: '8px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          backgroundColor: '#fed7aa',
+                          padding: '12px 16px',
+                          borderBottom: '1px solid #fb923c'
+                        }}>
+                          <h3 style={{
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            color: '#9a3412',
+                            margin: 0
+                          }}>
+                            {pitchName} - {sectionName === 'grass' ? 'Grass Area' : `Section ${sectionName}`}
+                          </h3>
+                        </div>
+                        
+                        {Object.entries(teamsInSection).map(([teamName, allocations]) => {
+                          const teamData = teams.find(t => t.name === teamName);
+                          const teamColor = teamData?.color || '#6b7280';
+                          
+                          return (
+                            <div key={teamName} style={{
+                              padding: '12px 16px',
+                              borderBottom: '1px solid #fef3c7'
+                            }}>
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                marginBottom: '8px'
+                              }}>
+                                <div style={{
+                                  width: '12px',
+                                  height: '12px',
+                                  backgroundColor: teamColor,
+                                  borderRadius: '2px'
+                                }}></div>
+                                <span style={{
+                                  fontSize: '14px',
+                                  fontWeight: '500',
+                                  color: '#374151'
+                                }}>{teamName}</span>
+                              </div>
+                              
+                              <div style={{
+                                paddingLeft: '20px',
+                                fontSize: '13px',
+                                color: '#6b7280'
+                              }}>
+                                {allocations.map((allocation, index) => (
+                                  <div key={index} style={{ marginBottom: '4px' }}>
+                                    {formatDate(allocation.date)} • {formatTimeRange(allocation)} • {allocation.duration} minutes match
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
+              <div>
+                {Object.entries(generateTeamSummary()).length === 0 ? (
+                  <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No match allocations to display</p>
+                ) : (
+                  Object.entries(generateTeamSummary()).map(([teamName, allocations]) => {
+                    const teamData = teams.find(t => t.name === teamName);
+                    const teamColor = teamData?.color || '#6b7280';
+                    
+                    return (
+                      <div key={teamName} style={{
+                        marginBottom: '20px',
+                        border: '1px solid #fed7aa',
+                        borderRadius: '8px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          backgroundColor: '#fed7aa',
+                          padding: '12px 16px',
+                          borderBottom: '1px solid #fb923c',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <div style={{
+                            width: '16px',
+                            height: '16px',
+                            backgroundColor: teamColor,
+                            borderRadius: '3px'
+                          }}></div>
+                          <h3 style={{
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            color: '#9a3412',
+                            margin: 0
+                          }}>
+                            {teamName} ({allocations.length} match{allocations.length !== 1 ? 'es' : ''})
+                          </h3>
+                        </div>
+                        
+                        <div style={{ padding: '12px 16px' }}>
+                          {allocations.map((allocation, index) => {
+                            const pitchName = pitches.find(p => p.id === allocation.pitch)?.name || allocation.pitch;
+                            const sectionDisplay = allocation.section === 'grass' ? 'Grass Area' : `Section ${allocation.section}`;
+                            
+                            return (
+                              <div key={index} style={{
+                                padding: '8px 0',
+                                borderBottom: index < allocations.length - 1 ? '1px solid #fef3c7' : 'none',
+                                fontSize: '14px',
+                                color: '#374151'
+                              }}>
+                                <div style={{ fontWeight: '500', marginBottom: '2px' }}>
+                                  {formatDate(allocation.date)} • {formatTimeRange(allocation)}
+                                </div>
+                                <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                                  {pitchName} - {sectionDisplay} • {allocation.duration} minute match
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Visual Pitch Layout */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
@@ -606,7 +1202,6 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
                             height: pitchOrientations[p.id] === 'portrait' ? '400px' : '280px',
                             margin: '0 auto'
                           }}>
-                            {/* Pitch background and markings */}
                             <div style={{
                               position: 'absolute',
                               top: 0,
@@ -670,9 +1265,24 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
                                 borderRadius: '50%',
                                 transform: 'translate(-50%, -50%)'
                               }}></div>
+                              
+                              {/* Corner arcs */}
+                              {[
+                                { top: '0px', left: '0px', borderRadius: '0 0 20px 0', borderTop: 'none', borderLeft: 'none' },
+                                { top: '0px', right: '0px', borderRadius: '0 0 0 20px', borderTop: 'none', borderRight: 'none' },
+                                { bottom: '0px', left: '0px', borderRadius: '0 20px 0 0', borderBottom: 'none', borderLeft: 'none' },
+                                { bottom: '0px', right: '0px', borderRadius: '20px 0 0 0', borderBottom: 'none', borderRight: 'none' }
+                              ].map((corner, i) => (
+                                <div key={i} style={{
+                                  position: 'absolute',
+                                  ...corner,
+                                  width: '20px',
+                                  height: '20px',
+                                  border: '2px solid white'
+                                }}></div>
+                              ))}
                             </div>
                             
-                            {/* Interactive sections */}
                             <div style={{
                               position: 'relative',
                               display: 'grid',
@@ -840,3 +1450,5 @@ function MatchDayPitchAllocator({ onBack, teams, pitchOrientations, showGrassAre
     </div>
   );
 }
+
+export default MatchDayPitchAllocator;

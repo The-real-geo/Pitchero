@@ -1,3 +1,4 @@
+// src/utils/constants.js
 export const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 export const pitches = [
