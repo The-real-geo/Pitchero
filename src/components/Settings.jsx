@@ -167,7 +167,7 @@ function Settings({ onBack }) {
   };
 
   const resetToDefaults = () => {
-    if (confirm('Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
+    if (window.confirm("Are you sure?")) {
       setTeams(defaultTeams);
       setPitchOrientations({
         'pitch1': 'portrait',
