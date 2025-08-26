@@ -4,12 +4,6 @@ import { auth } from "../utils/firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 
-// Inside a functional component
-const MatchDayPitchAllocator = () => {
-  const navigate = useNavigate(); // ← correct place
-  // ...
-}
-
 function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

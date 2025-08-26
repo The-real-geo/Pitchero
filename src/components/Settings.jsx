@@ -2,11 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom"
 import { auth } from "../utils/firebase";
 
-// Inside a functional component
-const MatchDayPitchAllocator = () => {
-  const navigate = useNavigate(); // ← correct place
-  // ...
-}
 
 const pitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
@@ -44,7 +39,7 @@ function getDefaultPitchAreaForTeam(teamName) {
 }
 
 function Settings({ onBack }) {
-  // State for teams
+  const navigate = useNavigate();// State for teams
   const [teams, setTeams] = useState(defaultTeams);
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamColor, setNewTeamColor] = useState('#3B82F6');

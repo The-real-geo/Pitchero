@@ -3,12 +3,6 @@ import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 import { useNavigate } from "react-router-dom";
 import { auth } from "../utils/firebase";
 
-// Inside a functional component
-const MatchDayPitchAllocator = () => {
-  const navigate = useNavigate(); // ← correct place
-  // ...
-}
-
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const pitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
@@ -50,6 +44,7 @@ function isLightColor(color) {
 
 function TrainingPitchAllocator({ onBack }) {
   // Firebase integration
+  const navigate = useNavigate();
   const {
     allocations,
     loading,

@@ -3,11 +3,7 @@ import React from 'react';
 import { useNavigate } from "react-router-dom";
 import { auth } from "../utils/firebase";
 
-// Inside a functional component
-const MatchDayPitchAllocator = () => {
-  const navigate = useNavigate(); // ← correct place
-  // ...
-}
+
 
 function Menu({ onNavigate }) {
   return (
