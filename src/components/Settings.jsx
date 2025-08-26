@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 
-const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const pitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
   { id: "pitch1", name: "Pitch 1 - Astro", hasGrassArea: false }
@@ -167,7 +166,7 @@ function Settings({ onBack }) {
   };
 
   const resetToDefaults = () => {
-    if (confirm("Are you sure?")) {'Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
+    if (window.confirm("Are you sure?")) {
       setTeams(defaultTeams);
       setPitchOrientations({
         'pitch1': 'portrait',

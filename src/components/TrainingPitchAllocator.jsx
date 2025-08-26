@@ -210,7 +210,7 @@ function TrainingPitchAllocator({ onBack }) {
             const allocationsToImport = importData.allocations || importData;
             
             // Import each allocation to Firebase
-            for (const [key, allocation] of Object.entries(allocationsToImport)) {
+            for (const [allocation] of Object.entries(allocationsToImport)) {
               await saveAllocationToFirestore(allocation.team, allocation, allocation.date);
             }
           } catch (error) {

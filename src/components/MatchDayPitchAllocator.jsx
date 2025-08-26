@@ -247,8 +247,7 @@ function MatchDayPitchAllocator({ onBack }) {
     try {
       for (const sectionToAllocate of sectionsToAllocate) {
         for (let i = 0; i < slotsNeeded; i++) {
-          const currentSlot = slots[startSlotIndex + i];
-          
+                    
           const allocation = {
             team: selectedTeam.name,
             colour: selectedTeam.color,
@@ -334,7 +333,7 @@ function MatchDayPitchAllocator({ onBack }) {
             const allocationsToImport = importData.allocations || importData;
             
             // Import each allocation to Firebase
-            for (const [key, allocation] of Object.entries(allocationsToImport)) {
+            for (const [allocation] of Object.entries(allocationsToImport)) {
               await saveAllocationToFirestore(allocation.team, allocation, allocation.date);
             }
           } catch (error) {
