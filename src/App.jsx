@@ -1,42 +1,66 @@
-// src/App.jsx - Clean version using Menu component
-import React, { useState } from 'react';
-import Menu from './components/Menu';
-import TrainingPitchAllocator from './components/TrainingPitchAllocator';
-import MatchDayPitchAllocator from './components/MatchDayPitchAllocator';
-import Settings from './components/Settings';
+// src/App.js
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+
+import LoginPage from "./components/LoginPage"; // we will create this
+import Menu from "./components/Menu";
+import TrainingPitchAllocator from "./components/TrainingPitchAllocator";
+import MatchDayPitchAllocator from "./components/MatchDayPitchAllocator";
+import Settings from "./components/Settings";
+import PrivateRoute from "./components/PrivateRoute";
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('menu');
+  return (
+    <Router>
+      <Routes>
+        {/* Public login route */}
+        <Route path="/login" element={<LoginPage />} />
 
-  const navigate = (page) => {
-    setCurrentPage(page);
-  };
+        {/* Protected menu */}
+        <Route
+          path="/menu"
+          element={
+            <PrivateRoute>
+              <Menu />
+            </PrivateRoute>
+          }
+        />
 
-  const goBackToMenu = () => {
-    setCurrentPage('menu');
-  };
+        {/* Protected training page */}
+        <Route
+          path="/training"
+          element={
+            <PrivateRoute>
+              <TrainingPitchAllocator />
+            </PrivateRoute>
+          }
+        />
 
-  // Main menu
-  if (currentPage === 'menu') {
-    return <Menu onNavigate={navigate} />;
-  }
+        {/* Protected match day page */}
+        <Route
+          path="/matchday"
+          element={
+            <PrivateRoute>
+              <MatchDayPitchAllocator />
+            </PrivateRoute>
+          }
+        />
 
-  // Training page
-if (currentPage === 'training') {
-  return <TrainingPitchAllocator onBack={goBackToMenu} />;
-}
+        {/* Protected settings page */}
+        <Route
+          path="/settings"
+          element={
+            <PrivateRoute>
+              <Settings />
+            </PrivateRoute>
+          }
+        />
 
-  // Match day page 
-  if (currentPage === 'matchday') {
-  return <MatchDayPitchAllocator onBack={goBackToMenu} />;
-}
-
-  // Settings page 
-  if (currentPage === 'settings') {
-  return <Settings onBack={goBackToMenu} />;
-}
-
-  return null;
+        {/* Redirect root to login */}
+        <Route path="/" element={<LoginPage />} />
+      </Routes>
+    </Router>
+  );
 }
 
 export default App;

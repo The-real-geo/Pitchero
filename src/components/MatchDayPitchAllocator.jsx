@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
+import { useNavigate } from "react-router-dom";
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const pitches = [
@@ -455,7 +456,7 @@ function MatchDayPitchAllocator({ onBack }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button
-              onClick={onBack}
+              onClick={() => navigate("/menu")}
               style={{
                 padding: '8px 16px',
                 backgroundColor: '#6b7280',

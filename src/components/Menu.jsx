@@ -1,5 +1,6 @@
 // src/components/Menu.jsx
 import React from 'react';
+import { useNavigate } from "react-router-dom";
 
 function Menu({ onNavigate }) {
   return (
@@ -43,7 +44,7 @@ function Menu({ onNavigate }) {
           gap: '16px'
         }}>
           <button
-            onClick={() => onNavigate('training')}
+            onClick={() => onNavigate('/training')}
             style={{
               padding: '16px 24px',
               backgroundColor: '#3b82f6',
@@ -66,7 +67,7 @@ function Menu({ onNavigate }) {
           </button>
           
           <button
-            onClick={() => onNavigate('matchday')}
+            onClick={() => onNavigate('/matchday')}
             style={{
               padding: '16px 24px',
               backgroundColor: '#059669',
@@ -89,7 +90,7 @@ function Menu({ onNavigate }) {
           </button>
           
           <button
-            onClick={() => onNavigate('settings')}
+            onClick={() => onNavigate('/settings')}
             style={{
               padding: '16px 24px',
               backgroundColor: '#6b7280',
