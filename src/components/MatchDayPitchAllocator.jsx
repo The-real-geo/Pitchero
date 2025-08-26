@@ -1349,7 +1349,7 @@ function MatchDayPitchAllocator({ onBack }) {
                             </div>
                           </div>
                           
-                          {/* Grass area for pitches that have it enabled */}
+                          {/* Grass area for pitches  x that have it enabled */}
                           {showGrassArea[p.id] && (
                             <div style={{ marginTop: '8px' }}>
                               <div style={{
