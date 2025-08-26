@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom"
 import { auth } from "../utils/firebase";
 
-const navigate = useNavigate(); // ← define navigate at the top of the component
+// Inside a functional component
+const MatchDayPitchAllocator = () => {
+  const navigate = useNavigate(); // ← correct place
+  // ...
+}
 
 const pitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },

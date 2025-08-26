@@ -3,7 +3,11 @@ import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 import { useNavigate } from "react-router-dom";
 import { auth } from "../utils/firebase";
 
-const navigate = useNavigate(); // ← define navigate at the top of the component
+// Inside a functional component
+const MatchDayPitchAllocator = () => {
+  const navigate = useNavigate(); // ← correct place
+  // ...
+}
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const pitches = [
