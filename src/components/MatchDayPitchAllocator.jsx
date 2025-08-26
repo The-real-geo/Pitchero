@@ -5,11 +5,6 @@ import { auth } from "../utils/firebase";
 
 
 
-// Inside a functional component
-const MatchDayPitchAllocator = () => {
-  const navigate = useNavigate(); // ← correct place
-  // ...
-}
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const pitches = [
@@ -70,6 +65,7 @@ function getDefaultPitchAreaForTeam(teamName) {
 
 function MatchDayPitchAllocator({ onBack }) {
   // Firebase integration
+  const navigate = useNavigate()
   const {
     allocations,
     loading,
