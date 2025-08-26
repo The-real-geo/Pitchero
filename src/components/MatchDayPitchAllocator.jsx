@@ -247,7 +247,8 @@ function MatchDayPitchAllocator({ onBack }) {
     try {
       for (const sectionToAllocate of sectionsToAllocate) {
         for (let i = 0; i < slotsNeeded; i++) {
-                    
+          const currentSlot = slots[startSlotIndex + i];
+          
           const allocation = {
             team: selectedTeam.name,
             colour: selectedTeam.color,
@@ -333,7 +334,7 @@ function MatchDayPitchAllocator({ onBack }) {
             const allocationsToImport = importData.allocations || importData;
             
             // Import each allocation to Firebase
-            for (const [allocation] of Object.entries(allocationsToImport)) {
+            for (const [key, allocation] of Object.entries(allocationsToImport)) {
               await saveAllocationToFirestore(allocation.team, allocation, allocation.date);
             }
           } catch (error) {
@@ -1349,35 +1350,35 @@ function MatchDayPitchAllocator({ onBack }) {
                             </div>
                           </div>
                           
-                          {/* Grass area for pitches  x that have it enabled */}
-                          {showGrassArea[p.id] && (
-                            <div style={{ marginTop: '8px' }}>
+                          {/* Grass area space - always rendered for alignment */}
+                          <div style={{ marginTop: '8px' }}>
+                            <div style={{
+                              position: 'relative',
+                              width: pitchOrientations[p.id] === 'portrait' ? '280px' : '400px',
+                              margin: '0 auto',
+                              display: 'grid',
+                              gridTemplateColumns: pitchOrientations[p.id] === 'portrait' ? '1fr 1fr' : '1fr 1fr 1fr 1fr',
+                              gap: '4px',
+                              height: '104px'
+                            }}>
                               <div style={{
                                 position: 'relative',
-                                width: pitchOrientations[p.id] === 'portrait' ? '280px' : '400px',
-                                margin: '0 auto',
-                                display: 'grid',
-                                gridTemplateColumns: pitchOrientations[p.id] === 'portrait' ? '1fr 1fr' : '1fr 1fr 1fr 1fr',
-                                gap: '4px',
-                                height: '104px'
+                                backgroundColor: showGrassArea[p.id] ? '#dcfce7' : 'white',
+                                border: '4px solid white',
+                                borderRadius: '8px',
+                                padding: '8px'
                               }}>
                                 <div style={{
-                                  position: 'relative',
-                                  backgroundColor: '#dcfce7',
-                                  border: '4px solid white',
-                                  borderRadius: '8px',
-                                  padding: '8px'
-                                }}>
-                                  <div style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    backgroundColor: '#bbf7d0',
-                                    borderRadius: '8px'
-                                  }}></div>
-                                  
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  backgroundColor: showGrassArea[p.id] ? '#bbf7d0' : 'white',
+                                  borderRadius: '8px'
+                                }}></div>
+                                
+                                {showGrassArea[p.id] && (
                                   <div style={{ position: 'relative', zIndex: 10, height: '100%' }}>
                                     {(() => {
                                       const key = `${date}-${s}-${p.id}-grass`;
@@ -1431,11 +1432,11 @@ function MatchDayPitchAllocator({ onBack }) {
                                       );
                                     })()}
                                   </div>
-                                </div>
-                                <div></div>
+                                )}
                               </div>
+                              <div></div>
                             </div>
-                          )}
+                          </div>
                         </>
                       )}
                     </div>
