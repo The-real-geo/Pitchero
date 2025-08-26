@@ -3,6 +3,10 @@ import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 import { useNavigate } from "react-router-dom";
 import { auth } from "../utils/firebase";
 
+
+
+const navigate = useNavigate(); // ← define navigate at the top of the component
+
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const pitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },

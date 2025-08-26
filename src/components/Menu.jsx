@@ -3,6 +3,8 @@ import React from 'react';
 import { useNavigate } from "react-router-dom";
 import { auth } from "../utils/firebase";
 
+const navigate = useNavigate(); // ← define navigate at the top of the component
+
 function Menu({ onNavigate }) {
   return (
     <div style={{
