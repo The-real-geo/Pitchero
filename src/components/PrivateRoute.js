@@ -2,7 +2,7 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "../firebase"; // "../" because it's in components folder
+import { auth } from "../utils/firebase"; // "../" because it's in components folder
 
 const PrivateRoute = ({ children }) => {
   const [user, loading] = useAuthState(auth);

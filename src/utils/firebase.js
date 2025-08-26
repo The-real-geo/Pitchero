@@ -1,12 +1,12 @@
 // src/utils/firebase.js
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, getDocs, query, where, deleteDoc, doc } from "firebase/firestore";
+import { getAuth } from "firebase/auth"; // ← add this for authentication
 
 // 🔥 REPLACE WITH YOUR FIREBASE CONFIG
-// Get this from Firebase Console → Project Settings → General → Your apps
 const firebaseConfig = {
   apiKey: "AIzaSyC96Yt2uRUrkSkBD3urTK_7s5geQjFZkkI",
-  authDomain: "pitchero-eae06.firebaseapp.com", 
+  authDomain: "pitchero-eae06.firebaseapp.com",
   projectId: "pitchero-eae06",
   storageBucket: "pitchero-eae06.firebasestorage.app",
   messagingSenderId: "1083501668068",
@@ -16,7 +16,12 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// Firestore reference
 export const db = getFirestore(app);
+
+// Firebase Authentication reference
+export const auth = getAuth(app); // ← export auth for login/signup and PrivateRoute
 
 // Firestore helper functions
 export const saveAllocation = async (allocatorType, allocation, date) => {
@@ -105,7 +110,6 @@ export const testFirebaseConnection = async () => {
   try {
     console.log("🔥 Testing Firebase connection...");
     
-    // Try to read from a collection (this will create it if it doesn't exist)
     const testCollection = collection(db, 'connectionTest');
     await getDocs(testCollection);
     

@@ -1,14 +1,17 @@
 // src/hooks/useFirebaseAllocations.js
 import { useState, useCallback } from 'react';
-import { loadAllocations, saveAllocation, clearAllAllocations } from '../utils/firebase';
+import { loadAllocations, saveAllocation, clearAllAllocations, auth } from '../utils/firebase'; // 🔹 add auth
+import { useAuthState } from 'react-firebase-hooks/auth'; // 🔹 track logged-in user
 
 export const useFirebaseAllocations = (allocatorType) => {
   const [allocations, setAllocations] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const [user] = useAuthState(auth); // 🔹 reactive auth state
+
   const loadAllocationsForDate = useCallback(async (date) => {
-    if (!date) return;
+    if (!date || !user) return; // 🔹 only load if logged in
     
     setLoading(true);
     setError(null);
@@ -20,16 +23,11 @@ export const useFirebaseAllocations = (allocatorType) => {
       // Convert Firebase data back to UI format
       const allocationsMap = {};
       data.forEach(allocation => {
-        // Handle multi-slot allocations
         if (allocation.isMultiSlot && allocation.totalSlots > 1) {
           const slots = getTimeSlots(allocation.startTime, allocation.totalSlots, allocatorType);
-          
           slots.forEach((timeSlot, index) => {
             const key = `${allocation.date}-${timeSlot}-${allocation.pitch}-${allocation.section}`;
-            allocationsMap[key] = {
-              ...allocation,
-              slotIndex: index
-            };
+            allocationsMap[key] = { ...allocation, slotIndex: index };
           });
         } else {
           const key = `${allocation.date}-${allocation.startTime}-${allocation.pitch}-${allocation.section}`;
@@ -45,9 +43,10 @@ export const useFirebaseAllocations = (allocatorType) => {
     } finally {
       setLoading(false);
     }
-  }, [allocatorType]);
+  }, [allocatorType, user]); // 🔹 add user as dependency
 
   const saveAllocationToFirestore = useCallback(async (teamName, allocation, date) => {
+    if (!user) return; // 🔹 only save if logged in
     setLoading(true);
     setError(null);
     
@@ -55,9 +54,7 @@ export const useFirebaseAllocations = (allocatorType) => {
       console.log(`💾 Saving ${allocatorType} for ${teamName}`);
       const allocationWithTeam = { ...allocation, teamName };
       await saveAllocation(allocatorType, allocationWithTeam, date);
-      
-      // Reload to get fresh data
-      await loadAllocationsForDate(date);
+      await loadAllocationsForDate(date); // reload after saving
       console.log(`✅ Saved and reloaded ${allocatorType}`);
     } catch (err) {
       console.error(`❌ Error saving ${allocatorType}:`, err);
@@ -65,9 +62,10 @@ export const useFirebaseAllocations = (allocatorType) => {
     } finally {
       setLoading(false);
     }
-  }, [allocatorType, loadAllocationsForDate]);
+  }, [allocatorType, loadAllocationsForDate, user]);
 
   const clearAllAllocationsForDate = useCallback(async (date) => {
+    if (!user) return; // 🔹 only clear if logged in
     setLoading(true);
     setError(null);
     
@@ -82,15 +80,15 @@ export const useFirebaseAllocations = (allocatorType) => {
     } finally {
       setLoading(false);
     }
-  }, [allocatorType]);
+  }, [allocatorType, user]);
 
   return {
-    allocations,     // Current allocations object
-    loading,         // Boolean - shows when Firebase operations are happening
-    error,           // String - any error messages from Firebase
-    loadAllocationsForDate,    // Function - load allocations for a specific date
-    saveAllocationToFirestore, // Function - save new allocation to Firebase
-    clearAllAllocationsForDate // Function - clear all allocations for a date
+    allocations,
+    loading,
+    error,
+    loadAllocationsForDate,
+    saveAllocationToFirestore,
+    clearAllAllocationsForDate
   };
 };
 
@@ -98,8 +96,6 @@ export const useFirebaseAllocations = (allocatorType) => {
 const getTimeSlots = (startTime, totalSlots, allocatorType) => {
   const timeSlots = [];
   const [hour, minute] = startTime.split(':').map(Number);
-  
-  // Different increment based on allocator type
   const incrementMinutes = allocatorType === 'trainingAllocations' ? 30 : 15;
   
   for (let i = 0; i < totalSlots; i++) {

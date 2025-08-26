@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 import { useNavigate } from "react-router-dom";
+import { auth } from "../utils/firebase";
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const pitches = [

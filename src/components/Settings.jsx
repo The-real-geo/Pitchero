@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom"
+import { auth } from "../utils/firebase";
 
 const pitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
