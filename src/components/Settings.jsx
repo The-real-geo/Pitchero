@@ -4,11 +4,7 @@ import { auth } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 
-// Add to Settings.jsx
-const inviteUser = async (email, role) => {
-  // Send invitation email with club signup link
-  // Or create user directly if admin
-};
+
 
 const pitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
