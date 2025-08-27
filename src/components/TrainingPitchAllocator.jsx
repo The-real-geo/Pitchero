@@ -47,13 +47,15 @@ function TrainingPitchAllocator({ onBack }) {
   // Firebase integration
   const navigate = useNavigate();
   const {
-    allocations,
-    loading,
-    error,
-    loadAllocationsForDate,
-    saveAllocationToFirestore,
-    clearAllAllocationsForDate
-  } = useFirebaseAllocations('trainingAllocations');
+  allocations,
+  loading,
+  error,
+  userProfile,
+  clubInfo,
+  loadAllocationsForDate,
+  saveAllocationToFirestore,
+  clearAllAllocationsForDate
+} = useFirebaseAllocations('trainingAllocations');
 
   // Auth state
   const [user, setUser] = useState(null);

@@ -46,7 +46,8 @@ function getDefaultPitchAreaForTeam(teamName) {
 
 function Settings({ onBack }) {
   const navigate = useNavigate();
-  
+// Add this line after your existing useState declarations
+const { userProfile, clubInfo } = useFirebaseAllocations('trainingAllocations');
   // Auth state
   const [user, setUser] = useState(null);
   

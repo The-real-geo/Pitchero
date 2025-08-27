@@ -68,13 +68,15 @@ function MatchDayPitchAllocator({ onBack }) {
   // Firebase integration
   const navigate = useNavigate();
   const {
-    allocations,
-    loading,
-    error,
-    loadAllocationsForDate,
-    saveAllocationToFirestore,
-    clearAllAllocationsForDate
-  } = useFirebaseAllocations('matchAllocations');
+  allocations,
+  loading,
+  error,
+  userProfile,
+  clubInfo,
+  loadAllocationsForDate,
+  saveAllocationToFirestore,
+  clearAllAllocationsForDate
+} = useFirebaseAllocations('matchAllocations');
 
   // Auth state
   const [user, setUser] = useState(null);
