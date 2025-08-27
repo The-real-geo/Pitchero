@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom"
 import { auth } from "../utils/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 
 const pitches = [
@@ -39,7 +40,12 @@ function getDefaultPitchAreaForTeam(teamName) {
 }
 
 function Settings({ onBack }) {
-  const navigate = useNavigate();// State for teams
+  const navigate = useNavigate();
+  
+  // Auth state
+  const [user, setUser] = useState(null);
+  
+  // State for teams
   const [teams, setTeams] = useState(defaultTeams);
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamColor, setNewTeamColor] = useState('#3B82F6');
@@ -62,6 +68,24 @@ function Settings({ onBack }) {
     });
     return defaults;
   });
+
+  // Auth monitoring
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Logout function
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   const handleAddTeam = () => {
     if (newTeamName.trim() && !teams.find(t => t.name === newTeamName.trim())) {
@@ -219,7 +243,39 @@ function Settings({ onBack }) {
             }}>Settings</h1>
           </div>
           
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {user && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <div style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}>
+                  👤 {user.email}
+                </div>
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    padding: '4px 8px',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Logout
+                </button>
+              </div>
+            )}
             <button
               onClick={exportSettings}
               style={{

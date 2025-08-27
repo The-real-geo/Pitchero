@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 import { useNavigate } from "react-router-dom";
 import { auth } from "../utils/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const pitches = [
@@ -54,6 +55,9 @@ function TrainingPitchAllocator({ onBack }) {
     clearAllAllocationsForDate
   } = useFirebaseAllocations('trainingAllocations');
 
+  // Auth state
+  const [user, setUser] = useState(null);
+
   // State management
   const [teams] = useState(defaultTeams);
   const [pitchOrientations] = useState({
@@ -78,10 +82,28 @@ function TrainingPitchAllocator({ onBack }) {
 
   const slots = useMemo(() => timeSlots(), []);
 
+  // Auth monitoring
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
   // Load data when date changes
   useEffect(() => {
     loadAllocationsForDate(date);
   }, [date, loadAllocationsForDate]);
+
+  // Logout function
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   const hasConflict = useMemo(() => {
     const slotsNeeded = duration / 30;
@@ -357,6 +379,38 @@ function TrainingPitchAllocator({ onBack }) {
             gap: '12px',
             fontSize: '14px'
           }}>
+            {user && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <div style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}>
+                  👤 {user.email}
+                </div>
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    padding: '4px 8px',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Logout
+                </button>
+              </div>
+            )}
             {loading && (
               <div style={{
                 padding: '6px 12px',

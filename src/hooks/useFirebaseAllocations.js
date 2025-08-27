@@ -1,23 +1,30 @@
 // src/hooks/useFirebaseAllocations.js
-import { useState, useCallback } from 'react';
-import { loadAllocations, saveAllocation, clearAllAllocations, auth } from '../utils/firebase'; // 🔹 add auth
-import { useAuthState } from 'react-firebase-hooks/auth'; // 🔹 track logged-in user
+import { useState, useCallback, useEffect } from 'react';
+import { loadAllocations, saveAllocation, clearAllAllocations, auth } from '../utils/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export const useFirebaseAllocations = (allocatorType) => {
   const [allocations, setAllocations] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
 
-  const [user] = useAuthState(auth); // 🔹 reactive auth state
+  // Monitor auth state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const loadAllocationsForDate = useCallback(async (date) => {
-    if (!date || !user) return; // 🔹 only load if logged in
+    if (!date || !user) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      console.log(`📥 Loading ${allocatorType} for ${date}`);
+      console.log(`Loading ${allocatorType} for ${date}`);
       const data = await loadAllocations(allocatorType, date);
       
       // Convert Firebase data back to UI format
@@ -35,29 +42,29 @@ export const useFirebaseAllocations = (allocatorType) => {
         }
       });
       
-      console.log(`✅ Loaded ${Object.keys(allocationsMap).length} allocation slots`);
+      console.log(`Loaded ${Object.keys(allocationsMap).length} allocation slots`);
       setAllocations(allocationsMap);
     } catch (err) {
-      console.error(`❌ Error loading ${allocatorType}:`, err);
+      console.error(`Error loading ${allocatorType}:`, err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [allocatorType, user]); // 🔹 add user as dependency
+  }, [allocatorType, user]);
 
   const saveAllocationToFirestore = useCallback(async (teamName, allocation, date) => {
-    if (!user) return; // 🔹 only save if logged in
+    if (!user) return;
     setLoading(true);
     setError(null);
     
     try {
-      console.log(`💾 Saving ${allocatorType} for ${teamName}`);
+      console.log(`Saving ${allocatorType} for ${teamName}`);
       const allocationWithTeam = { ...allocation, teamName };
       await saveAllocation(allocatorType, allocationWithTeam, date);
       await loadAllocationsForDate(date); // reload after saving
-      console.log(`✅ Saved and reloaded ${allocatorType}`);
+      console.log(`Saved and reloaded ${allocatorType}`);
     } catch (err) {
-      console.error(`❌ Error saving ${allocatorType}:`, err);
+      console.error(`Error saving ${allocatorType}:`, err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -65,17 +72,17 @@ export const useFirebaseAllocations = (allocatorType) => {
   }, [allocatorType, loadAllocationsForDate, user]);
 
   const clearAllAllocationsForDate = useCallback(async (date) => {
-    if (!user) return; // 🔹 only clear if logged in
+    if (!user) return;
     setLoading(true);
     setError(null);
     
     try {
-      console.log(`🗑️ Clearing all ${allocatorType} for ${date}`);
+      console.log(`Clearing all ${allocatorType} for ${date}`);
       await clearAllAllocations(allocatorType, date);
       setAllocations({});
-      console.log(`✅ Cleared all ${allocatorType} for ${date}`);
+      console.log(`Cleared all ${allocatorType} for ${date}`);
     } catch (err) {
-      console.error(`❌ Error clearing ${allocatorType}:`, err);
+      console.error(`Error clearing ${allocatorType}:`, err);
       setError(err.message);
     } finally {
       setLoading(false);

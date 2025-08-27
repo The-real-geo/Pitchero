@@ -2,10 +2,20 @@
 import React from 'react';
 import { useNavigate } from "react-router-dom";
 import { auth } from "../utils/firebase";
+import { signOut } from "firebase/auth";
 
+function Menu() {
+  const navigate = useNavigate();
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
-function Menu({ onNavigate }) {
   return (
     <div style={{
       padding: '40px',
@@ -47,7 +57,7 @@ function Menu({ onNavigate }) {
           gap: '16px'
         }}>
           <button
-            onClick={() => onNavigate('/training')}
+            onClick={() => navigate('/training')}
             style={{
               padding: '16px 24px',
               backgroundColor: '#3b82f6',
@@ -70,7 +80,7 @@ function Menu({ onNavigate }) {
           </button>
           
           <button
-            onClick={() => onNavigate('/matchday')}
+            onClick={() => navigate('/matchday')}
             style={{
               padding: '16px 24px',
               backgroundColor: '#059669',
@@ -93,7 +103,7 @@ function Menu({ onNavigate }) {
           </button>
           
           <button
-            onClick={() => onNavigate('/settings')}
+            onClick={() => navigate('/settings')}
             style={{
               padding: '16px 24px',
               backgroundColor: '#6b7280',
@@ -113,6 +123,30 @@ function Menu({ onNavigate }) {
             onMouseOut={(e) => e.target.style.backgroundColor = '#6b7280'}
           >
             ⚙️ Settings
+          </button>
+
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '16px 24px',
+              backgroundColor: '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '18px',
+              fontWeight: '600',
+              transition: 'background-color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              marginTop: '16px'
+            }}
+            onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
+            onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
+          >
+            🚪 Logout
           </button>
         </div>
         
