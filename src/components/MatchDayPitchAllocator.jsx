@@ -470,7 +470,7 @@ function MatchDayPitchAllocator({ onBack }) {
   return (
     <div style={{
       padding: '24px',
-      backgroundColor: '#fed7aa',
+      backgroundColor: '#059669',
       minHeight: '100vh',
       fontFamily: 'system-ui, sans-serif',
       width: '100vw',
@@ -1237,14 +1237,14 @@ function MatchDayPitchAllocator({ onBack }) {
                       }}>
                         <span 
                           style={{
-                            backgroundColor: '#059669',
+                            backgroundColor: '#fed7aa',
                             color: '#9a3412',
                             padding: '4px 8px',
                             borderRadius: '9999px',
                             fontSize: '12px',
                             fontWeight: '500',
                             cursor: !hasAllocations ? 'pointer' : 'default',
-                            border: isManuallyExpanded ? '2px solid #059669' : '2px solid transparent',
+                            border: isManuallyExpanded ? '2px solid #f59e0b' : '2px solid transparent',
                             transition: 'all 0.2s'
                           }}
                           onClick={() => !hasAllocations && toggleTimeSlotExpansionMatchDay(s)}
