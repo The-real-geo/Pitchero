@@ -1,6 +1,6 @@
 // src/hooks/useFirebaseAllocations.js
 import { useState, useCallback, useEffect } from 'react';
-import { loadAllocations, saveAllocation, clearAllAllocations, auth } from '../utils/firebase';
+import { loadAllocations, saveAllocation, clearAllAllocations, auth, getUserProfile, getClubInfo } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 export const useFirebaseAllocations = (allocatorType) => {
@@ -8,23 +8,46 @@ export const useFirebaseAllocations = (allocatorType) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [clubInfo, setClubInfo] = useState(null);
 
-  // Monitor auth state
+  // Monitor auth state and load user profile/club info
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      
+      if (currentUser) {
+        try {
+          // Get user profile with club association
+          const profile = await getUserProfile(currentUser.uid);
+          setUserProfile(profile);
+          
+          // Get club information
+          if (profile?.clubId) {
+            const club = await getClubInfo(profile.clubId);
+            setClubInfo(club);
+          }
+        } catch (err) {
+          console.error("Error loading user profile:", err);
+          setError("Failed to load user profile");
+        }
+      } else {
+        setUserProfile(null);
+        setClubInfo(null);
+      }
     });
+    
     return () => unsubscribe();
   }, []);
 
   const loadAllocationsForDate = useCallback(async (date) => {
-    if (!date || !user) return;
+    if (!date || !user || !userProfile?.clubId) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      console.log(`Loading ${allocatorType} for ${date}`);
+      console.log(`Loading ${allocatorType} for ${date} (Club: ${clubInfo?.name || userProfile.clubId})`);
       const data = await loadAllocations(allocatorType, date);
       
       // Convert Firebase data back to UI format
@@ -42,7 +65,7 @@ export const useFirebaseAllocations = (allocatorType) => {
         }
       });
       
-      console.log(`Loaded ${Object.keys(allocationsMap).length} allocation slots`);
+      console.log(`Loaded ${Object.keys(allocationsMap).length} allocation slots for club`);
       setAllocations(allocationsMap);
     } catch (err) {
       console.error(`Error loading ${allocatorType}:`, err);
@@ -50,49 +73,52 @@ export const useFirebaseAllocations = (allocatorType) => {
     } finally {
       setLoading(false);
     }
-  }, [allocatorType, user]);
+  }, [allocatorType, user, userProfile, clubInfo]);
 
   const saveAllocationToFirestore = useCallback(async (teamName, allocation, date) => {
-    if (!user) return;
+    if (!user || !userProfile?.clubId) return;
     setLoading(true);
     setError(null);
     
     try {
-      console.log(`Saving ${allocatorType} for ${teamName}`);
+      console.log(`Saving ${allocatorType} for ${teamName} (Club: ${clubInfo?.name || userProfile.clubId})`);
       const allocationWithTeam = { ...allocation, teamName };
       await saveAllocation(allocatorType, allocationWithTeam, date);
       await loadAllocationsForDate(date); // reload after saving
-      console.log(`Saved and reloaded ${allocatorType}`);
+      console.log(`Saved and reloaded ${allocatorType} for club`);
     } catch (err) {
       console.error(`Error saving ${allocatorType}:`, err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [allocatorType, loadAllocationsForDate, user]);
+  }, [allocatorType, loadAllocationsForDate, user, userProfile, clubInfo]);
 
   const clearAllAllocationsForDate = useCallback(async (date) => {
-    if (!user) return;
+    if (!user || !userProfile?.clubId) return;
     setLoading(true);
     setError(null);
     
     try {
-      console.log(`Clearing all ${allocatorType} for ${date}`);
+      console.log(`Clearing all ${allocatorType} for ${date} (Club: ${clubInfo?.name || userProfile.clubId})`);
       await clearAllAllocations(allocatorType, date);
       setAllocations({});
-      console.log(`Cleared all ${allocatorType} for ${date}`);
+      console.log(`Cleared all ${allocatorType} for club`);
     } catch (err) {
       console.error(`Error clearing ${allocatorType}:`, err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [allocatorType, user]);
+  }, [allocatorType, user, userProfile, clubInfo]);
 
   return {
     allocations,
     loading,
     error,
+    user,
+    userProfile,
+    clubInfo,
     loadAllocationsForDate,
     saveAllocationToFirestore,
     clearAllAllocationsForDate

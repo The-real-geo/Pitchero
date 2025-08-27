@@ -3,6 +3,11 @@ import { useNavigate } from "react-router-dom"
 import { auth } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
+// Add to Settings.jsx
+const inviteUser = async (email, role) => {
+  // Send invitation email with club signup link
+  // Or create user directly if admin
+};
 
 const pitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
@@ -245,37 +250,49 @@ function Settings({ onBack }) {
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {user && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <div style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: '500'
-                }}>
-                  👤 {user.email}
-                </div>
-                <button
-                  onClick={handleLogout}
-                  style={{
-                    padding: '4px 8px',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  Logout
-                </button>
-              </div>
-            )}
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  }}>
+    {clubInfo && (
+      <div style={{
+        padding: '6px 12px',
+        backgroundColor: '#10b981',
+        color: 'white',
+        borderRadius: '20px',
+        fontSize: '12px',
+        fontWeight: '500'
+      }}>
+        🏢 {clubInfo.name}
+      </div>
+    )}
+    <div style={{
+      padding: '6px 12px',
+      backgroundColor: '#6366f1',
+      color: 'white',
+      borderRadius: '20px',
+      fontSize: '12px',
+      fontWeight: '500'
+    }}>
+      👤 {user.email} ({userProfile?.role || 'loading...'})
+    </div>
+    <button
+      onClick={handleLogout}
+      style={{
+        padding: '4px 8px',
+        backgroundColor: '#dc2626',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '12px'
+      }}
+    >
+      Logout
+    </button>
+  </div>
+)}
             <button
               onClick={exportSettings}
               style={{

@@ -386,37 +386,49 @@ function TrainingPitchAllocator({ onBack }) {
             fontSize: '14px'
           }}>
             {user && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <div style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: '500'
-                }}>
-                  👤 {user.email}
-                </div>
-                <button
-                  onClick={handleLogout}
-                  style={{
-                    padding: '4px 8px',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  Logout
-                </button>
-              </div>
-            )}
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  }}>
+    {clubInfo && (
+      <div style={{
+        padding: '6px 12px',
+        backgroundColor: '#10b981',
+        color: 'white',
+        borderRadius: '20px',
+        fontSize: '12px',
+        fontWeight: '500'
+      }}>
+        🏢 {clubInfo.name}
+      </div>
+    )}
+    <div style={{
+      padding: '6px 12px',
+      backgroundColor: '#6366f1',
+      color: 'white',
+      borderRadius: '20px',
+      fontSize: '12px',
+      fontWeight: '500'
+    }}>
+      👤 {user.email} ({userProfile?.role || 'loading...'})
+    </div>
+    <button
+      onClick={handleLogout}
+      style={{
+        padding: '4px 8px',
+        backgroundColor: '#dc2626',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '12px'
+      }}
+    >
+      Logout
+    </button>
+  </div>
+)}
             {loading && (
               <div style={{
                 padding: '6px 12px',
