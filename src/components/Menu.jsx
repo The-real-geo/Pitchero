@@ -2,17 +2,16 @@
 import React from 'react';
 import { useNavigate } from "react-router-dom";
 import { auth } from "../utils/firebase";
-import { signOut } from "firebase/auth";
 
 function Menu() {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await auth.signOut();
       navigate('/login');
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Logout error:', error);
     }
   };
 
@@ -29,12 +28,12 @@ function Menu() {
     }}>
       <div style={{
         backgroundColor: 'white',
-        padding: '48px',
+        padding: '64px',
         borderRadius: '16px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
         textAlign: 'center',
-        maxWidth: '500px',
-        width: '100%'
+        maxWidth: '900px',
+        width: '90%'
       }}>
         <h1 style={{
           fontSize: '36px',
@@ -140,8 +139,7 @@ function Menu() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px',
-              marginTop: '16px'
+              gap: '8px'
             }}
             onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
             onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
