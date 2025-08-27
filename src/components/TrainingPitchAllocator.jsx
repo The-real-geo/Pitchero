@@ -340,9 +340,15 @@ function TrainingPitchAllocator({ onBack }) {
       padding: '24px',
       backgroundColor: '#f9fafb',
       minHeight: '100vh',
-      fontFamily: 'system-ui, sans-serif'
+      fontFamily: 'system-ui, sans-serif',
+      width: '100vw',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      margin: 0,
+      boxSizing: 'border-box'
     }}>
-      <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%' }}>
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
