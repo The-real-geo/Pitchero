@@ -24,7 +24,8 @@ function Menu() {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      boxSizing: 'border-box'
     }}>
       <div style={{
         backgroundColor: 'white',
@@ -33,7 +34,8 @@ function Menu() {
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
         textAlign: 'center',
         maxWidth: '900px',
-        width: '90%'
+        width: '100%',
+        boxSizing: 'border-box'
       }}>
         <h1 style={{
           fontSize: '36px',
@@ -53,7 +55,8 @@ function Menu() {
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px'
+          gap: '16px',
+          alignItems: 'center'
         }}>
           <button
             onClick={() => navigate('/training')}
@@ -70,7 +73,9 @@ function Menu() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px'
+              gap: '8px',
+              width: '100%',
+              maxWidth: '400px'
             }}
             onMouseOver={(e) => e.target.style.backgroundColor = '#2563eb'}
             onMouseOut={(e) => e.target.style.backgroundColor = '#3b82f6'}
@@ -93,7 +98,9 @@ function Menu() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px'
+              gap: '8px',
+              width: '100%',
+              maxWidth: '400px'
             }}
             onMouseOver={(e) => e.target.style.backgroundColor = '#047857'}
             onMouseOut={(e) => e.target.style.backgroundColor = '#059669'}
@@ -116,7 +123,9 @@ function Menu() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px'
+              gap: '8px',
+              width: '100%',
+              maxWidth: '400px'
             }}
             onMouseOver={(e) => e.target.style.backgroundColor = '#4b5563'}
             onMouseOut={(e) => e.target.style.backgroundColor = '#6b7280'}
@@ -139,7 +148,9 @@ function Menu() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px'
+              gap: '8px',
+              width: '100%',
+              maxWidth: '400px'
             }}
             onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
             onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
