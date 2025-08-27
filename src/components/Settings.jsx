@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom"
 import { auth } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 
 // Add to Settings.jsx
 const inviteUser = async (email, role) => {
