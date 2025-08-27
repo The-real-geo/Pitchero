@@ -1237,7 +1237,7 @@ function MatchDayPitchAllocator({ onBack }) {
                       }}>
                         <span 
                           style={{
-                            backgroundColor: '#fed7aa',
+                            backgroundColor: '#059669',
                             color: '#9a3412',
                             padding: '4px 8px',
                             borderRadius: '9999px',
