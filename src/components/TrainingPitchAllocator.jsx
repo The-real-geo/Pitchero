@@ -176,22 +176,44 @@ function TrainingPitchAllocator({ onBack }) {
     return hasAllocationsForTimeSlotTraining(timeSlot) || manuallyExpandedSlotsTraining.has(timeSlot);
   };
 
-  // Clear allocation by Firestore ID  
-const clearAllocation = async (key) => {
-  const allocation = allocations[key];
-  if (!allocation || loading) return;
+  // Enhanced clear allocation function that handles multi-slot allocations
+  const clearAllocation = async (key) => {
+    const allocation = allocations[key];
+    if (!allocation || loading) return;
 
-  try {
-    if (!allocation.id) {
-      console.error("Missing Firestore doc ID for allocation:", allocation);
-      return;
+    try {
+      if (!allocation.id) {
+        console.error("Missing Firestore doc ID for allocation:", allocation);
+        return;
+      }
+
+      // If this is a multi-slot allocation, we need to remove all related slots
+      if (allocation.isMultiSlot && allocation.duration > 30) {
+        const slotsNeeded = allocation.duration / 30;
+        const startSlotIndex = slots.indexOf(allocation.startTime);
+        
+        // Find all related allocation keys and remove them
+        const allocationPromises = [];
+        for (let i = 0; i < slotsNeeded; i++) {
+          const slotTime = slots[startSlotIndex + i];
+          const relatedKey = `${allocation.date}-${slotTime}-${allocation.pitch}-${allocation.section}`;
+          const relatedAllocation = allocations[relatedKey];
+          
+          if (relatedAllocation && relatedAllocation.id) {
+            allocationPromises.push(deleteAllocationFromFirestore(relatedAllocation.id, relatedAllocation.date));
+          }
+        }
+        
+        // Execute all deletions
+        await Promise.all(allocationPromises);
+      } else {
+        // Single slot allocation
+        await deleteAllocationFromFirestore(allocation.id, allocation.date);
+      }
+    } catch (error) {
+      console.error('Error clearing allocation:', error);
     }
-    await deleteAllocationFromFirestore(allocation.id, allocation.date);
-  } catch (error) {
-    console.error('Error clearing allocation:', error);
-  }
-};
-
+  };
 
   const clearAllAllocations = () => {
     setShowClearConfirm(true);
@@ -492,6 +514,19 @@ const clearAllocation = async (key) => {
             </button>
           </div>
         )}
+
+        {/* Instructions for removing allocations */}
+        <div style={{
+          backgroundColor: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          marginBottom: '24px',
+          fontSize: '14px',
+          color: '#1e40af'
+        }}>
+          <strong>💡 Tip:</strong> Click on any colored section in the pitch layout below to remove that specific allocation. Multi-slot bookings will be completely removed when you click on any part of them.
+        </div>
         
         <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
           <button 
@@ -1370,10 +1405,14 @@ const clearAllocation = async (key) => {
                                       position: 'relative',
                                       padding: '2px',
                                       textAlign: 'center',
-                                      cursor: 'pointer',
+                                      cursor: alloc ? 'pointer' : 'default',
                                       backgroundColor: alloc ? alloc.colour + '90' : 'rgba(255,255,255,0.1)',
                                       borderColor: alloc ? alloc.colour : 'rgba(255,255,255,0.5)',
-                                      color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
+                                      color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151',
+                                      '&:hover': alloc ? {
+                                        opacity: 0.8,
+                                        transform: 'scale(0.98)'
+                                      } : {}
                                     }}
                                     onClick={() => alloc && clearAllocation(key)}
                                     title={alloc ? `${alloc.team} (${alloc.duration}min) - Click to remove` : `Section ${sec} - Available`}
@@ -1453,7 +1492,7 @@ const clearAllocation = async (key) => {
                                             fontSize: '12px',
                                             fontWeight: '500',
                                             transition: 'all 0.2s',
-                                            cursor: 'pointer',
+                                            cursor: alloc ? 'pointer' : 'default',
                                             backgroundColor: alloc ? alloc.colour + '90' : 'rgba(255,255,255,0.1)',
                                             borderColor: alloc ? alloc.colour : 'rgba(255,255,255,0.5)',
                                             color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
