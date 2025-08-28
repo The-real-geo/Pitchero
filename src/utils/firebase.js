@@ -227,6 +227,14 @@ export const updateUserRole = async (userId, newRole) => {
   }
 };
 
+export const deleteAllocation = async (allocatorType, allocationKey, date) => {
+  // Implementation will depend on how you store documents in Firestore
+  // You'll need to delete the specific document based on the key
+  const docId = `${date}_${allocationKey}`;  // or however you create document IDs
+  const docRef = doc(db, 'clubs', userClubId, allocatorType, docId);
+  await deleteDoc(docRef);
+};
+
 // Test Functions
 export const testFirebaseConnection = async () => {
   try {

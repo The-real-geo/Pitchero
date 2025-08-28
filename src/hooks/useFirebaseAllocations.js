@@ -1,6 +1,6 @@
 // src/hooks/useFirebaseAllocations.js
 import { useState, useCallback, useEffect } from 'react';
-import { loadAllocations, saveAllocation, clearAllAllocations, auth, getUserProfile, getClubInfo } from '../utils/firebase';
+import { loadAllocations, saveAllocation, clearAllAllocations, deleteAllocation, auth, getUserProfile, getClubInfo } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 export const useFirebaseAllocations = (allocatorType) => {
@@ -40,40 +40,29 @@ export const useFirebaseAllocations = (allocatorType) => {
     return () => unsubscribe();
   }, []);
 
-  const loadAllocationsForDate = useCallback(async (date) => {
-    if (!date || !user || !userProfile?.clubId) return;
+  const deleteAllocationFromFirestore = useCallback(async (allocationKey, date) => {
+  if (!user || !userProfile?.clubId) return;
+  
+  setLoading(true);
+  setError(null);
+  
+  try {
+    console.log(`Deleting ${allocatorType} allocation: ${allocationKey} (Club: ${clubInfo?.name || userProfile.clubId})`);
+    await deleteAllocation(allocatorType, allocationKey, date);
     
-    setLoading(true);
-    setError(null);
+    // Remove from local state
+    const updatedAllocations = { ...allocations };
+    delete updatedAllocations[allocationKey];
+    setAllocations(updatedAllocations);
     
-    try {
-      console.log(`Loading ${allocatorType} for ${date} (Club: ${clubInfo?.name || userProfile.clubId})`);
-      const data = await loadAllocations(allocatorType, date);
-      
-      // Convert Firebase data back to UI format
-      const allocationsMap = {};
-      data.forEach(allocation => {
-        if (allocation.isMultiSlot && allocation.totalSlots > 1) {
-          const slots = getTimeSlots(allocation.startTime, allocation.totalSlots, allocatorType);
-          slots.forEach((timeSlot, index) => {
-            const key = `${allocation.date}-${timeSlot}-${allocation.pitch}-${allocation.section}`;
-            allocationsMap[key] = { ...allocation, slotIndex: index };
-          });
-        } else {
-          const key = `${allocation.date}-${allocation.startTime}-${allocation.pitch}-${allocation.section}`;
-          allocationsMap[key] = allocation;
-        }
-      });
-      
-      console.log(`Loaded ${Object.keys(allocationsMap).length} allocation slots for club`);
-      setAllocations(allocationsMap);
-    } catch (err) {
-      console.error(`Error loading ${allocatorType}:`, err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [allocatorType, user, userProfile, clubInfo]);
+    console.log(`Deleted ${allocatorType} allocation for club`);
+  } catch (err) {
+    console.error(`Error deleting ${allocatorType}:`, err);
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+}, [allocatorType, allocations, user, userProfile, clubInfo]);
 
   const saveAllocationToFirestore = useCallback(async (teamName, allocation, date) => {
     if (!user || !userProfile?.clubId) return;
@@ -113,16 +102,18 @@ export const useFirebaseAllocations = (allocatorType) => {
   }, [allocatorType, user, userProfile, clubInfo]);
 
   return {
-    allocations,
-    loading,
-    error,
-    user,
-    userProfile,
-    clubInfo,
-    loadAllocationsForDate,
-    saveAllocationToFirestore,
-    clearAllAllocationsForDate
-  };
+  allocations,
+  loading,
+  error,
+  user,
+  userProfile,
+  clubInfo,
+  loadAllocationsForDate,
+  saveAllocationToFirestore,
+  clearAllAllocationsForDate,
+  deleteAllocationFromFirestore  // Add this line
+};
+
 };
 
 // Helper function to get time slots for multi-slot allocations
