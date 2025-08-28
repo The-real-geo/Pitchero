@@ -301,15 +301,19 @@ function MatchDayPitchAllocator({ onBack }) {
     }
   };
 
-  // Clear allocation
-  const clearAllocation = (key) => {
-    const allocation = allocations[key];
-    if (!allocation) return;
-    
-    // Note: For simplicity, we'll clear all allocations and reload
-    // In a production app, you'd want to delete specific Firebase documents
-    console.log('Clearing allocation:', allocation.team);
-  };
+ // Clear allocation - SIMPLIFIED VERSION
+const clearAllocation = async (key) => {
+  const allocation = allocations[key];
+  if (!allocation || loading) return;
+
+  try {
+    // Just delete this one key - let Firebase handle the rest
+    await deleteAllocationFromFirestore(key, allocation.date);
+  } catch (error) {
+    console.error('Error clearing allocation:', error);
+  }
+};
+
 
   // Clear all allocations
   const clearAllAllocations = () => {

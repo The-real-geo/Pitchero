@@ -175,15 +175,18 @@ function TrainingPitchAllocator({ onBack }) {
     return hasAllocationsForTimeSlotTraining(timeSlot) || manuallyExpandedSlotsTraining.has(timeSlot);
   };
 
-  const clearAllocation = (key) => {
-    const allocation = allocations[key];
-    if (!allocation) return;
-    
-    // Note: For simplicity in this demo, we'll clear all allocations and reload
-    // In a production app, you'd want to delete specific Firebase documents
-    console.log('Clearing allocation:', allocation.team);
-    // You would implement individual deletion here
-  };
+  // Clear allocation - SIMPLIFIED VERSION  
+const clearAllocation = async (key) => {
+  const allocation = allocations[key];
+  if (!allocation || loading) return;
+
+  try {
+    // Just delete this one key - let Firebase handle the rest
+    await deleteAllocationFromFirestore(key, allocation.date);
+  } catch (error) {
+    console.error('Error clearing allocation:', error);
+  }
+};
 
   const clearAllAllocations = () => {
     setShowClearConfirm(true);
