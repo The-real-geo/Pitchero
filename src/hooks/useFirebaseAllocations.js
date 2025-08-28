@@ -54,9 +54,10 @@ export const useFirebaseAllocations = (allocatorType) => {
     
     try {
       console.log(`Loading ${allocatorType} for ${date} (Club: ${clubInfo?.name || userProfile.clubId})`);
-      const data = await loadAllocations(allocatorType, date);
+      // Pass clubId explicitly to ensure consistent club context
+      const data = await loadAllocations(allocatorType, date, userProfile.clubId);
       
-      // 🔑 Convert Firebase data back to UI format and keep doc.id
+      // Convert Firebase data back to UI format and keep doc.id
       const allocationsMap = {};
       data.forEach(allocation => {
         if (allocation.isMultiSlot && allocation.totalSlots > 1) {
@@ -89,7 +90,8 @@ export const useFirebaseAllocations = (allocatorType) => {
     try {
       console.log(`Saving ${allocatorType} for ${teamName} (Club: ${clubInfo?.name || userProfile.clubId})`);
       const allocationWithTeam = { ...allocation, teamName };
-      await saveAllocation(allocatorType, allocationWithTeam, date);
+      // Pass clubId explicitly to ensure consistent club context
+      await saveAllocation(allocatorType, allocationWithTeam, date, userProfile.clubId);
       
       await loadAllocationsForDate(date);
       console.log(`Saved and reloaded ${allocatorType} for club`);
@@ -101,7 +103,7 @@ export const useFirebaseAllocations = (allocatorType) => {
     }
   }, [allocatorType, loadAllocationsForDate, user, userProfile, clubInfo]);
 
-  // ✅ Fixed: delete allocation using Firestore docId
+  // Fixed: delete allocation using Firestore docId with explicit clubId
   const deleteAllocationFromFirestore = useCallback(async (docId, date) => {
     if (!user || !userProfile?.clubId) return;
     
@@ -110,7 +112,8 @@ export const useFirebaseAllocations = (allocatorType) => {
     
     try {
       console.log(`Deleting ${allocatorType} allocation: ${docId} (Club: ${clubInfo?.name || userProfile.clubId})`);
-      await deleteAllocation(allocatorType, docId, date);
+      // Pass clubId explicitly to ensure consistent club context
+      await deleteAllocation(allocatorType, docId, date, userProfile.clubId);
       
       await loadAllocationsForDate(date);
       console.log(`Deleted and reloaded ${allocatorType} allocation for club`);
@@ -129,7 +132,8 @@ export const useFirebaseAllocations = (allocatorType) => {
     
     try {
       console.log(`Clearing all ${allocatorType} for ${date} (Club: ${clubInfo?.name || userProfile.clubId})`);
-      await clearAllAllocations(allocatorType, date);
+      // Pass clubId explicitly to ensure consistent club context
+      await clearAllAllocations(allocatorType, date, userProfile.clubId);
       setAllocations({});
       console.log(`Cleared all ${allocatorType} for club`);
     } catch (err) {

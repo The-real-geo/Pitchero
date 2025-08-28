@@ -183,7 +183,7 @@ export const clearAllAllocations = async (allocatorType, date) => {
 };
 
 // SIMPLE delete single allocation function
-export const deleteAllocation = async (allocatorType, allocationKey, date) => {
+export const deleteAllocation = async (allocatorType, docId, date, clubId) => {
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');
   
