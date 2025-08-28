@@ -17,29 +17,42 @@ function LoginPage() {
   const [selectedClubId, setSelectedClubId] = useState("");
   const [isNewClub, setIsNewClub] = useState(true);
 
-  const createClub = async (clubName) => {
+const createClub = async (clubName) => {
+  try {
     // Generate a 6-character club ID
     const clubId = Math.random().toString(36).substr(2, 6).toUpperCase();
     
+    console.log('Creating club:', { clubName, clubId });
     await setDoc(doc(db, 'clubs', clubId), {
       name: clubName,
       subscription: 'active',
       createdAt: Date.now(),
-      clubId: clubId // Store for reference
+      clubId: clubId
     });
     
-    console.log(`Club created: ${clubName} (ID: ${clubId})`);
+    console.log(`✅ Club created: ${clubName} (ID: ${clubId})`);
     return clubId;
-  };
+  } catch (error) {
+    console.error('❌ Error creating club:', error);
+    throw error;
+  }
+};
 
-  const createUserProfile = async (userId, email, clubId) => {
+const createUserProfile = async (userId, email, clubId, role = 'member') => {
+  try {
+    console.log('Creating user profile:', { userId, email, clubId, role });
     await setDoc(doc(db, 'users', userId), {
       email: email,
       clubId: clubId,
-      role: 'admin', // First user of club is admin
+      role: role,
       createdAt: Date.now()
     });
-  };
+    console.log('✅ User profile created successfully');
+  } catch (error) {
+    console.error('❌ Error creating user profile:', error);
+    throw error; // Re-throw so the parent function knows it failed
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
