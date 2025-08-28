@@ -177,9 +177,6 @@ function TrainingPitchAllocator({ onBack }) {
     return hasAllocationsForTimeSlotTraining(timeSlot) || manuallyExpandedSlotsTraining.has(timeSlot);
   };
 
-  // State to track which allocations are being deleted to prevent double-deletion
-  const [deletingAllocations, setDeletingAllocations] = useState(new Set());
-
   // Enhanced clear allocation function that handles multi-slot allocations
   const clearAllocation = async (key) => {
     const allocation = allocations[key];
