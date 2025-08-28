@@ -4,8 +4,6 @@ import { auth } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 
-
-
 const pitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
   { id: "pitch1", name: "Pitch 1 - Astro", hasGrassArea: false }
@@ -43,8 +41,8 @@ function getDefaultPitchAreaForTeam(teamName) {
 
 function Settings({ onBack }) {
   const navigate = useNavigate();
-// Add this line after your existing useState declarations
-const { userProfile, clubInfo } = useFirebaseAllocations('trainingAllocations');
+  const { userProfile, clubInfo } = useFirebaseAllocations('trainingAllocations');
+  
   // Auth state
   const [user, setUser] = useState(null);
   
@@ -87,6 +85,14 @@ const { userProfile, clubInfo } = useFirebaseAllocations('trainingAllocations');
       navigate('/login');
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+
+  // Copy club ID to clipboard
+  const copyClubId = () => {
+    if (clubInfo?.clubId) {
+      navigator.clipboard.writeText(clubInfo.clubId);
+      alert('Club ID copied to clipboard!');
     }
   };
 
@@ -219,9 +225,15 @@ const { userProfile, clubInfo } = useFirebaseAllocations('trainingAllocations');
       padding: '40px',
       backgroundColor: '#f9fafb',
       minHeight: '100vh',
-      fontFamily: 'system-ui, sans-serif'
+      fontFamily: 'system-ui, sans-serif',
+      width: '100vw',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      margin: 0,
+      boxSizing: 'border-box'
     }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button
@@ -248,49 +260,49 @@ const { userProfile, clubInfo } = useFirebaseAllocations('trainingAllocations');
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {user && (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px'
-  }}>
-    {clubInfo && (
-      <div style={{
-        padding: '6px 12px',
-        backgroundColor: '#10b981',
-        color: 'white',
-        borderRadius: '20px',
-        fontSize: '12px',
-        fontWeight: '500'
-      }}>
-        🏢 {clubInfo.name}
-      </div>
-    )}
-    <div style={{
-      padding: '6px 12px',
-      backgroundColor: '#6366f1',
-      color: 'white',
-      borderRadius: '20px',
-      fontSize: '12px',
-      fontWeight: '500'
-    }}>
-      👤 {user.email} ({userProfile?.role || 'loading...'})
-    </div>
-    <button
-      onClick={handleLogout}
-      style={{
-        padding: '4px 8px',
-        backgroundColor: '#dc2626',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        fontSize: '12px'
-      }}
-    >
-      Logout
-    </button>
-  </div>
-)}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                {clubInfo && (
+                  <div style={{
+                    padding: '6px 12px',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: '500'
+                  }}>
+                    🏢 {clubInfo.name}
+                  </div>
+                )}
+                <div style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#6366f1',
+                  color: 'white',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}>
+                  👤 {user.email} ({userProfile?.role || 'loading...'})
+                </div>
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    padding: '4px 8px',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Logout
+                </button>
+              </div>
+            )}
             <button
               onClick={exportSettings}
               style={{
@@ -338,6 +350,107 @@ const { userProfile, clubInfo } = useFirebaseAllocations('trainingAllocations');
             </button>
           </div>
         </div>
+        
+        {/* Club Information Section */}
+        {clubInfo && (
+          <div style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '12px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            marginBottom: '24px',
+            border: '2px solid #10b981'
+          }}>
+            <h2 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#374151',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              🏢 Club Information
+            </h2>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'auto 1fr auto',
+              gap: '16px',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#374151'
+              }}>
+                Club Name:
+              </div>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: '600',
+                color: '#1f2937'
+              }}>
+                {clubInfo.name}
+              </div>
+              <div></div>
+            </div>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'auto 1fr auto',
+              gap: '16px',
+              alignItems: 'center'
+            }}>
+              <div style={{
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#374151'
+              }}>
+                Club ID:
+              </div>
+              <div style={{
+                fontFamily: 'monospace',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                color: '#1f2937',
+                backgroundColor: '#f3f4f6',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                letterSpacing: '2px'
+              }}>
+                {clubInfo.clubId}
+              </div>
+              <button
+                onClick={copyClubId}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}
+              >
+                Copy ID
+              </button>
+            </div>
+            
+            <div style={{
+              marginTop: '16px',
+              padding: '12px',
+              backgroundColor: '#f0f9ff',
+              borderRadius: '6px',
+              fontSize: '13px',
+              color: '#0c4a6e'
+            }}>
+              <strong>Share this Club ID with new members:</strong> New users can enter this 6-character code during signup to join your club. Only share with trusted members.
+            </div>
+          </div>
+        )}
         
         {/* Team Management Section */}
         <div style={{

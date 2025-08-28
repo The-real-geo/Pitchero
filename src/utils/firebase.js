@@ -52,14 +52,18 @@ export const createUserProfile = async (userId, email, clubId, role = 'coach') =
 // Club Functions
 export const createClub = async (clubName) => {
   try {
-    const clubRef = doc(collection(db, 'clubs'));
-    await setDoc(clubRef, {
+    // Generate a 6-character club ID
+    const clubId = Math.random().toString(36).substr(2, 6).toUpperCase();
+    
+    await setDoc(doc(db, 'clubs', clubId), {
       name: clubName,
       subscription: 'active',
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      clubId: clubId // Store for reference
     });
-    console.log("Club created with ID:", clubRef.id);
-    return clubRef.id;
+    
+    console.log(`Club created: ${clubName} (ID: ${clubId})`);
+    return clubId;
   } catch (err) {
     console.error("Error creating club:", err);
     throw err;

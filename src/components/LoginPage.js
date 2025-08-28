@@ -1,8 +1,8 @@
 // pitchero/src/components/LoginPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { auth, db } from "../utils/firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { setDoc, doc, collection, getDocs } from "firebase/firestore";
+import { setDoc, doc, collection, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
 function LoginPage() {
@@ -14,38 +14,22 @@ function LoginPage() {
   
   // Club-related state for signup
   const [clubName, setClubName] = useState("");
-  const [existingClubs, setExistingClubs] = useState([]);
   const [selectedClubId, setSelectedClubId] = useState("");
   const [isNewClub, setIsNewClub] = useState(true);
-  
-  // Load existing clubs for selection
-  useEffect(() => {
-    const loadClubs = async () => {
-      try {
-        const clubsSnapshot = await getDocs(collection(db, 'clubs'));
-        const clubs = clubsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setExistingClubs(clubs);
-      } catch (err) {
-        console.error("Error loading clubs:", err);
-      }
-    };
-    
-    if (!isLogin) {
-      loadClubs();
-    }
-  }, [isLogin]);
 
   const createClub = async (clubName) => {
-    const clubRef = doc(collection(db, 'clubs'));
-    await setDoc(clubRef, {
+    // Generate a 6-character club ID
+    const clubId = Math.random().toString(36).substr(2, 6).toUpperCase();
+    
+    await setDoc(doc(db, 'clubs', clubId), {
       name: clubName,
       subscription: 'active',
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      clubId: clubId // Store for reference
     });
-    return clubRef.id;
+    
+    console.log(`Club created: ${clubName} (ID: ${clubId})`);
+    return clubId;
   };
 
   const createUserProfile = async (userId, email, clubId) => {
@@ -67,8 +51,12 @@ function LoginPage() {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
         // Sign up new user
-        if (!isNewClub && !selectedClubId) {
-          setError("Please select a club");
+        if (!isNewClub && !selectedClubId.trim()) {
+          setError("Please enter a club ID");
+          return;
+        }
+        if (!isNewClub && selectedClubId.trim().length !== 6) {
+          setError("Club ID must be exactly 6 characters");
           return;
         }
         if (isNewClub && !clubName.trim()) {
@@ -83,7 +71,13 @@ function LoginPage() {
         if (isNewClub) {
           clubId = await createClub(clubName.trim());
         } else {
-          clubId = selectedClubId;
+          // Validate club ID exists
+          const clubDoc = await getDoc(doc(db, 'clubs', selectedClubId.trim().toUpperCase()));
+          if (!clubDoc.exists()) {
+            setError("Invalid club ID. Please check with your club administrator.");
+            return;
+          }
+          clubId = selectedClubId.trim().toUpperCase();
         }
         
         // Create user profile
@@ -168,11 +162,8 @@ function LoginPage() {
                   name="clubOption"
                   checked={!isNewClub}
                   onChange={() => setIsNewClub(false)}
-                  disabled={existingClubs.length === 0}
                 />
-                <span style={{ fontSize: "14px", color: existingClubs.length === 0 ? "#9ca3af" : "#374151" }}>
-                  Join existing club {existingClubs.length === 0 && "(none available)"}
-                </span>
+                <span style={{ fontSize: "14px" }}>Join existing club (requires club ID)</span>
               </label>
             </div>
 
@@ -193,27 +184,29 @@ function LoginPage() {
                 }}
               />
             ) : (
-              <select
-                value={selectedClubId}
-                onChange={(e) => setSelectedClubId(e.target.value)}
-                required={!isNewClub}
-                disabled={existingClubs.length === 0}
-                style={{ 
-                  width: "100%",
-                  padding: "8px", 
-                  fontSize: "14px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "4px",
-                  backgroundColor: "white"
-                }}
-              >
-                <option value="">Select a club...</option>
-                {existingClubs.map(club => (
-                  <option key={club.id} value={club.id}>
-                    {club.name}
-                  </option>
-                ))}
-              </select>
+              <div>
+                <input
+                  type="text"
+                  placeholder="Enter 6-character club ID (e.g., ABC123)"
+                  value={selectedClubId}
+                  onChange={(e) => setSelectedClubId(e.target.value.toUpperCase())}
+                  required={!isNewClub}
+                  maxLength="6"
+                  style={{ 
+                    width: "100%",
+                    padding: "8px", 
+                    fontSize: "14px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "4px",
+                    backgroundColor: "white",
+                    fontFamily: "monospace",
+                    letterSpacing: "1px"
+                  }}
+                />
+                <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+                  Get this 6-character ID from your club administrator
+                </div>
+              </div>
             )}
           </div>
         )}
