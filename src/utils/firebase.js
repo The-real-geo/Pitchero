@@ -94,19 +94,23 @@ export const getAllClubs = async () => {
 };
 
 // Multi-tenant Allocation Functions
-export const saveAllocation = async (allocatorType, allocation, date) => {
+export const saveAllocation = async (allocatorType, allocation, date, clubId) => {
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');
   
   try {
-    // Get user's clubId
-    const userProfile = await getUserProfile(user.uid);
-    if (!userProfile?.clubId) throw new Error('User not assigned to club');
+    // Use provided clubId or get user's clubId
+    let targetClubId = clubId;
+    if (!targetClubId) {
+      const userProfile = await getUserProfile(user.uid);
+      if (!userProfile?.clubId) throw new Error('User not assigned to club');
+      targetClubId = userProfile.clubId;
+    }
     
     const docRef = await addDoc(collection(db, allocatorType), {
       ...allocation,
       date: date,
-      clubId: userProfile.clubId,
+      clubId: targetClubId,
       createdBy: user.uid,
       created: Date.now()
     });
@@ -118,22 +122,26 @@ export const saveAllocation = async (allocatorType, allocation, date) => {
   }
 };
 
-export const loadAllocations = async (allocatorType, date) => {
+export const loadAllocations = async (allocatorType, date, clubId) => {
   const user = auth.currentUser;
   if (!user) return [];
   
   try {
-    // Get user's clubId
-    const userProfile = await getUserProfile(user.uid);
-    if (!userProfile?.clubId) return [];
+    // Use provided clubId or get user's clubId
+    let targetClubId = clubId;
+    if (!targetClubId) {
+      const userProfile = await getUserProfile(user.uid);
+      if (!userProfile?.clubId) return [];
+      targetClubId = userProfile.clubId;
+    }
     
-    console.log(`Loading ${allocatorType} for date: ${date}, club: ${userProfile.clubId}`);
+    console.log(`Loading ${allocatorType} for date: ${date}, club: ${targetClubId}`);
     
     // Filter by both date AND clubId
     const q = query(
       collection(db, allocatorType), 
       where("date", "==", date),
-      where("clubId", "==", userProfile.clubId)
+      where("clubId", "==", targetClubId)
     );
     
     const querySnapshot = await getDocs(q);
@@ -150,22 +158,26 @@ export const loadAllocations = async (allocatorType, date) => {
   }
 };
 
-export const clearAllAllocations = async (allocatorType, date) => {
+export const clearAllAllocations = async (allocatorType, date, clubId) => {
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');
   
   try {
-    // Get user's clubId
-    const userProfile = await getUserProfile(user.uid);
-    if (!userProfile?.clubId) throw new Error('User not assigned to club');
+    // Use provided clubId or get user's clubId
+    let targetClubId = clubId;
+    if (!targetClubId) {
+      const userProfile = await getUserProfile(user.uid);
+      if (!userProfile?.clubId) throw new Error('User not assigned to club');
+      targetClubId = userProfile.clubId;
+    }
     
-    console.log(`Clearing all ${allocatorType} for date: ${date}, club: ${userProfile.clubId}`);
+    console.log(`Clearing all ${allocatorType} for date: ${date}, club: ${targetClubId}`);
     
     // Filter by both date AND clubId for safety
     const q = query(
       collection(db, allocatorType), 
       where("date", "==", date),
-      where("clubId", "==", userProfile.clubId)
+      where("clubId", "==", targetClubId)
     );
     
     const querySnapshot = await getDocs(q);
@@ -182,46 +194,47 @@ export const clearAllAllocations = async (allocatorType, date) => {
   }
 };
 
-// SIMPLE delete single allocation function
+// Fixed deleteAllocation function - uses docId directly
 export const deleteAllocation = async (allocatorType, docId, date, clubId) => {
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');
   
   try {
-    // Get user's clubId
-    const userProfile = await getUserProfile(user.uid);
-    if (!userProfile?.clubId) throw new Error('User not assigned to club');
-    
-    // Parse the key to get the components
-    const keyParts = allocationKey.split('-');
-    const [, keyTime, keyPitch, keySection] = keyParts; // Skip date part
-    
-    // Query all allocations for this date and club
-    const q = query(
-      collection(db, allocatorType),
-      where("date", "==", date),
-      where("clubId", "==", userProfile.clubId)
-    );
-    
-    const querySnapshot = await getDocs(q);
-    
-    // Find and delete matching allocation
-    for (const docSnapshot of querySnapshot.docs) {
-      const allocation = docSnapshot.data();
-      if (allocation.startTime === keyTime && 
-          allocation.pitch === keyPitch && 
-          allocation.section === keySection) {
-        await deleteDoc(doc(db, allocatorType, docSnapshot.id));
-        console.log(`Deleted allocation: ${allocationKey}`);
-        return;
-      }
+    // Use provided clubId or get user's clubId for security check
+    let targetClubId = clubId;
+    if (!targetClubId) {
+      const userProfile = await getUserProfile(user.uid);
+      if (!userProfile?.clubId) throw new Error('User not assigned to club');
+      targetClubId = userProfile.clubId;
     }
     
-    // If we get here, allocation wasn't found - but don't throw error
-    console.log(`Allocation not found: ${allocationKey} - may have been already deleted`);
+    // First, verify the document exists and belongs to the correct club
+    const docRef = doc(db, allocatorType, docId);
+    const docSnapshot = await getDoc(docRef);
+    
+    if (!docSnapshot.exists()) {
+      console.log(`Allocation not found: ${docId} - may have been already deleted`);
+      return;
+    }
+    
+    const allocation = docSnapshot.data();
+    
+    // Security check - ensure document belongs to the correct club
+    if (allocation.clubId !== targetClubId) {
+      throw new Error('Cannot delete allocation from different club');
+    }
+    
+    // Delete the document
+    await deleteDoc(docRef);
+    console.log(`Deleted allocation: ${docId}`);
   } catch (err) {
     console.error("Error deleting allocation:", err);
-    // Don't throw - just log the error so it doesn't break other functionality
+    // Check if it's a "document not found" error
+    if (err.code === 'not-found') {
+      console.log(`Allocation not found: ${docId} - may have been already deleted`);
+    } else {
+      throw err;
+    }
   }
 };
 
