@@ -81,25 +81,33 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
           return;
         }
 
+        // If joining existing club, validate it exists BEFORE creating auth account
+        let clubId;
+        if (!isNewClub) {
+          console.log('📝 Validating existing club BEFORE auth...');
+          try {
+            const clubDoc = await getDoc(doc(db, 'clubs', selectedClubId.trim().toUpperCase()));
+            if (!clubDoc.exists()) {
+              setError("Invalid club ID. Please check with your club administrator.");
+              return;
+            }
+            clubId = selectedClubId.trim().toUpperCase();
+            console.log('✅ Club validated:', clubId);
+          } catch (clubError) {
+            console.error('❌ Error validating club (trying without auth):', clubError);
+            setError("Unable to validate club ID. Please check your internet connection and try again.");
+            return;
+          }
+        }
+
         console.log('✅ Validation passed, creating auth account...');
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         console.log('✅ Auth account created:', userCredential.user.uid);
         
-        // Create or use existing club
-        let clubId;
+        // Create club if needed (only for new clubs)
         if (isNewClub) {
           console.log('📝 Creating new club...');
           clubId = await createClub(clubName.trim());
-        } else {
-          console.log('📝 Validating existing club...');
-          // Validate club ID exists
-          const clubDoc = await getDoc(doc(db, 'clubs', selectedClubId.trim().toUpperCase()));
-          if (!clubDoc.exists()) {
-            setError("Invalid club ID. Please check with your club administrator.");
-            return;
-          }
-          clubId = selectedClubId.trim().toUpperCase();
-          console.log('✅ Club validated:', clubId);
         }
         
         // Create user profile
