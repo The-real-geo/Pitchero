@@ -54,7 +54,8 @@ function TrainingPitchAllocator({ onBack }) {
   clubInfo,
   loadAllocationsForDate,
   saveAllocationToFirestore,
-  clearAllAllocationsForDate
+  clearAllAllocationsForDate,
+  deleteAllocationFromFirestore
 } = useFirebaseAllocations('trainingAllocations');
 
   // Auth state

@@ -75,7 +75,8 @@ function MatchDayPitchAllocator({ onBack }) {
   clubInfo,
   loadAllocationsForDate,
   saveAllocationToFirestore,
-  clearAllAllocationsForDate
+  clearAllAllocationsForDate,
+  deleteAllocationFromFirestore
 } = useFirebaseAllocations('matchAllocations');
 
   // Auth state
