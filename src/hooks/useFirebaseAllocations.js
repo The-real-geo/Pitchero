@@ -84,14 +84,18 @@ export const useFirebaseAllocations = (allocatorType) => {
       console.log(`Saving ${allocatorType} for ${teamName} (Club: ${clubInfo?.name || userProfile.clubId})`);
       const allocationWithTeam = { ...allocation, teamName };
       await saveAllocation(allocatorType, allocationWithTeam, date);
-      console.log(`Saved ${allocatorType} for club`);
+      
+      // Reload allocations after saving to get the fresh data
+      await loadAllocationsForDate(date);
+      
+      console.log(`Saved and reloaded ${allocatorType} for club`);
     } catch (err) {
       console.error(`Error saving ${allocatorType}:`, err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [allocatorType, user, userProfile, clubInfo]);
+  }, [allocatorType, loadAllocationsForDate, user, userProfile, clubInfo]);
 
   const deleteAllocationFromFirestore = useCallback(async (allocationKey, date) => {
     if (!user || !userProfile?.clubId) return;
@@ -103,19 +107,17 @@ export const useFirebaseAllocations = (allocatorType) => {
       console.log(`Deleting ${allocatorType} allocation: ${allocationKey} (Club: ${clubInfo?.name || userProfile.clubId})`);
       await deleteAllocation(allocatorType, allocationKey, date);
       
-      // Remove from local state
-      const updatedAllocations = { ...allocations };
-      delete updatedAllocations[allocationKey];
-      setAllocations(updatedAllocations);
+      // Reload allocations after deletion to refresh the UI
+      await loadAllocationsForDate(date);
       
-      console.log(`Deleted ${allocatorType} allocation for club`);
+      console.log(`Deleted and reloaded ${allocatorType} allocation for club`);
     } catch (err) {
       console.error(`Error deleting ${allocatorType}:`, err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [allocatorType, allocations, user, userProfile, clubInfo]);
+  }, [allocatorType, loadAllocationsForDate, user, userProfile, clubInfo]);
 
   const clearAllAllocationsForDate = useCallback(async (date) => {
     if (!user || !userProfile?.clubId) return;

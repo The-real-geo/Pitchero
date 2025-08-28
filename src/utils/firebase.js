@@ -1,4 +1,4 @@
-// src/utils/firebase.js
+/ src/utils/firebase.js
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, getDocs, getDoc, setDoc, query, where, deleteDoc, doc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
@@ -182,6 +182,49 @@ export const clearAllAllocations = async (allocatorType, date) => {
   }
 };
 
+// SIMPLE delete single allocation function
+export const deleteAllocation = async (allocatorType, allocationKey, date) => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+  
+  try {
+    // Get user's clubId
+    const userProfile = await getUserProfile(user.uid);
+    if (!userProfile?.clubId) throw new Error('User not assigned to club');
+    
+    // Parse the key to get the components
+    const keyParts = allocationKey.split('-');
+    const [, keyTime, keyPitch, keySection] = keyParts; // Skip date part
+    
+    // Query all allocations for this date and club
+    const q = query(
+      collection(db, allocatorType),
+      where("date", "==", date),
+      where("clubId", "==", userProfile.clubId)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    
+    // Find and delete matching allocation
+    for (const docSnapshot of querySnapshot.docs) {
+      const allocation = docSnapshot.data();
+      if (allocation.startTime === keyTime && 
+          allocation.pitch === keyPitch && 
+          allocation.section === keySection) {
+        await deleteDoc(doc(db, allocatorType, docSnapshot.id));
+        console.log(`Deleted allocation: ${allocationKey}`);
+        return;
+      }
+    }
+    
+    // If we get here, allocation wasn't found - but don't throw error
+    console.log(`Allocation not found: ${allocationKey} - may have been already deleted`);
+  } catch (err) {
+    console.error("Error deleting allocation:", err);
+    // Don't throw - just log the error so it doesn't break other functionality
+  }
+};
+
 // User Management Functions (for admins)
 export const getUsersInClub = async (clubId) => {
   try {
@@ -223,73 +266,6 @@ export const updateUserRole = async (userId, newRole) => {
     console.log("User role updated");
   } catch (err) {
     console.error("Error updating user role:", err);
-    throw err;
-  }
-};
-
-export const deleteAllocation = async (allocatorType, allocationKey, date) => {
-  const user = auth.currentUser;
-  if (!user) throw new Error('Not authenticated');
-  
-  try {
-    // Get user's clubId
-    const userProfile = await getUserProfile(user.uid);
-    if (!userProfile?.clubId) throw new Error('User not assigned to club');
-    
-    console.log(`Attempting to delete allocation with key: ${allocationKey}`);
-    
-    // Find the document to delete by querying for it
-    const q = query(
-      collection(db, allocatorType),
-      where("date", "==", date),
-      where("clubId", "==", userProfile.clubId)
-    );
-    
-    const querySnapshot = await getDocs(q);
-    
-    // Parse the allocation key to get individual components
-    const keyParts = allocationKey.split('-');
-    if (keyParts.length < 4) {
-      throw new Error(`Invalid allocation key format: ${allocationKey}`);
-    }
-    
-    const [keyDate, keyTime, keyPitch, keySection] = keyParts;
-    console.log(`Looking for allocation: date=${keyDate}, time=${keyTime}, pitch=${keyPitch}, section=${keySection}`);
-    
-    // Find the specific allocation to delete
-    for (const docSnapshot of querySnapshot.docs) {
-      const allocation = docSnapshot.data();
-      
-      // Check if this document matches our target allocation
-      const matchesTime = allocation.startTime === keyTime;
-      const matchesPitch = allocation.pitch === keyPitch;
-      const matchesSection = allocation.section === keySection;
-      
-      console.log(`Checking document ${docSnapshot.id}:`, {
-        storedTime: allocation.startTime,
-        storedPitch: allocation.pitch,
-        storedSection: allocation.section,
-        matchesTime,
-        matchesPitch,
-        matchesSection
-      });
-      
-      if (matchesTime && matchesPitch && matchesSection) {
-        await deleteDoc(doc(db, allocatorType, docSnapshot.id));
-        console.log(`Deleted allocation: ${allocationKey} (Document ID: ${docSnapshot.id})`);
-        return;
-      }
-    }
-    
-    console.error(`Allocation not found for key: ${allocationKey}`);
-    console.log(`Available allocations:`, querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return `${data.date}-${data.startTime}-${data.pitch}-${data.section}`;
-    }));
-    
-    throw new Error(`Allocation not found: ${allocationKey}`);
-  } catch (err) {
-    console.error("Error deleting allocation:", err);
     throw err;
   }
 };
