@@ -57,12 +57,16 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    
+    console.log('🚀 handleSubmit called', { isLogin, email, isNewClub, clubName, selectedClubId });
 
     try {
       if (isLogin) {
+        console.log('📝 Attempting login...');
         // Log in existing user
         await signInWithEmailAndPassword(auth, email, password);
       } else {
+        console.log('📝 Starting signup process...');
         // Sign up new user
         if (!isNewClub && !selectedClubId.trim()) {
           setError("Please enter a club ID");
@@ -77,13 +81,17 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
           return;
         }
 
+        console.log('✅ Validation passed, creating auth account...');
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        console.log('✅ Auth account created:', userCredential.user.uid);
         
         // Create or use existing club
         let clubId;
         if (isNewClub) {
+          console.log('📝 Creating new club...');
           clubId = await createClub(clubName.trim());
         } else {
+          console.log('📝 Validating existing club...');
           // Validate club ID exists
           const clubDoc = await getDoc(doc(db, 'clubs', selectedClubId.trim().toUpperCase()));
           if (!clubDoc.exists()) {
@@ -91,13 +99,19 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
             return;
           }
           clubId = selectedClubId.trim().toUpperCase();
+          console.log('✅ Club validated:', clubId);
         }
         
         // Create user profile
-        await createUserProfile(userCredential.user.uid, email, clubId);
+        console.log('📝 Creating user profile...');
+        const role = isNewClub ? 'admin' : 'member';
+        await createUserProfile(userCredential.user.uid, email, clubId, role);
+        console.log('✅ User profile should be created');
       }
+      console.log('✅ Success! Navigating to menu...');
       navigate("/menu");
     } catch (err) {
+      console.error('❌ Error in handleSubmit:', err);
       setError(err.message);
     }
   };
