@@ -4,9 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { auth } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
-
-
-
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const pitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
@@ -68,16 +65,16 @@ function MatchDayPitchAllocator({ onBack }) {
   // Firebase integration
   const navigate = useNavigate();
   const {
-  allocations,
-  loading,
-  error,
-  userProfile,
-  clubInfo,
-  loadAllocationsForDate,
-  saveAllocationToFirestore,
-  clearAllAllocationsForDate,
-  deleteAllocationFromFirestore
-} = useFirebaseAllocations('matchAllocations');
+    allocations,
+    loading,
+    error,
+    userProfile,
+    clubInfo,
+    loadAllocationsForDate,
+    saveAllocationToFirestore,
+    clearAllAllocationsForDate,
+    deleteAllocationFromFirestore
+  } = useFirebaseAllocations('matchAllocations');
 
   // Auth state
   const [user, setUser] = useState(null);
@@ -275,34 +272,28 @@ function MatchDayPitchAllocator({ onBack }) {
     const slotsNeeded = Math.ceil(duration / 15);
     const startSlotIndex = slots.indexOf(slot);
 
-    try {
-      for (const sectionToAllocate of sectionsToAllocate) {
-        for (let i = 0; i < slotsNeeded; i++) {        
-          const allocation = {
-            team: selectedTeam.name,
-            colour: selectedTeam.color,
-            duration: duration,
-            isMultiSlot: slotsNeeded > 1,
-            slotIndex: i,
-            totalSlots: slotsNeeded,
-            startTime: slot,
-            endTime: slots[startSlotIndex + slotsNeeded - 1],
-            pitch: pitch,
-            section: sectionToAllocate,
-            date: date,
-            isPartOfGroup: sectionsToAllocate.length > 1,
-            groupSections: sectionsToAllocate
-          };
+    // Create allocation object
+    const allocation = {
+      team: selectedTeam.name,
+      colour: selectedTeam.color,
+      duration: duration,
+      isMultiSlot: slotsNeeded > 1,
+      slotIndex: 0,
+      totalSlots: slotsNeeded,
+      startTime: slot,
+      endTime: slots[startSlotIndex + slotsNeeded - 1],
+      pitch: pitch,
+      section: sectionsToAllocate[0], // Use first section as primary
+      date: date,
+      isPartOfGroup: sectionsToAllocate.length > 1,
+      groupSections: sectionsToAllocate
+    };
 
-          await saveAllocationToFirestore(selectedTeam.name, allocation, date);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to add match day allocation:", err);
-    }
+    // Save to Firebase - this will create the multi-slot entries
+    await saveAllocationToFirestore(selectedTeam.name, allocation, date);
   };
 
-  // Fixed clear allocation function - uses allocation.id like the training allocator
+  // Simple clear allocation function - exact same as training allocator
   const clearAllocation = async (key) => {
     const allocation = allocations[key];
     if (!allocation || loading) return;
@@ -315,7 +306,6 @@ function MatchDayPitchAllocator({ onBack }) {
     }
   };
 
-  // Clear all allocations
   const clearAllAllocations = () => {
     setShowClearConfirm(true);
   };
@@ -330,7 +320,10 @@ function MatchDayPitchAllocator({ onBack }) {
     setShowClearConfirm(false);
   };
 
-  // Export functionality
+  const handlePrint = () => {
+    window.print();
+  };
+
   const handleExport = () => {
     const exportData = {
       allocations: allocations,
@@ -351,7 +344,6 @@ function MatchDayPitchAllocator({ onBack }) {
     URL.revokeObjectURL(url);
   };
 
-  // Import functionality
   const handleImport = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -379,12 +371,6 @@ function MatchDayPitchAllocator({ onBack }) {
     input.click();
   };
 
-  // Print functionality
-  const handlePrint = () => {
-    window.print();
-  };
-
-  // Summary generation functions
   const generateSectionSummary = () => {
     const summary = {};
     const uniqueAllocations = {};
@@ -453,7 +439,6 @@ function MatchDayPitchAllocator({ onBack }) {
     return summary;
   };
 
-  // Helper functions
   const formatTimeRange = (allocation) => {
     if (allocation.duration <= 15) {
       return allocation.startTime;
@@ -523,50 +508,50 @@ function MatchDayPitchAllocator({ onBack }) {
             gap: '12px',
             fontSize: '14px'
           }}>
-           {user && (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px'
-  }}>
-    {clubInfo && (
-      <div style={{
-        padding: '6px 12px',
-        backgroundColor: '#10b981',
-        color: 'white',
-        borderRadius: '20px',
-        fontSize: '12px',
-        fontWeight: '500'
-      }}>
-        🏢 {clubInfo.name}
-      </div>
-    )}
-    <div style={{
-      padding: '6px 12px',
-      backgroundColor: '#6366f1',
-      color: 'white',
-      borderRadius: '20px',
-      fontSize: '12px',
-      fontWeight: '500'
-    }}>
-      👤 {user.email} ({userProfile?.role || 'loading...'})
-    </div>
-    <button
-      onClick={handleLogout}
-      style={{
-        padding: '4px 8px',
-        backgroundColor: '#dc2626',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        fontSize: '12px'
-      }}
-    >
-      Logout
-    </button>
-  </div>
-)}
+            {user && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                {clubInfo && (
+                  <div style={{
+                    padding: '6px 12px',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: '500'
+                  }}>
+                    🏢 {clubInfo.name}
+                  </div>
+                )}
+                <div style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#6366f1',
+                  color: 'white',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}>
+                  👤 {user.email} ({userProfile?.role || 'loading...'})
+                </div>
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    padding: '4px 8px',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Logout
+                </button>
+              </div>
+            )}
             {loading && (
               <div style={{
                 padding: '6px 12px',
@@ -634,7 +619,6 @@ function MatchDayPitchAllocator({ onBack }) {
           <strong>💡 Tip:</strong> Click on any colored section in the pitch layout below to remove that specific match allocation. Multi-slot and multi-section bookings will be completely removed when you click on any part of them.
         </div>
 
-        {/* Action buttons */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
           <button 
             onClick={() => {
