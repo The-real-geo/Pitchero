@@ -228,11 +228,40 @@ export const updateUserRole = async (userId, newRole) => {
 };
 
 export const deleteAllocation = async (allocatorType, allocationKey, date) => {
-  // Implementation will depend on how you store documents in Firestore
-  // You'll need to delete the specific document based on the key
-  const docId = `${date}_${allocationKey}`;  // or however you create document IDs
-  const docRef = doc(db, 'clubs', userClubId, allocatorType, docId);
-  await deleteDoc(docRef);
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+  
+  try {
+    // Get user's clubId
+    const userProfile = await getUserProfile(user.uid);
+    if (!userProfile?.clubId) throw new Error('User not assigned to club');
+    
+    // Find the document to delete by querying for it
+    const q = query(
+      collection(db, allocatorType),
+      where("date", "==", date),
+      where("clubId", "==", userProfile.clubId)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    
+    // Find the specific allocation to delete based on the key pattern
+    for (const docSnapshot of querySnapshot.docs) {
+      const allocation = docSnapshot.data();
+      const documentKey = `${allocation.date}-${allocation.startTime}-${allocation.pitch}-${allocation.section}`;
+      
+      if (documentKey === allocationKey) {
+        await deleteDoc(doc(db, allocatorType, docSnapshot.id));
+        console.log(`Deleted allocation: ${allocationKey}`);
+        return;
+      }
+    }
+    
+    throw new Error(`Allocation not found: ${allocationKey}`);
+  } catch (err) {
+    console.error("Error deleting allocation:", err);
+    throw err;
+  }
 };
 
 // Test Functions
