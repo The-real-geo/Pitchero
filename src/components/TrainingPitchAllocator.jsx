@@ -82,6 +82,7 @@ function TrainingPitchAllocator({ onBack }) {
   const [summaryType, setSummaryType] = useState('section');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [manuallyExpandedSlotsTraining, setManuallyExpandedSlotsTraining] = useState(new Set());
+  const [deletingAllocations, setDeletingAllocations] = useState(new Set());
 
   const slots = useMemo(() => timeSlots(), []);
 
@@ -176,10 +177,19 @@ function TrainingPitchAllocator({ onBack }) {
     return hasAllocationsForTimeSlotTraining(timeSlot) || manuallyExpandedSlotsTraining.has(timeSlot);
   };
 
+  // State to track which allocations are being deleted to prevent double-deletion
+  const [deletingAllocations, setDeletingAllocations] = useState(new Set());
+
   // Enhanced clear allocation function that handles multi-slot allocations
   const clearAllocation = async (key) => {
     const allocation = allocations[key];
     if (!allocation || loading) return;
+
+    // Check if this allocation is already being deleted
+    if (deletingAllocations.has(allocation.id)) {
+      console.log('Allocation already being deleted, skipping:', allocation.id);
+      return;
+    }
 
     try {
       if (!allocation.id) {
@@ -187,31 +197,56 @@ function TrainingPitchAllocator({ onBack }) {
         return;
       }
 
-      // If this is a multi-slot allocation, we need to remove all related slots
+      // Mark this allocation as being deleted
+      setDeletingAllocations(prev => new Set(prev).add(allocation.id));
+
+      // For multi-slot allocations, collect all IDs first to avoid duplicates
+      const idsToDelete = new Set();
+      
       if (allocation.isMultiSlot && allocation.duration > 30) {
         const slotsNeeded = allocation.duration / 30;
         const startSlotIndex = slots.indexOf(allocation.startTime);
         
-        // Find all related allocation keys and remove them
-        const allocationPromises = [];
+        // Find all related allocation IDs
         for (let i = 0; i < slotsNeeded; i++) {
           const slotTime = slots[startSlotIndex + i];
           const relatedKey = `${allocation.date}-${slotTime}-${allocation.pitch}-${allocation.section}`;
           const relatedAllocation = allocations[relatedKey];
           
           if (relatedAllocation && relatedAllocation.id) {
-            allocationPromises.push(deleteAllocationFromFirestore(relatedAllocation.id, relatedAllocation.date));
+            idsToDelete.add(relatedAllocation.id);
           }
         }
-        
-        // Execute all deletions
-        await Promise.all(allocationPromises);
       } else {
-        // Single slot allocation
-        await deleteAllocationFromFirestore(allocation.id, allocation.date);
+        idsToDelete.add(allocation.id);
       }
+
+      // Delete each unique ID only once
+      const deletionPromises = Array.from(idsToDelete).map(id => 
+        deleteAllocationFromFirestore(id, allocation.date)
+      );
+      
+      await Promise.all(deletionPromises);
+
+      // Clear the deleting state after successful deletion
+      setDeletingAllocations(prev => {
+        const newSet = new Set(prev);
+        idsToDelete.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+
     } catch (error) {
       console.error('Error clearing allocation:', error);
+      
+      // Clear the deleting state on error
+      setDeletingAllocations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(allocation.id);
+        return newSet;
+      });
+      
+      // Reload to get the true state from Firebase
+      loadAllocationsForDate(date);
     }
   };
 
