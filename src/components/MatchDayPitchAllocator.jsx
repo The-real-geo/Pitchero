@@ -302,19 +302,18 @@ function MatchDayPitchAllocator({ onBack }) {
     }
   };
 
- // Clear allocation - SIMPLIFIED VERSION
-const clearAllocation = async (key) => {
-  const allocation = allocations[key];
-  if (!allocation || loading) return;
+  // Fixed clear allocation function - uses allocation.id like the training allocator
+  const clearAllocation = async (key) => {
+    const allocation = allocations[key];
+    if (!allocation || loading) return;
 
-  try {
-    // Just delete this one key - let Firebase handle the rest
-    await deleteAllocationFromFirestore(key, allocation.date);
-  } catch (error) {
-    console.error('Error clearing allocation:', error);
-  }
-};
-
+    // Direct deletion call without complex state tracking
+    if (allocation.id) {
+      await deleteAllocationFromFirestore(allocation.id, allocation.date);
+    } else {
+      console.error("No ID found for allocation:", allocation);
+    }
+  };
 
   // Clear all allocations
   const clearAllAllocations = () => {
@@ -621,6 +620,19 @@ const clearAllocation = async (key) => {
             </button>
           </div>
         )}
+
+        {/* Instructions for removing allocations */}
+        <div style={{
+          backgroundColor: '#ecfdf5',
+          border: '1px solid #6ee7b7',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          marginBottom: '24px',
+          fontSize: '14px',
+          color: '#047857'
+        }}>
+          <strong>💡 Tip:</strong> Click on any colored section in the pitch layout below to remove that specific match allocation. Multi-slot and multi-section bookings will be completely removed when you click on any part of them.
+        </div>
 
         {/* Action buttons */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
@@ -1396,7 +1408,7 @@ const clearAllocation = async (key) => {
                                       position: 'relative',
                                       padding: '2px',
                                       textAlign: 'center',
-                                      cursor: 'pointer',
+                                      cursor: alloc ? 'pointer' : 'default',
                                       backgroundColor: alloc ? alloc.colour + '90' : (isPreviewSection ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255,255,255,0.1)'),
                                       borderColor: alloc ? alloc.colour : (isPreviewSection ? '#f59e0b' : 'rgba(255,255,255,0.5)'),
                                       color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
@@ -1480,7 +1492,7 @@ const clearAllocation = async (key) => {
                                             fontSize: '12px',
                                             fontWeight: '500',
                                             transition: 'all 0.2s',
-                                            cursor: 'pointer',
+                                            cursor: alloc ? 'pointer' : 'default',
                                             backgroundColor: alloc ? alloc.colour + '90' : (isPreviewGrass ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255,255,255,0.1)'),
                                             borderColor: alloc ? alloc.colour : (isPreviewGrass ? '#f59e0b' : 'rgba(255,255,255,0.5)'),
                                             color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
