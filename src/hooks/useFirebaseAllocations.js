@@ -1,6 +1,14 @@
 // src/hooks/useFirebaseAllocations.js
 import { useState, useCallback, useEffect } from 'react';
-import { loadAllocations, saveAllocation, clearAllAllocations, deleteAllocation, auth, getUserProfile, getClubInfo } from '../utils/firebase';
+import { 
+  loadAllocations, 
+  saveAllocation, 
+  clearAllAllocations, 
+  deleteAllocation, 
+  auth, 
+  getUserProfile, 
+  getClubInfo 
+} from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 export const useFirebaseAllocations = (allocatorType) => {
@@ -18,11 +26,9 @@ export const useFirebaseAllocations = (allocatorType) => {
       
       if (currentUser) {
         try {
-          // Get user profile with club association
           const profile = await getUserProfile(currentUser.uid);
           setUserProfile(profile);
           
-          // Get club information
           if (profile?.clubId) {
             const club = await getClubInfo(profile.clubId);
             setClubInfo(club);
@@ -50,7 +56,7 @@ export const useFirebaseAllocations = (allocatorType) => {
       console.log(`Loading ${allocatorType} for ${date} (Club: ${clubInfo?.name || userProfile.clubId})`);
       const data = await loadAllocations(allocatorType, date);
       
-      // Convert Firebase data back to UI format
+      // 🔑 Convert Firebase data back to UI format and keep doc.id
       const allocationsMap = {};
       data.forEach(allocation => {
         if (allocation.isMultiSlot && allocation.totalSlots > 1) {
@@ -85,9 +91,7 @@ export const useFirebaseAllocations = (allocatorType) => {
       const allocationWithTeam = { ...allocation, teamName };
       await saveAllocation(allocatorType, allocationWithTeam, date);
       
-      // Reload allocations after saving to get the fresh data
       await loadAllocationsForDate(date);
-      
       console.log(`Saved and reloaded ${allocatorType} for club`);
     } catch (err) {
       console.error(`Error saving ${allocatorType}:`, err);
@@ -97,19 +101,18 @@ export const useFirebaseAllocations = (allocatorType) => {
     }
   }, [allocatorType, loadAllocationsForDate, user, userProfile, clubInfo]);
 
-  const deleteAllocationFromFirestore = useCallback(async (allocationKey, date) => {
+  // ✅ Fixed: delete allocation using Firestore docId
+  const deleteAllocationFromFirestore = useCallback(async (docId, date) => {
     if (!user || !userProfile?.clubId) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      console.log(`Deleting ${allocatorType} allocation: ${allocationKey} (Club: ${clubInfo?.name || userProfile.clubId})`);
-      await deleteAllocation(allocatorType, allocationKey, date);
+      console.log(`Deleting ${allocatorType} allocation: ${docId} (Club: ${clubInfo?.name || userProfile.clubId})`);
+      await deleteAllocation(allocatorType, docId, date);
       
-      // Reload allocations after deletion to refresh the UI
       await loadAllocationsForDate(date);
-      
       console.log(`Deleted and reloaded ${allocatorType} allocation for club`);
     } catch (err) {
       console.error(`Error deleting ${allocatorType}:`, err);

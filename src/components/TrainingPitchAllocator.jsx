@@ -176,18 +176,22 @@ function TrainingPitchAllocator({ onBack }) {
     return hasAllocationsForTimeSlotTraining(timeSlot) || manuallyExpandedSlotsTraining.has(timeSlot);
   };
 
-  // Clear allocation - SIMPLIFIED VERSION  
+  // Clear allocation by Firestore ID  
 const clearAllocation = async (key) => {
   const allocation = allocations[key];
   if (!allocation || loading) return;
 
   try {
-    // Just delete this one key - let Firebase handle the rest
-    await deleteAllocationFromFirestore(key, allocation.date);
+    if (!allocation.id) {
+      console.error("Missing Firestore doc ID for allocation:", allocation);
+      return;
+    }
+    await deleteAllocationFromFirestore(allocation.id, allocation.date);
   } catch (error) {
     console.error('Error clearing allocation:', error);
   }
 };
+
 
   const clearAllAllocations = () => {
     setShowClearConfirm(true);
