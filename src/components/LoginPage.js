@@ -4,6 +4,7 @@ import { auth, db } from "../utils/firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { setDoc, doc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import logo from "../assets/images/logo.png";
 
 function LoginPage() {
   const [email, setEmail] = useState("");
@@ -126,34 +127,39 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
 
   return (
     <div style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: "100%",
+      height: "100%",
       display: "flex",
       justifyContent: "center",
       alignItems: "center",
-      minHeight: "100vh",
       backgroundColor: "#243665",
-      padding: "20px",
-      boxSizing: "border-box"
+      overflow: "auto"
     }}>
       <div style={{ 
         padding: "40px", 
         maxWidth: "450px", 
-        width: "100%",
+        width: "90%",
         fontFamily: "system-ui, sans-serif",
         backgroundColor: "white",
         borderRadius: "12px",
-        boxShadow: "0 10px 25px rgba(0,0,0,0.2)"
+        boxShadow: "0 10px 25px rgba(0,0,0,0.3)"
       }}>
-        {/* Logo placeholder - replace src with your actual logo path */}
+        {/* Logo section */}
         <div style={{ 
           display: "flex", 
           justifyContent: "center", 
           marginBottom: "24px" 
         }}>
           <img 
-            src="/logo.png" 
-            alt="PitcHero Logo" 
+            src={logo} 
+            alt="PitcHero" 
             style={{ 
-              height: "80px", 
+              height: "120px", 
               width: "auto" 
             }}
           />
