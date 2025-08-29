@@ -264,7 +264,7 @@ function MatchDayPitchAllocator({ onBack }) {
     return false;
   }, [allocations, date, slot, pitch, duration, slots, sectionsToAllocate]);
 
-  // Add allocation with Firebase
+  // Add allocation with Firebase - creates separate entries for each section and time slot
   const addAllocation = async () => {
     const selectedTeam = teams.find(t => t.name === team);
     if (!selectedTeam || hasConflict || loading) return;
@@ -272,25 +272,33 @@ function MatchDayPitchAllocator({ onBack }) {
     const slotsNeeded = Math.ceil(duration / 15);
     const startSlotIndex = slots.indexOf(slot);
 
-    // Create allocation object
-    const allocation = {
-      team: selectedTeam.name,
-      colour: selectedTeam.color,
-      duration: duration,
-      isMultiSlot: slotsNeeded > 1,
-      slotIndex: 0,
-      totalSlots: slotsNeeded,
-      startTime: slot,
-      endTime: slots[startSlotIndex + slotsNeeded - 1],
-      pitch: pitch,
-      section: sectionsToAllocate[0], // Use first section as primary
-      date: date,
-      isPartOfGroup: sectionsToAllocate.length > 1,
-      groupSections: sectionsToAllocate
-    };
+    try {
+      // Create allocations for each section and each time slot
+      for (const sectionToAllocate of sectionsToAllocate) {
+        for (let i = 0; i < slotsNeeded; i++) {        
+          const currentSlot = slots[startSlotIndex + i];
+          const allocation = {
+            team: selectedTeam.name,
+            colour: selectedTeam.color,
+            duration: duration,
+            isMultiSlot: slotsNeeded > 1,
+            slotIndex: i,
+            totalSlots: slotsNeeded,
+            startTime: slot,
+            endTime: slots[startSlotIndex + slotsNeeded - 1],
+            pitch: pitch,
+            section: sectionToAllocate,
+            date: date,
+            isPartOfGroup: sectionsToAllocate.length > 1,
+            groupSections: sectionsToAllocate
+          };
 
-    // Save to Firebase - this will create the multi-slot entries
-    await saveAllocationToFirestore(selectedTeam.name, allocation, date);
+          await saveAllocationToFirestore(selectedTeam.name, allocation, date);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to add match day allocation:", err);
+    }
   };
 
   // Enhanced clear allocation function for multi-section bookings
