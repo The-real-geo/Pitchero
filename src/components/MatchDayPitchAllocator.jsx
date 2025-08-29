@@ -1605,7 +1605,7 @@ function MatchDayPitchAllocator({ onBack }) {
                                             fontSize: '12px',
                                             lineHeight: 1.2
                                           }}>
-                                            {alloc ? alloc.team : (isPreviewGrass ? 'SELECTED' : '')}
+                                            {alloc ? alloc.team : (isPreviewGrass ? 'SELECTED ' : '')}
                                           </div>
                                           {alloc && alloc.isMultiSlot && (
                                             <div style={{
