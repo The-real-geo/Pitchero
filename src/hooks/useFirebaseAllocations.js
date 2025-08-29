@@ -219,19 +219,3 @@ export const useFirebaseAllocations = (allocatorType) => {
     deleteAllocationsByBookingId  // Export new function
   };
 };
-
-// Helper function to get time slots for multi-slot allocations
-const getTimeSlots = (startTime, totalSlots, allocatorType) => {
-  const timeSlots = [];
-  const [hour, minute] = startTime.split(':').map(Number);
-  const incrementMinutes = allocatorType === 'trainingAllocations' ? 30 : 15;
-  
-  for (let i = 0; i < totalSlots; i++) {
-    const totalMinutes = hour * 60 + minute + (i * incrementMinutes);
-    const newHour = Math.floor(totalMinutes / 60);
-    const newMinute = totalMinutes % 60;
-    timeSlots.push(`${newHour}:${newMinute.toString().padStart(2, '0')}`);
-  }
-  
-  return timeSlots;
-};
