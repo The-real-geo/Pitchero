@@ -4,7 +4,7 @@ import { auth, db } from "../utils/firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { setDoc, doc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import logo from "../assets/images/logo.png";
+import logo from "../assets/images/logo.PNG";
 
 function LoginPage() {
   const [email, setEmail] = useState("");
