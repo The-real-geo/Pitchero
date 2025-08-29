@@ -57,22 +57,25 @@ export const useFirebaseAllocations = (allocatorType) => {
       // Pass clubId explicitly to ensure consistent club context
       const data = await loadAllocations(allocatorType, date, userProfile.clubId);
       
-      // Convert Firebase data back to UI format and keep doc.id
+      // Convert Firebase data back to UI format
+      // IMPORTANT: Each Firebase document represents a single allocation entry
+      // We should NOT expand multi-slot allocations here as they are already stored as separate documents
       const allocationsMap = {};
+      
       data.forEach(allocation => {
-        if (allocation.isMultiSlot && allocation.totalSlots > 1) {
-          const slots = getTimeSlots(allocation.startTime, allocation.totalSlots, allocatorType);
-          slots.forEach((timeSlot, index) => {
-            const key = `${allocation.date}-${timeSlot}-${allocation.pitch}-${allocation.section}`;
-            allocationsMap[key] = { ...allocation, slotIndex: index };
-          });
-        } else {
-          const key = `${allocation.date}-${allocation.startTime}-${allocation.pitch}-${allocation.section}`;
-          allocationsMap[key] = allocation;
-        }
+        // Each allocation from Firebase is a unique entry with its own document ID
+        // Build the key based on the allocation's actual time slot (not just startTime)
+        const timeSlot = allocation.timeSlot || allocation.startTime;
+        const key = `${allocation.date}-${timeSlot}-${allocation.pitch}-${allocation.section}`;
+        
+        // Preserve the document ID for each allocation
+        allocationsMap[key] = {
+          ...allocation,
+          id: allocation.id // Ensure the Firebase document ID is preserved
+        };
       });
       
-      console.log(`Loaded ${Object.keys(allocationsMap).length} allocation slots for club`);
+      console.log(`Loaded ${Object.keys(allocationsMap).length} allocation entries with ${data.length} document IDs`);
       setAllocations(allocationsMap);
     } catch (err) {
       console.error(`Error loading ${allocatorType}:`, err);
@@ -103,7 +106,7 @@ export const useFirebaseAllocations = (allocatorType) => {
     }
   }, [allocatorType, loadAllocationsForDate, user, userProfile, clubInfo]);
 
-  // Fixed: delete allocation using Firestore docId with explicit clubId
+  // Delete allocation using Firestore docId with explicit clubId
   const deleteAllocationFromFirestore = useCallback(async (docId, date) => {
     if (!user || !userProfile?.clubId) return;
     
@@ -124,6 +127,64 @@ export const useFirebaseAllocations = (allocatorType) => {
       setLoading(false);
     }
   }, [allocatorType, loadAllocationsForDate, user, userProfile, clubInfo]);
+
+  // New function to delete all allocations with a specific bookingId
+  const deleteAllocationsByBookingId = useCallback(async (bookingId, date) => {
+    if (!user || !userProfile?.clubId || !bookingId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log(`Deleting all allocations with bookingId: ${bookingId}`);
+      
+      // Find all allocations with this bookingId
+      const toDelete = [];
+      Object.entries(allocations).forEach(([key, allocation]) => {
+        if (allocation.bookingId === bookingId && allocation.id) {
+          toDelete.push(allocation.id);
+        }
+      });
+      
+      // If no bookingId match, fallback to matching by team/date/time/pitch
+      if (toDelete.length === 0) {
+        const sampleAllocation = Object.values(allocations).find(a => a.bookingId === bookingId) || 
+                                Object.values(allocations)[0];
+        
+        if (sampleAllocation) {
+          Object.entries(allocations).forEach(([key, allocation]) => {
+            if (allocation.team === sampleAllocation.team &&
+                allocation.date === sampleAllocation.date &&
+                allocation.startTime === sampleAllocation.startTime &&
+                allocation.pitch === sampleAllocation.pitch &&
+                allocation.id) {
+              toDelete.push(allocation.id);
+            }
+          });
+        }
+      }
+      
+      // Remove duplicates
+      const uniqueIds = [...new Set(toDelete)];
+      
+      console.log(`Deleting ${uniqueIds.length} documents for booking ${bookingId}`);
+      
+      // Delete all documents in parallel
+      await Promise.all(
+        uniqueIds.map(id => deleteAllocation(allocatorType, id, date, userProfile.clubId))
+      );
+      
+      // Reload allocations
+      await loadAllocationsForDate(date);
+      console.log(`Deleted entire booking and reloaded allocations`);
+      
+    } catch (err) {
+      console.error(`Error deleting booking:`, err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [allocatorType, allocations, user, userProfile, loadAllocationsForDate]);
 
   const clearAllAllocationsForDate = useCallback(async (date) => {
     if (!user || !userProfile?.clubId) return;
@@ -154,7 +215,8 @@ export const useFirebaseAllocations = (allocatorType) => {
     loadAllocationsForDate,
     saveAllocationToFirestore,
     clearAllAllocationsForDate,
-    deleteAllocationFromFirestore
+    deleteAllocationFromFirestore,
+    deleteAllocationsByBookingId  // Export new function
   };
 };
 

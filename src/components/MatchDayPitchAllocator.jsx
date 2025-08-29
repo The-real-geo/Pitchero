@@ -73,7 +73,8 @@ function MatchDayPitchAllocator({ onBack }) {
     loadAllocationsForDate,
     saveAllocationToFirestore,
     clearAllAllocationsForDate,
-    deleteAllocationFromFirestore
+    deleteAllocationFromFirestore,
+    deleteAllocationsByBookingId
   } = useFirebaseAllocations('matchAllocations');
 
   // Auth state
@@ -322,96 +323,46 @@ function MatchDayPitchAllocator({ onBack }) {
     if (!allocation || loading) return;
 
     try {
-      // Find all allocations that belong to the same booking
-      const relatedAllocations = [];
-      const relatedKeys = [];
-      
-      // First, try to use bookingId if it exists (for newer allocations)
-      if (allocation.bookingId) {
-        Object.entries(allocations).forEach(([allocationKey, alloc]) => {
-          if (alloc.bookingId === allocation.bookingId) {
-            relatedAllocations.push(alloc);
-            relatedKeys.push(allocationKey);
-          }
-        });
-      }
-      
-      // If no bookingId or no matches found, use comprehensive matching
-      if (relatedAllocations.length === 0) {
-        // Get the time range for this booking
-        const duration = allocation.duration || 60;
-        const slotsNeeded = Math.ceil(duration / 15);
-        const startTime = allocation.startTime;
-        const startIndex = slots.indexOf(startTime);
-        
-        // Get all sections involved (from groupSections or current section)
-        const sectionsInvolved = allocation.groupSections || 
-                                 allocation.isPartOfGroup ? 
-                                 (allocation.groupSections || [allocation.section]) : 
-                                 [allocation.section];
-        
-        // Find all allocations that match this booking
-        Object.entries(allocations).forEach(([allocationKey, alloc]) => {
-          // Check if this allocation belongs to the same booking by matching:
-          // - Same team
-          // - Same date  
-          // - Same pitch
-          // - Same start time
-          // - Section is in the group of sections
-          if (alloc.team === allocation.team &&
-              alloc.date === allocation.date && 
-              alloc.pitch === allocation.pitch &&
-              alloc.startTime === allocation.startTime) {
-            relatedAllocations.push(alloc);
-            relatedKeys.push(allocationKey);
-          }
-        });
-        
-        // Additional check: find allocations by time slot range if needed
-        if (relatedAllocations.length === 0 && startIndex >= 0) {
-          for (let i = 0; i < slotsNeeded; i++) {
-            const timeSlot = slots[startIndex + i];
-            if (!timeSlot) continue;
-            
-            sectionsInvolved.forEach(section => {
-              const checkKey = `${allocation.date}-${timeSlot}-${allocation.pitch}-${section}`;
-              const checkAlloc = allocations[checkKey];
-              
-              if (checkAlloc && checkAlloc.team === allocation.team) {
-                if (!relatedKeys.includes(checkKey)) {
-                  relatedAllocations.push(checkAlloc);
-                  relatedKeys.push(checkKey);
-                }
-              }
-            });
-          }
-        }
-      }
-
-      // Log what we're about to delete for debugging
-      console.log(`Found ${relatedAllocations.length} related allocations to remove`);
-      console.log('Related keys:', relatedKeys);
-      
-      // Get unique Firebase document IDs
-      const uniqueIds = [...new Set(relatedAllocations.filter(alloc => alloc.id).map(alloc => alloc.id))];
-
-      if (uniqueIds.length === 0) {
-        console.error("No valid IDs found for allocations to delete");
-        console.error("Allocations found but missing IDs:", relatedAllocations);
+      // If the allocation has a bookingId, use the optimized deletion
+      if (allocation.bookingId && deleteAllocationsByBookingId) {
+        console.log(`Deleting entire booking with ID: ${allocation.bookingId}`);
+        await deleteAllocationsByBookingId(allocation.bookingId, allocation.date);
         return;
       }
-
-      console.log(`Removing entire booking: ${uniqueIds.length} Firebase documents for ${allocation.team}`);
-      console.log('Document IDs to delete:', uniqueIds);
       
-      // Delete all related Firebase documents
+      // Otherwise, fallback to finding all related allocations manually
+      const relatedAllocations = [];
+      const allDocumentIds = [];
+      
+      // Find all allocations that match this booking
+      Object.entries(allocations).forEach(([allocationKey, alloc]) => {
+        if (alloc.team === allocation.team &&
+            alloc.date === allocation.date && 
+            alloc.startTime === allocation.startTime &&
+            alloc.pitch === allocation.pitch) {
+          relatedAllocations.push(alloc);
+          // Each allocation should have its own unique document ID
+          if (alloc.id && !allDocumentIds.includes(alloc.id)) {
+            allDocumentIds.push(alloc.id);
+          }
+        }
+      });
+
+      console.log(`Found ${relatedAllocations.length} allocations with ${allDocumentIds.length} unique document IDs`);
+      
+      if (allDocumentIds.length === 0) {
+        console.error("No valid document IDs found for deletion");
+        return;
+      }
+      
+      // Delete all documents in parallel
+      console.log(`Deleting ${allDocumentIds.length} documents for ${allocation.team}`);
       await Promise.all(
-        uniqueIds.map(id => deleteAllocationFromFirestore(id, allocation.date))
+        allDocumentIds.map(id => deleteAllocationFromFirestore(id, allocation.date))
       );
 
     } catch (error) {
       console.error('Error clearing allocation:', error);
-      console.error('Allocation that triggered error:', allocation);
     }
   };
 
@@ -1605,7 +1556,7 @@ function MatchDayPitchAllocator({ onBack }) {
                                             fontSize: '12px',
                                             lineHeight: 1.2
                                           }}>
-                                            {alloc ? alloc.team : (isPreviewGrass ? 'SELECTED ' : '')}
+                                            {alloc ? alloc.team : (isPreviewGrass ? 'SELECTED' : '')}
                                           </div>
                                           {alloc && alloc.isMultiSlot && (
                                             <div style={{
