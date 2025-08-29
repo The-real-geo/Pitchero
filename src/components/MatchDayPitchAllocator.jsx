@@ -265,17 +265,23 @@ function MatchDayPitchAllocator({ onBack }) {
   }, [allocations, date, slot, pitch, duration, slots, sectionsToAllocate]);
 
   // Add allocation with Firebase - creates separate entries for each section and time slot
+  // Also generates a unique booking ID to link all related allocations
   const addAllocation = async () => {
     const selectedTeam = teams.find(t => t.name === team);
     if (!selectedTeam || hasConflict || loading) return;
 
     const slotsNeeded = Math.ceil(duration / 15);
     const startSlotIndex = slots.indexOf(slot);
+    
+    // Generate a unique booking ID for this entire allocation
+    const bookingId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     try {
       // Create allocations for each section and each time slot
       for (const sectionToAllocate of sectionsToAllocate) {
-        for (let i = 0; i < slotsNeeded; i++) {        
+        for (let i = 0; i < slotsNeeded; i++) {
+          const currentSlot = slots[startSlotIndex + i];
+          
           const allocation = {
             team: selectedTeam.name,
             colour: selectedTeam.color,
@@ -289,7 +295,9 @@ function MatchDayPitchAllocator({ onBack }) {
             section: sectionToAllocate,
             date: date,
             isPartOfGroup: sectionsToAllocate.length > 1,
-            groupSections: sectionsToAllocate
+            groupSections: sectionsToAllocate,
+            bookingId: bookingId, // Add booking ID to link all parts of this allocation
+            timeSlot: currentSlot // Add the actual time slot for this part
           };
 
           await saveAllocationToFirestore(selectedTeam.name, allocation, date);
@@ -300,35 +308,46 @@ function MatchDayPitchAllocator({ onBack }) {
     }
   };
 
-  // Enhanced clear allocation function for multi-section bookings
+  // Enhanced clear allocation function - removes entire booking with single click
   const clearAllocation = async (key) => {
     const allocation = allocations[key];
     if (!allocation || loading) return;
 
     try {
-      if (!allocation.id) {
-        console.error("No ID found for allocation:", allocation);
-        return;
-      }
-
       // Find all allocations that belong to the same booking
       const relatedAllocations = [];
       
-      Object.entries(allocations).forEach(([allocationKey, alloc]) => {
-        // Match by team, date, startTime, pitch - this groups the entire booking together
-        if (alloc.id && 
-            alloc.team === allocation.team &&
-            alloc.date === allocation.date && 
-            alloc.startTime === allocation.startTime &&
-            alloc.pitch === allocation.pitch) {
-          relatedAllocations.push(alloc);
-        }
-      });
+      // First, try to use bookingId if it exists (for newer allocations)
+      if (allocation.bookingId) {
+        Object.entries(allocations).forEach(([allocationKey, alloc]) => {
+          if (alloc.bookingId === allocation.bookingId) {
+            relatedAllocations.push(alloc);
+          }
+        });
+      }
+      
+      // Fallback to the old method for allocations without bookingId
+      if (relatedAllocations.length === 0) {
+        Object.entries(allocations).forEach(([allocationKey, alloc]) => {
+          // Match by team, date, startTime, and pitch
+          if (alloc.team === allocation.team &&
+              alloc.date === allocation.date && 
+              alloc.startTime === allocation.startTime &&
+              alloc.pitch === allocation.pitch) {
+            relatedAllocations.push(alloc);
+          }
+        });
+      }
 
-      // Get unique Firebase document IDs (avoid deleting same document twice)
-      const uniqueIds = [...new Set(relatedAllocations.map(alloc => alloc.id))];
+      // Get unique Firebase document IDs
+      const uniqueIds = [...new Set(relatedAllocations.filter(alloc => alloc.id).map(alloc => alloc.id))];
 
-      console.log(`Deleting entire booking: ${uniqueIds.length} Firebase documents for ${allocation.team}`);
+      if (uniqueIds.length === 0) {
+        console.error("No valid IDs found for allocations to delete");
+        return;
+      }
+
+      console.log(`Removing entire booking: ${uniqueIds.length} documents for ${allocation.team}`);
       
       // Delete all related Firebase documents
       await Promise.all(
@@ -392,7 +411,7 @@ function MatchDayPitchAllocator({ onBack }) {
             const allocationsToImport = importData.allocations || importData;
             
             // Import each allocation to Firebase
-            for (const [allocation] of Object.entries(allocationsToImport)) {
+            for (const [key, allocation] of Object.entries(allocationsToImport)) {
               await saveAllocationToFirestore(allocation.team, allocation, allocation.date);
             }
           } catch (error) {
@@ -1432,7 +1451,7 @@ function MatchDayPitchAllocator({ onBack }) {
                                       color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
                                     }}
                                     onClick={() => alloc && clearAllocation(key)}
-                                    title={alloc ? `${alloc.team} (${alloc.duration}min match, books ${Math.ceil(alloc.duration / 15) * 15}min) - Click to remove` : (isPreviewSection ? `Will be allocated for ${team}` : `Section ${sec} - Available`)}
+                                    title={alloc ? `${alloc.team} (${alloc.duration}min match, books ${Math.ceil(alloc.duration / 15) * 15}min) - Click to remove entire allocation` : (isPreviewSection ? `Will be allocated for ${team}` : `Section ${sec} - Available`)}
                                   >
                                     <div style={{
                                       fontSize: '12px',
@@ -1516,7 +1535,7 @@ function MatchDayPitchAllocator({ onBack }) {
                                             color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
                                           }}
                                           onClick={() => alloc && clearAllocation(key)}
-                                          title={alloc ? `${alloc.team} (${alloc.duration}min match, books ${Math.ceil(alloc.duration / 15) * 15}min) - Click to remove` : (isPreviewGrass ? `Will be allocated for ${team}` : `Grass Area - Available`)}
+                                          title={alloc ? `${alloc.team} (${alloc.duration}min match, books ${Math.ceil(alloc.duration / 15) * 15}min) - Click to remove entire allocation` : (isPreviewGrass ? `Will be allocated for ${team}` : `Grass Area - Available`)}
                                         >
                                           <div style={{
                                             fontSize: '12px',
@@ -1535,7 +1554,7 @@ function MatchDayPitchAllocator({ onBack }) {
                                           {alloc && alloc.isMultiSlot && (
                                             <div style={{
                                               fontSize: '12px',
-                                              opacity: 0.6,
+                                              opacity: 0.6',
                                               marginTop: '4px'
                                             }}>
                                               {alloc.duration}min
