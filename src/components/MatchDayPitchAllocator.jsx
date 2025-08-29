@@ -300,7 +300,7 @@ function MatchDayPitchAllocator({ onBack }) {
     }
   };
 
-  // Enhanced clear allocation function for multi-section bookings
+  // Simple clear allocation function - let the Firebase hook handle complexity  
   const clearAllocation = async (key) => {
     const allocation = allocations[key];
     if (!allocation || loading) return;
@@ -311,31 +311,8 @@ function MatchDayPitchAllocator({ onBack }) {
         return;
       }
 
-      // Find all allocations that belong to the same booking
-      // A booking is identified by: same team, date, startTime, pitch, and groupSections
-      const relatedAllocations = [];
-      
-      // Look through all current allocations to find matching bookings
-      Object.entries(allocations).forEach(([allocationKey, alloc]) => {
-        if (alloc.id && 
-            alloc.team === allocation.team &&
-            alloc.date === allocation.date && 
-            alloc.startTime === allocation.startTime &&
-            alloc.pitch === allocation.pitch &&
-            alloc.isPartOfGroup === allocation.isPartOfGroup &&
-            JSON.stringify(alloc.groupSections) === JSON.stringify(allocation.groupSections)) {
-          relatedAllocations.push(alloc);
-        }
-      });
-
-      // Deduplicate Firebase document IDs (multiple local entries can share same Firebase ID)
-      const uniqueFirebaseIds = [...new Set(relatedAllocations.map(alloc => alloc.id))];
-
-      // Delete each unique Firebase document only once
-      console.log(`Deleting ${uniqueFirebaseIds.length} unique Firebase documents for ${allocation.team}`);
-      for (const firebaseId of uniqueFirebaseIds) {
-        await deleteAllocationFromFirestore(firebaseId, allocation.date);
-      }
+      // Just delete this one allocation - the Firebase hook should handle related entries
+      await deleteAllocationFromFirestore(allocation.id, allocation.date);
     } catch (error) {
       console.error('Error clearing allocation:', error);
     }
