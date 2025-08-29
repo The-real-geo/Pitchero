@@ -135,11 +135,26 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
       width: "100%",
       height: "100%",
       display: "flex",
+      flexDirection: "column",
       justifyContent: "center",
       alignItems: "center",
       backgroundColor: "#243665",
       overflow: "auto"
     }}>
+      {/* Logo section - centered above the login box */}
+      <div style={{ 
+        marginBottom: "32px" 
+      }}>
+        <img 
+          src={logo} 
+          alt="PitcHero" 
+          style={{ 
+            height: "360px", 
+            width: "auto" 
+          }}
+        />
+      </div>
+      
       <div style={{ 
         padding: "40px", 
         maxWidth: "450px", 
@@ -149,22 +164,6 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
         borderRadius: "12px",
         boxShadow: "0 10px 25px rgba(0,0,0,0.3)"
       }}>
-        {/* Logo section */}
-        <div style={{ 
-          display: "flex", 
-          justifyContent: "center", 
-          marginBottom: "24px" 
-        }}>
-          <img 
-            src={logo} 
-            alt="PitcHero" 
-            style={{ 
-              height: "360px", 
-              width: "auto" 
-            }}
-          />
-        </div>
-        
         <h1 style={{ textAlign: "center", marginBottom: "24px", color: "#1f2937" }}>
           {isLogin ? "Login" : "Sign Up"}
         </h1>
