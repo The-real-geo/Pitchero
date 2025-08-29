@@ -62,7 +62,7 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
 
     try {
       if (isLogin) {
-        console.log('📝 Attempting login...');
+        console.log('🔐 Attempting login...');
         // Log in existing user
         await signInWithEmailAndPassword(auth, email, password);
       } else {
@@ -84,7 +84,7 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
         // If joining existing club, validate it exists BEFORE creating auth account
         let clubId;
         if (!isNewClub) {
-          console.log('📝 Validating existing club BEFORE auth...');
+          console.log('🔍 Validating existing club BEFORE auth...');
           try {
             const clubDoc = await getDoc(doc(db, 'clubs', selectedClubId.trim().toUpperCase()));
             if (!clubDoc.exists()) {
@@ -106,12 +106,12 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
         
         // Create club if needed (only for new clubs)
         if (isNewClub) {
-          console.log('📝 Creating new club...');
+          console.log('🏢 Creating new club...');
           clubId = await createClub(clubName.trim());
         }
         
         // Create user profile
-        console.log('📝 Creating user profile...');
+        console.log('👤 Creating user profile...');
         const role = isNewClub ? 'admin' : 'member';
         await createUserProfile(userCredential.user.uid, email, clubId, role);
         console.log('✅ User profile should be created');
@@ -125,178 +125,204 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
   };
 
   return (
-    <div style={{ 
-      padding: "40px", 
-      maxWidth: "450px", 
-      margin: "0 auto", 
-      fontFamily: "system-ui, sans-serif",
-      backgroundColor: "white",
-      borderRadius: "12px",
-      boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-      marginTop: "40px"
+    <div style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      minHeight: "100vh",
+      backgroundColor: "#243665",
+      padding: "20px",
+      boxSizing: "border-box"
     }}>
-      <h1 style={{ textAlign: "center", marginBottom: "24px", color: "#1f2937" }}>
-        {isLogin ? "Login" : "Sign Up"}
-      </h1>
-      
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={{ 
-            padding: "12px", 
-            fontSize: "16px", 
-            border: "1px solid #d1d5db",
-            borderRadius: "6px"
-          }}
-        />
+      <div style={{ 
+        padding: "40px", 
+        maxWidth: "450px", 
+        width: "100%",
+        fontFamily: "system-ui, sans-serif",
+        backgroundColor: "white",
+        borderRadius: "12px",
+        boxShadow: "0 10px 25px rgba(0,0,0,0.2)"
+      }}>
+        {/* Logo placeholder - replace src with your actual logo path */}
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "center", 
+          marginBottom: "24px" 
+        }}>
+          <img 
+            src="/logo.png" 
+            alt="PitcHero Logo" 
+            style={{ 
+              height: "80px", 
+              width: "auto" 
+            }}
+          />
+        </div>
         
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={{ 
-            padding: "12px", 
-            fontSize: "16px",
-            border: "1px solid #d1d5db",
-            borderRadius: "6px"
-          }}
-        />
+        <h1 style={{ textAlign: "center", marginBottom: "24px", color: "#1f2937" }}>
+          {isLogin ? "Login" : "Sign Up"}
+        </h1>
+        
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{ 
+              padding: "12px", 
+              fontSize: "16px", 
+              border: "1px solid #d1d5db",
+              borderRadius: "6px"
+            }}
+          />
+          
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{ 
+              padding: "12px", 
+              fontSize: "16px",
+              border: "1px solid #d1d5db",
+              borderRadius: "6px"
+            }}
+          />
 
-        {/* Club selection for signup */}
-        {!isLogin && (
-          <div style={{ 
-            border: "1px solid #e5e7eb", 
-            borderRadius: "8px", 
-            padding: "16px",
-            backgroundColor: "#f9fafb"
-          }}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: "16px", color: "#374151" }}>
-              Club Information
-            </h3>
-            
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                <input
-                  type="radio"
-                  name="clubOption"
-                  checked={isNewClub}
-                  onChange={() => setIsNewClub(true)}
-                />
-                <span style={{ fontSize: "14px" }}>Create new club</span>
-              </label>
+          {/* Club selection for signup */}
+          {!isLogin && (
+            <div style={{ 
+              border: "1px solid #e5e7eb", 
+              borderRadius: "8px", 
+              padding: "16px",
+              backgroundColor: "#f9fafb"
+            }}>
+              <h3 style={{ margin: "0 0 12px 0", fontSize: "16px", color: "#374151" }}>
+                Club Information
+              </h3>
               
-              <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <input
-                  type="radio"
-                  name="clubOption"
-                  checked={!isNewClub}
-                  onChange={() => setIsNewClub(false)}
-                />
-                <span style={{ fontSize: "14px" }}>Join existing club (requires club ID)</span>
-              </label>
-            </div>
+              <div style={{ marginBottom: "12px" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                  <input
+                    type="radio"
+                    name="clubOption"
+                    checked={isNewClub}
+                    onChange={() => setIsNewClub(true)}
+                  />
+                  <span style={{ fontSize: "14px" }}>Create new club</span>
+                </label>
+                
+                <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <input
+                    type="radio"
+                    name="clubOption"
+                    checked={!isNewClub}
+                    onChange={() => setIsNewClub(false)}
+                  />
+                  <span style={{ fontSize: "14px" }}>Join existing club (requires club ID)</span>
+                </label>
+              </div>
 
-            {isNewClub ? (
-              <input
-                type="text"
-                placeholder="Enter club name (e.g., Manchester United FC)"
-                value={clubName}
-                onChange={(e) => setClubName(e.target.value)}
-                required
-                style={{ 
-                  width: "100%",
-                  padding: "8px", 
-                  fontSize: "14px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "4px",
-                  boxSizing: "border-box"
-                }}
-              />
-            ) : (
-              <div>
+              {isNewClub ? (
                 <input
                   type="text"
-                  placeholder="Enter 6-character club ID (e.g., ABC123)"
-                  value={selectedClubId}
-                  onChange={(e) => setSelectedClubId(e.target.value.toUpperCase())}
-                  required={!isNewClub}
-                  maxLength="6"
+                  placeholder="Enter club name (e.g., Manchester United FC)"
+                  value={clubName}
+                  onChange={(e) => setClubName(e.target.value)}
+                  required
                   style={{ 
                     width: "100%",
                     padding: "8px", 
                     fontSize: "14px",
                     border: "1px solid #d1d5db",
                     borderRadius: "4px",
-                    backgroundColor: "white",
-                    fontFamily: "monospace",
-                    letterSpacing: "1px"
+                    boxSizing: "border-box"
                   }}
                 />
-                <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
-                  Get this 6-character ID from your club administrator
+              ) : (
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Enter 6-character club ID (e.g., ABC123)"
+                    value={selectedClubId}
+                    onChange={(e) => setSelectedClubId(e.target.value.toUpperCase())}
+                    required={!isNewClub}
+                    maxLength="6"
+                    style={{ 
+                      width: "100%",
+                      padding: "8px", 
+                      fontSize: "14px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "4px",
+                      backgroundColor: "white",
+                      fontFamily: "monospace",
+                      letterSpacing: "1px",
+                      boxSizing: "border-box"
+                    }}
+                  />
+                  <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+                    Get this 6-character ID from your club administrator
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
+          
+          <button 
+            type="submit" 
+            style={{ 
+              padding: "12px", 
+              fontSize: "16px", 
+              cursor: "pointer",
+              backgroundColor: "#10b981",
+              color: "white",
+              border: "none",
+              borderRadius: "6px",
+              fontWeight: "600"
+            }}
+          >
+            {isLogin ? "Login" : "Sign Up"}
+          </button>
+          
+          {error && (
+            <div style={{ 
+              color: "#dc2626", 
+              fontSize: "14px",
+              padding: "8px",
+              backgroundColor: "#fef2f2",
+              border: "1px solid #fecaca",
+              borderRadius: "4px"
+            }}>
+              {error}
+            </div>
+          )}
+        </form>
         
-        <button 
-          type="submit" 
-          style={{ 
-            padding: "12px", 
-            fontSize: "16px", 
-            cursor: "pointer",
-            backgroundColor: "#10b981",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            fontWeight: "600"
-          }}
-        >
-          {isLogin ? "Login" : "Sign Up"}
-        </button>
-        
-        {error && (
-          <div style={{ 
-            color: "#dc2626", 
-            fontSize: "14px",
-            padding: "8px",
-            backgroundColor: "#fef2f2",
-            border: "1px solid #fecaca",
-            borderRadius: "4px"
-          }}>
-            {error}
-          </div>
-        )}
-      </form>
-      
-      <p style={{ textAlign: "center", marginTop: "16px", fontSize: "14px", color: "#6b7280" }}>
-        {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-        <button
-          onClick={() => {
-            setIsLogin(!isLogin);
-            setError("");
-            setClubName("");
-            setSelectedClubId("");
-          }}
-          style={{ 
-            background: "none", 
-            border: "none", 
-            color: "#3b82f6", 
-            cursor: "pointer", 
-            textDecoration: "underline",
-            fontSize: "14px"
-          }}
-        >
-          {isLogin ? "Sign Up" : "Login"}
-        </button>
-      </p>
+        <p style={{ textAlign: "center", marginTop: "16px", fontSize: "14px", color: "#6b7280" }}>
+          {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+          <button
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setError("");
+              setClubName("");
+              setSelectedClubId("");
+            }}
+            style={{ 
+              background: "none", 
+              border: "none", 
+              color: "#3b82f6", 
+              cursor: "pointer", 
+              textDecoration: "underline",
+              fontSize: "14px"
+            }}
+          >
+            {isLogin ? "Sign Up" : "Login"}
+          </button>
+        </p>
+      </div>
     </div>
   );
 }
