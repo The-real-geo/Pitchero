@@ -301,7 +301,8 @@ function MatchDayPitchAllocator({ onBack }) {
   };
 
   // Enhanced clear allocation function for multi-section bookings
-  const clearAllocation = async (allocation) => {
+  const clearAllocation = async (key) => {
+    const allocation = allocations[key];
     if (!allocation || loading) return;
 
     try {
@@ -311,23 +312,31 @@ function MatchDayPitchAllocator({ onBack }) {
       }
 
       // Find all allocations that belong to the same booking
-      const relatedAllocations = Object.values(allocations).filter(alloc =>
-        alloc.team === allocation.team &&
-        alloc.date === allocation.date &&
-        alloc.startTime === allocation.startTime &&
-        alloc.pitch === allocation.pitch
-      );
+      const relatedAllocations = [];
+      
+      Object.entries(allocations).forEach(([allocationKey, alloc]) => {
+        // Match by team, date, startTime, pitch - this groups the entire booking together
+        if (alloc.id && 
+            alloc.team === allocation.team &&
+            alloc.date === allocation.date && 
+            alloc.startTime === allocation.startTime &&
+            alloc.pitch === allocation.pitch) {
+          relatedAllocations.push(alloc);
+        }
+      });
 
+      // Get unique Firebase document IDs (avoid deleting same document twice)
       const uniqueIds = [...new Set(relatedAllocations.map(alloc => alloc.id))];
 
-      console.log(`Deleting entire booking: ${uniqueIds.length} docs for ${allocation.team}`);
-
+      console.log(`Deleting entire booking: ${uniqueIds.length} Firebase documents for ${allocation.team}`);
+      
+      // Delete all related Firebase documents
       await Promise.all(
         uniqueIds.map(id => deleteAllocationFromFirestore(id, allocation.date))
       );
 
     } catch (error) {
-      console.error("Error clearing allocation:", error);
+      console.error('Error clearing allocation:', error);
     }
   };
 
@@ -1422,7 +1431,7 @@ function MatchDayPitchAllocator({ onBack }) {
                                       borderColor: alloc ? alloc.colour : (isPreviewSection ? '#f59e0b' : 'rgba(255,255,255,0.5)'),
                                       color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
                                     }}
-                                    onClick={() => alloc && clearAllocation(alloc)}
+                                    onClick={() => alloc && clearAllocation(key)}
                                     title={alloc ? `${alloc.team} (${alloc.duration}min match, books ${Math.ceil(alloc.duration / 15) * 15}min) - Click to remove` : (isPreviewSection ? `Will be allocated for ${team}` : `Section ${sec} - Available`)}
                                   >
                                     <div style={{
