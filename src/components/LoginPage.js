@@ -159,7 +159,7 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
             src={logo} 
             alt="PitcHero" 
             style={{ 
-              height: "120px", 
+              height: "360px", 
               width: "auto" 
             }}
           />
