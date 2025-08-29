@@ -325,7 +325,7 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
               fontSize: "14px"
             }}
           >
-            {isLogin ? "Sign Up" : "Login"}
+            {isLogin ? "Sign Up " : "Login"}
           </button>
         </p>
       </div>
