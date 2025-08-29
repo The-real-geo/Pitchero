@@ -4,7 +4,6 @@ import { auth, db } from "../utils/firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { setDoc, doc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-// TODO: Uncomment after committing logo.png to repository
 import logo from "../assets/images/logo.png";
 
 function LoginPage() {
@@ -156,33 +155,14 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
           justifyContent: "center", 
           marginBottom: "24px" 
         }}>
-          {/* TODO: Uncomment after committing logo.png to repository */}
-          {/* <img 
+          <img 
             src={logo} 
             alt="PitcHero" 
             style={{ 
               height: "120px", 
               width: "auto" 
             }}
-          /> */}
-          
-          {/* Temporary styled placeholder - remove after adding logo to git */}
-          <div style={{
-            fontSize: "32px",
-            fontWeight: "bold",
-            color: "#10b981",
-            textAlign: "center"
-          }}>
-            PitcHero
-            <div style={{
-              fontSize: "14px",
-              fontWeight: "normal",
-              color: "#6b7280",
-              marginTop: "4px"
-            }}>
-              Club facility management
-            </div>
-          </div>
+          />
         </div>
         
         <h1 style={{ textAlign: "center", marginBottom: "24px", color: "#1f2937" }}>
