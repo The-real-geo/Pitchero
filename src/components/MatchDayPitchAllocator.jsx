@@ -293,16 +293,73 @@ function MatchDayPitchAllocator({ onBack }) {
     await saveAllocationToFirestore(selectedTeam.name, allocation, date);
   };
 
-  // Simple clear allocation function - exact same as training allocator
+  // Enhanced clear allocation function for multi-section bookings
   const clearAllocation = async (key) => {
     const allocation = allocations[key];
     if (!allocation || loading) return;
 
-    // Direct deletion call without complex state tracking
-    if (allocation.id) {
-      await deleteAllocationFromFirestore(allocation.id, allocation.date);
-    } else {
-      console.error("No ID found for allocation:", allocation);
+    try {
+      if (!allocation.id) {
+        console.error("No ID found for allocation:", allocation);
+        return;
+      }
+
+      // If this allocation is part of a multi-section group, remove all sections in the group
+      if (allocation.isPartOfGroup && allocation.groupSections) {
+        const relatedAllocations = [];
+        
+        // Find all allocations that are part of the same booking
+        allocation.groupSections.forEach(sectionName => {
+          const relatedKey = `${allocation.date}-${allocation.startTime}-${allocation.pitch}-${sectionName}`;
+          const relatedAlloc = allocations[relatedKey];
+          if (relatedAlloc && relatedAlloc.id) {
+            relatedAllocations.push(relatedAlloc);
+          }
+        });
+
+        // Also check for multi-slot allocations (different time slots for the same booking)
+        if (allocation.isMultiSlot && allocation.totalSlots > 1) {
+          const slotsNeeded = allocation.totalSlots;
+          const startSlotIndex = slots.indexOf(allocation.startTime);
+          
+          for (let i = 0; i < slotsNeeded; i++) {
+            const slotTime = slots[startSlotIndex + i];
+            allocation.groupSections.forEach(sectionName => {
+              const multiSlotKey = `${allocation.date}-${slotTime}-${allocation.pitch}-${sectionName}`;
+              const multiSlotAlloc = allocations[multiSlotKey];
+              if (multiSlotAlloc && multiSlotAlloc.id && !relatedAllocations.some(ra => ra.id === multiSlotAlloc.id)) {
+                relatedAllocations.push(multiSlotAlloc);
+              }
+            });
+          }
+        }
+
+        // Delete all related allocations
+        console.log(`Deleting ${relatedAllocations.length} related allocations for ${allocation.team}`);
+        for (const relatedAlloc of relatedAllocations) {
+          await deleteAllocationFromFirestore(relatedAlloc.id, relatedAlloc.date);
+        }
+      } else {
+        // Single section allocation or handle multi-slot single section
+        if (allocation.isMultiSlot && allocation.totalSlots > 1) {
+          const slotsNeeded = allocation.totalSlots;
+          const startSlotIndex = slots.indexOf(allocation.startTime);
+          
+          for (let i = 0; i < slotsNeeded; i++) {
+            const slotTime = slots[startSlotIndex + i];
+            const multiSlotKey = `${allocation.date}-${slotTime}-${allocation.pitch}-${allocation.section}`;
+            const multiSlotAlloc = allocations[multiSlotKey];
+            if (multiSlotAlloc && multiSlotAlloc.id) {
+              await deleteAllocationFromFirestore(multiSlotAlloc.id, multiSlotAlloc.date);
+            }
+          }
+        } else {
+          // Simple single allocation
+          await deleteAllocationFromFirestore(allocation.id, allocation.date);
+        }
+      }
+    } catch (error) {
+      console.error('Error clearing allocation:', error);
     }
   };
 
