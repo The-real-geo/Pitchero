@@ -276,7 +276,6 @@ function MatchDayPitchAllocator({ onBack }) {
       // Create allocations for each section and each time slot
       for (const sectionToAllocate of sectionsToAllocate) {
         for (let i = 0; i < slotsNeeded; i++) {        
-          const currentSlot = slots[startSlotIndex + i];
           const allocation = {
             team: selectedTeam.name,
             colour: selectedTeam.color,
