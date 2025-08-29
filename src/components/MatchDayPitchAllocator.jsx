@@ -328,10 +328,13 @@ function MatchDayPitchAllocator({ onBack }) {
         }
       });
 
-      // Delete all related allocations
-      console.log(`Deleting ${relatedAllocations.length} related allocations for ${allocation.team}`);
-      for (const relatedAlloc of relatedAllocations) {
-        await deleteAllocationFromFirestore(relatedAlloc.id, relatedAlloc.date);
+      // Deduplicate Firebase document IDs (multiple local entries can share same Firebase ID)
+      const uniqueFirebaseIds = [...new Set(relatedAllocations.map(alloc => alloc.id))];
+
+      // Delete each unique Firebase document only once
+      console.log(`Deleting ${uniqueFirebaseIds.length} unique Firebase documents for ${allocation.team}`);
+      for (const firebaseId of uniqueFirebaseIds) {
+        await deleteAllocationFromFirestore(firebaseId, allocation.date);
       }
     } catch (error) {
       console.error('Error clearing allocation:', error);
