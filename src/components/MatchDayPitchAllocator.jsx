@@ -275,6 +275,12 @@ function MatchDayPitchAllocator({ onBack }) {
     
     // Generate a unique booking ID for this entire allocation
     const bookingId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log(`Creating allocation for ${selectedTeam.name}:`);
+    console.log(`- Duration: ${duration} minutes`);
+    console.log(`- Slots needed: ${slotsNeeded}`);
+    console.log(`- Sections: ${sectionsToAllocate.join(', ')}`);
+    console.log(`- Booking ID: ${bookingId}`);
 
     try {
       // Create allocations for each section and each time slot
@@ -303,6 +309,8 @@ function MatchDayPitchAllocator({ onBack }) {
           await saveAllocationToFirestore(selectedTeam.name, allocation, date);
         }
       }
+      
+      console.log(`Successfully created ${sectionsToAllocate.length * slotsNeeded} allocation entries`);
     } catch (err) {
       console.error("Failed to add match day allocation:", err);
     }
@@ -316,38 +324,85 @@ function MatchDayPitchAllocator({ onBack }) {
     try {
       // Find all allocations that belong to the same booking
       const relatedAllocations = [];
+      const relatedKeys = [];
       
       // First, try to use bookingId if it exists (for newer allocations)
       if (allocation.bookingId) {
         Object.entries(allocations).forEach(([allocationKey, alloc]) => {
           if (alloc.bookingId === allocation.bookingId) {
             relatedAllocations.push(alloc);
+            relatedKeys.push(allocationKey);
           }
         });
       }
       
-      // Fallback to the old method for allocations without bookingId
+      // If no bookingId or no matches found, use comprehensive matching
       if (relatedAllocations.length === 0) {
+        // Get the time range for this booking
+        const duration = allocation.duration || 60;
+        const slotsNeeded = Math.ceil(duration / 15);
+        const startTime = allocation.startTime;
+        const startIndex = slots.indexOf(startTime);
+        
+        // Get all sections involved (from groupSections or current section)
+        const sectionsInvolved = allocation.groupSections || 
+                                 allocation.isPartOfGroup ? 
+                                 (allocation.groupSections || [allocation.section]) : 
+                                 [allocation.section];
+        
+        // Find all allocations that match this booking
         Object.entries(allocations).forEach(([allocationKey, alloc]) => {
-          // Match by team, date, startTime, and pitch
+          // Check if this allocation belongs to the same booking by matching:
+          // - Same team
+          // - Same date  
+          // - Same pitch
+          // - Same start time
+          // - Section is in the group of sections
           if (alloc.team === allocation.team &&
               alloc.date === allocation.date && 
-              alloc.startTime === allocation.startTime &&
-              alloc.pitch === allocation.pitch) {
+              alloc.pitch === allocation.pitch &&
+              alloc.startTime === allocation.startTime) {
             relatedAllocations.push(alloc);
+            relatedKeys.push(allocationKey);
           }
         });
+        
+        // Additional check: find allocations by time slot range if needed
+        if (relatedAllocations.length === 0 && startIndex >= 0) {
+          for (let i = 0; i < slotsNeeded; i++) {
+            const timeSlot = slots[startIndex + i];
+            if (!timeSlot) continue;
+            
+            sectionsInvolved.forEach(section => {
+              const checkKey = `${allocation.date}-${timeSlot}-${allocation.pitch}-${section}`;
+              const checkAlloc = allocations[checkKey];
+              
+              if (checkAlloc && checkAlloc.team === allocation.team) {
+                if (!relatedKeys.includes(checkKey)) {
+                  relatedAllocations.push(checkAlloc);
+                  relatedKeys.push(checkKey);
+                }
+              }
+            });
+          }
+        }
       }
 
+      // Log what we're about to delete for debugging
+      console.log(`Found ${relatedAllocations.length} related allocations to remove`);
+      console.log('Related keys:', relatedKeys);
+      
       // Get unique Firebase document IDs
       const uniqueIds = [...new Set(relatedAllocations.filter(alloc => alloc.id).map(alloc => alloc.id))];
 
       if (uniqueIds.length === 0) {
         console.error("No valid IDs found for allocations to delete");
+        console.error("Allocations found but missing IDs:", relatedAllocations);
         return;
       }
 
-      console.log(`Removing entire booking: ${uniqueIds.length} documents for ${allocation.team}`);
+      console.log(`Removing entire booking: ${uniqueIds.length} Firebase documents for ${allocation.team}`);
+      console.log('Document IDs to delete:', uniqueIds);
       
       // Delete all related Firebase documents
       await Promise.all(
@@ -356,6 +411,7 @@ function MatchDayPitchAllocator({ onBack }) {
 
     } catch (error) {
       console.error('Error clearing allocation:', error);
+      console.error('Allocation that triggered error:', allocation);
     }
   };
 
