@@ -88,7 +88,7 @@ function TrainingPitchAllocator({ onBack }) {
 
   // Print styles for PDF generation
   useEffect(() => {
-    const printStyles = `
+    const printStyles = 
       @media print {
         /* Hide everything except pitch layouts */
         body > div > div > div:first-child, /* Header with title and status */
@@ -164,7 +164,7 @@ function TrainingPitchAllocator({ onBack }) {
           print-color-adjust: exact !important;
         }
       }
-    `;
+    ;
     
     // Create or update style element
     let styleEl = document.getElementById('pitch-allocator-print-styles');
