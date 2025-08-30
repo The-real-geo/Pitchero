@@ -160,8 +160,10 @@ function MatchDayPitchAllocator({ onBack }) {
       return [
         { value: 'A+C', label: 'A + C (Left Column, Top and Bottom)' },
         { value: 'B+D', label: 'B + D (Right Column, Top and Bottom)' },
-        { value: 'E+G', label: 'E + G (Left Column, Middle Sections)' },
-        { value: 'F+H', label: 'F + H (Right Column, Middle Sections)' }
+        { value: 'C+E', label: 'C + E (Left Column, Middle Sections)' },
+        { value: 'D+F', label: 'D + F (Right Column, Middle Sections)' },
+        { value: 'E+G', label: 'E + G (Left Column, Lower Sections)' },
+        { value: 'F+H', label: 'F + H (Right Column, Lower Sections)' }
       ];
     }
     
