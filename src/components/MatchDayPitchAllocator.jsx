@@ -192,7 +192,9 @@ function MatchDayPitchAllocator({ onBack }) {
       case 'Under 8 & 9':
         const under8Options = {
           'A+C': ['A', 'C'],
-          'B+D': ['B', 'D'], 
+          'B+D': ['B', 'D'],
+          'C+E': ['C', 'E'],
+          'D+F': ['D', 'F'],
           'E+G': ['E', 'G'],
           'F+H': ['F', 'H']
         };
@@ -243,7 +245,14 @@ function MatchDayPitchAllocator({ onBack }) {
   const handleTeamChange = (newTeam) => {
     setTeam(newTeam);
     const options = getMatchDayLayoutOptions(newTeam, pitch);
-    setMatchDayLayout(options[0]?.value || 'A');
+    
+    // Check if current layout is still valid for the new team
+    const currentLayoutStillValid = options.some(opt => opt.value === matchDayLayout);
+    
+    // Only reset layout if current one isn't valid for the new team
+    if (!currentLayoutStillValid) {
+      setMatchDayLayout(options[0]?.value || 'A');
+    }
   };
 
   const hasConflict = useMemo(() => {
