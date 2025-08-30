@@ -275,7 +275,6 @@ function ShareView() {
               <div style={{ padding: '4px' }}>
                 {timeSlots.map((s) => {
                   const hasAllocations = hasAllocationsForTimeSlot(s);
-                  const isExpanded = expandedSlots.has(s);
                   
                   if (!hasAllocations) return null;
                   
