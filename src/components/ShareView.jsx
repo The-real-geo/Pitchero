@@ -174,8 +174,6 @@ function ShareView() {
       {timeSlots.map((s) => {
         const hasAllocations = hasAllocationsForTimeSlot(s);
         
-        if (!hasAllocations) return null;
-        
         return (
           <div key={s} style={{ marginBottom: isMobile ? '12px' : '8px' }}>
             <h3 style={{
@@ -186,89 +184,96 @@ function ShareView() {
               textAlign: 'center'
             }}>
               <span style={{
-                backgroundColor: sharedData?.type === 'match' ? '#fed7aa' : '#dbeafe',
-                color: sharedData?.type === 'match' ? '#9a3412' : '#1e40af',
+                backgroundColor: hasAllocations 
+                  ? (sharedData?.type === 'match' ? '#fed7aa' : '#dbeafe')
+                  : '#e5e7eb',
+                color: hasAllocations 
+                  ? (sharedData?.type === 'match' ? '#9a3412' : '#1e40af')
+                  : '#9ca3af',
                 padding: isMobile ? '2px 6px' : '4px 8px',
                 borderRadius: '9999px',
                 fontSize: isMobile ? '11px' : '12px',
-                fontWeight: '500'
+                fontWeight: hasAllocations ? '500' : '400',
+                opacity: hasAllocations ? 1 : 0.6
               }}>
                 {s}
               </span>
             </h3>
             
-            <div style={pitchGridStyle}>
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: '#bbf7d0',
-                borderRadius: '8px'
-              }}></div>
-              
-              <div style={{
-                position: 'relative',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gridTemplateRows: 'repeat(4, 1fr)',
-                gap: isMobile ? '2px' : '4px',
-                height: '100%',
-                zIndex: 10
-              }}>
-                {sections.map((sec) => {
-                  const key = `${date}-${s}-${pitch.id}-${sec}`;
-                  const alloc = allocations[key];
-                  
-                  return (
-                    <div 
-                      key={sec} 
-                      style={{
-                        border: '2px solid rgba(255,255,255,0.5)',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: isMobile ? '10px' : '12px',
-                        fontWeight: '500',
-                        padding: '2px',
-                        textAlign: 'center',
-                        backgroundColor: alloc ? alloc.colour + '90' : 'rgba(255,255,255,0.1)',
-                        borderColor: alloc ? alloc.colour : 'rgba(255,255,255,0.5)',
-                        color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
-                      }}
-                    >
-                      <div style={{
-                        fontSize: isMobile ? '10px' : '12px',
-                        opacity: 0.75,
-                        marginBottom: isMobile ? '2px' : '4px',
-                        fontWeight: 'bold'
-                      }}>{sec}</div>
-                      <div style={{
-                        textAlign: 'center',
-                        padding: '0 2px',
-                        fontSize: isMobile ? '10px' : '12px',
-                        lineHeight: 1.2,
-                        wordBreak: 'break-word'
-                      }}>
-                        {alloc ? alloc.team : ''}
-                      </div>
-                      {alloc && alloc.isMultiSlot && (
+            {hasAllocations && (
+              <div style={pitchGridStyle}>
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: '#bbf7d0',
+                  borderRadius: '8px'
+                }}></div>
+                
+                <div style={{
+                  position: 'relative',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gridTemplateRows: 'repeat(4, 1fr)',
+                  gap: isMobile ? '2px' : '4px',
+                  height: '100%',
+                  zIndex: 10
+                }}>
+                  {sections.map((sec) => {
+                    const key = `${date}-${s}-${pitch.id}-${sec}`;
+                    const alloc = allocations[key];
+                    
+                    return (
+                      <div 
+                        key={sec} 
+                        style={{
+                          border: '2px solid rgba(255,255,255,0.5)',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: isMobile ? '10px' : '12px',
+                          fontWeight: '500',
+                          padding: '2px',
+                          textAlign: 'center',
+                          backgroundColor: alloc ? alloc.colour + '90' : 'rgba(255,255,255,0.1)',
+                          borderColor: alloc ? alloc.colour : 'rgba(255,255,255,0.5)',
+                          color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
+                        }}
+                      >
                         <div style={{
-                          fontSize: isMobile ? '9px' : '12px',
-                          opacity: 0.6,
-                          marginTop: '2px'
+                          fontSize: isMobile ? '10px' : '12px',
+                          opacity: 0.75,
+                          marginBottom: isMobile ? '2px' : '4px',
+                          fontWeight: 'bold'
+                        }}>{sec}</div>
+                        <div style={{
+                          textAlign: 'center',
+                          padding: '0 2px',
+                          fontSize: isMobile ? '10px' : '12px',
+                          lineHeight: 1.2,
+                          wordBreak: 'break-word'
                         }}>
-                          {alloc.duration}min
+                          {alloc ? alloc.team : ''}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        {alloc && alloc.isMultiSlot && (
+                          <div style={{
+                            fontSize: isMobile ? '9px' : '12px',
+                            opacity: 0.6,
+                            marginTop: '2px'
+                          }}>
+                            {alloc.duration}min
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         );
       })}
