@@ -133,24 +133,33 @@ function TrainingPitchAllocator({ onBack }) {
 
     const slotsNeeded = duration / 30;
     const startSlotIndex = slots.indexOf(slot);
+    
+    // Generate a unique booking ID for multi-slot allocations
+    const bookingId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Create allocation object
-    const allocation = {
-      team: selectedTeam.name,
-      colour: selectedTeam.color,
-      duration: duration,
-      isMultiSlot: slotsNeeded > 1,
-      slotIndex: 0,
-      totalSlots: slotsNeeded,
-      startTime: slot,
-      endTime: slots[startSlotIndex + slotsNeeded - 1],
-      pitch: pitch,
-      section: section,
-      date: date
-    };
+    // Create separate allocation for each 30-minute slot
+    for (let i = 0; i < slotsNeeded; i++) {
+      const currentSlot = slots[startSlotIndex + i];
+      
+      const allocation = {
+        team: selectedTeam.name,
+        colour: selectedTeam.color,
+        duration: duration,
+        isMultiSlot: slotsNeeded > 1,
+        slotIndex: i,
+        totalSlots: slotsNeeded,
+        startTime: slot,
+        endTime: slots[startSlotIndex + slotsNeeded - 1],
+        timeSlot: currentSlot, // This is the actual time slot for this specific allocation
+        pitch: pitch,
+        section: section,
+        date: date,
+        bookingId: slotsNeeded > 1 ? bookingId : undefined // Add bookingId for multi-slot bookings
+      };
 
-    // Save to Firebase
-    await saveAllocationToFirestore(selectedTeam.name, allocation, date);
+      // Save each slot allocation to Firebase
+      await saveAllocationToFirestore(selectedTeam.name, allocation, date);
+    }
   };
 
   const hasAllocationsForTimeSlotTraining = (timeSlot) => {
@@ -1491,7 +1500,7 @@ function TrainingPitchAllocator({ onBack }) {
                                           {alloc && alloc.isMultiSlot && (
                                             <div style={{
                                               fontSize: '12px',
-                                              opacity: 0.6,
+                                              opacity: 0.6',
                                               marginTop: '4px'
                                             }}>
                                               {alloc.duration}min
