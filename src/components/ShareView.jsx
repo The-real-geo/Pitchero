@@ -1,4 +1,4 @@
-// Update your ShareView.jsx with this code
+// Mobile-optimized ShareView.jsx with responsive design
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -25,6 +25,18 @@ function ShareView() {
   const [sharedData, setSharedData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedPitch, setSelectedPitch] = useState('pitch2'); // For mobile tab view
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const loadSharedData = async () => {
@@ -44,7 +56,7 @@ function ShareView() {
   if (loading) {
     return (
       <div style={{ 
-        padding: '24px', 
+        padding: '16px', 
         textAlign: 'center',
         minHeight: '100vh',
         display: 'flex',
@@ -53,10 +65,12 @@ function ShareView() {
         backgroundColor: '#f9fafb'
       }}>
         <div>
-          <h2 style={{ fontSize: '24px', color: '#374151', marginBottom: '8px' }}>
+          <h2 style={{ fontSize: isMobile ? '20px' : '24px', color: '#374151', marginBottom: '8px' }}>
             Loading allocation...
           </h2>
-          <p style={{ color: '#6b7280' }}>Please wait while we fetch the shared data</p>
+          <p style={{ color: '#6b7280', fontSize: isMobile ? '14px' : '16px' }}>
+            Please wait while we fetch the shared data
+          </p>
         </div>
       </div>
     );
@@ -65,7 +79,7 @@ function ShareView() {
   if (error) {
     return (
       <div style={{ 
-        padding: '24px', 
+        padding: '16px', 
         textAlign: 'center',
         minHeight: '100vh',
         display: 'flex',
@@ -74,10 +88,12 @@ function ShareView() {
         backgroundColor: '#fef2f2'
       }}>
         <div>
-          <h2 style={{ fontSize: '24px', color: '#dc2626', marginBottom: '8px' }}>
+          <h2 style={{ fontSize: isMobile ? '20px' : '24px', color: '#dc2626', marginBottom: '8px' }}>
             Error Loading Share
           </h2>
-          <p style={{ color: '#7f1d1d', marginBottom: '24px' }}>{error}</p>
+          <p style={{ color: '#7f1d1d', marginBottom: '24px', fontSize: isMobile ? '14px' : '16px' }}>
+            {error}
+          </p>
           <button
             onClick={() => navigate('/')}
             style={{
@@ -125,230 +141,304 @@ function ShareView() {
     return Object.keys(allocations).some(key => key.includes(`-${timeSlot}-`));
   };
 
-  return (
-    <div style={{
-      padding: '24px',
-      backgroundColor: sharedData?.type === 'match' ? '#059669' : '#f9fafb',
-      minHeight: '100vh',
-      fontFamily: 'system-ui, sans-serif'
-    }}>
-      <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{
-          backgroundColor: 'white',
-          padding: '24px',
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          marginBottom: '24px'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px'
-          }}>
-            <h1 style={{
-              fontSize: '28px',
-              fontWeight: 'bold',
-              color: '#1f2937',
-              margin: 0
-            }}>
-              {allocationType} Pitch Allocation - {clubName}
-            </h1>
-            <button
-              onClick={() => window.print()}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#f59e0b',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              🖨️ Print
-            </button>
-          </div>
-          
-          <div style={{
-            display: 'flex',
-            gap: '24px',
-            fontSize: '14px',
-            color: '#6b7280'
-          }}>
-            <div>
-              <strong>Date:</strong> {new Date(date).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
-            </div>
-            <div>
-              <strong>Shared on:</strong> {new Date(sharedData.createdAt).toLocaleDateString()}
-            </div>
-            <div>
-              <strong>Expires:</strong> {new Date(sharedData.expiresAt).toLocaleDateString()}
-            </div>
-          </div>
-        </div>
+  // Responsive styles
+  const containerStyle = {
+    padding: isMobile ? '12px' : '24px',
+    backgroundColor: sharedData?.type === 'match' ? '#059669' : '#f9fafb',
+    minHeight: '100vh',
+    fontFamily: 'system-ui, sans-serif'
+  };
 
-        {/* Notice */}
-        <div style={{
-          backgroundColor: '#f0f9ff',
-          border: '1px solid #60a5fa',
-          borderRadius: '8px',
-          padding: '12px 16px',
-          marginBottom: '24px',
-          fontSize: '14px',
-          color: '#1e40af'
-        }}>
-          <strong>ℹ️ Read-Only View:</strong> This is a shared view of the pitch allocation. 
-          Changes cannot be made from this page. This link will expire on {new Date(sharedData.expiresAt).toLocaleDateString()}.
-        </div>
+  const headerStyle = {
+    backgroundColor: 'white',
+    padding: isMobile ? '16px' : '24px',
+    borderRadius: '8px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    marginBottom: isMobile ? '12px' : '24px'
+  };
 
-        {/* Pitch Layouts */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '16px'
-        }}>
-          {pitches.map((p) => (
-            <div key={p.id} style={{
-              backgroundColor: 'white',
-              borderRadius: '8px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              overflow: 'hidden'
+  const pitchGridStyle = {
+    position: 'relative',
+    backgroundColor: '#dcfce7',
+    border: '4px solid white',
+    borderRadius: '8px',
+    padding: isMobile ? '8px' : '16px',
+    width: isMobile ? '100%' : '280px',
+    maxWidth: isMobile ? '320px' : '280px',
+    height: isMobile ? '280px' : '400px',
+    margin: '0 auto'
+  };
+
+  const renderPitchGrid = (pitch) => (
+    <div style={{ padding: '4px' }}>
+      {timeSlots.map((s) => {
+        const hasAllocations = hasAllocationsForTimeSlot(s);
+        
+        if (!hasAllocations) return null;
+        
+        return (
+          <div key={s} style={{ marginBottom: isMobile ? '12px' : '8px' }}>
+            <h3 style={{
+              fontSize: isMobile ? '11px' : '12px',
+              fontWeight: '600',
+              color: '#374151',
+              marginBottom: '4px',
+              textAlign: 'center'
             }}>
-              <div style={{
-                backgroundColor: '#f3f4f6',
-                padding: '8px',
-                borderBottom: '1px solid #e5e7eb'
+              <span style={{
+                backgroundColor: sharedData?.type === 'match' ? '#fed7aa' : '#dbeafe',
+                color: sharedData?.type === 'match' ? '#9a3412' : '#1e40af',
+                padding: isMobile ? '2px 6px' : '4px 8px',
+                borderRadius: '9999px',
+                fontSize: isMobile ? '11px' : '12px',
+                fontWeight: '500'
               }}>
-                <h2 style={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  color: '#1f2937',
-                  margin: 0
-                }}>{p.name}</h2>
-              </div>
+                {s}
+              </span>
+            </h3>
+            
+            <div style={pitchGridStyle}>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: '#bbf7d0',
+                borderRadius: '8px'
+              }}></div>
               
-              <div style={{ padding: '4px' }}>
-                {timeSlots.map((s) => {
-                  const hasAllocations = hasAllocationsForTimeSlot(s);
-                  
-                  if (!hasAllocations) return null;
+              <div style={{
+                position: 'relative',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gridTemplateRows: 'repeat(4, 1fr)',
+                gap: isMobile ? '2px' : '4px',
+                height: '100%',
+                zIndex: 10
+              }}>
+                {sections.map((sec) => {
+                  const key = `${date}-${s}-${pitch.id}-${sec}`;
+                  const alloc = allocations[key];
                   
                   return (
-                    <div key={s} style={{ marginBottom: '8px' }}>
-                      <h3 style={{
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        color: '#374151',
-                        marginBottom: '4px',
-                        textAlign: 'center'
-                      }}>
-                        <span style={{
-                          backgroundColor: sharedData?.type === 'match' ? '#fed7aa' : '#dbeafe',
-                          color: sharedData?.type === 'match' ? '#9a3412' : '#1e40af',
-                          padding: '4px 8px',
-                          borderRadius: '9999px',
-                          fontSize: '12px',
-                          fontWeight: '500'
-                        }}>
-                          {s}
-                        </span>
-                      </h3>
-                      
-                      {/* Always show the pitch grid since all slots with allocations are expanded */}
+                    <div 
+                      key={sec} 
+                      style={{
+                        border: '2px solid rgba(255,255,255,0.5)',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: isMobile ? '10px' : '12px',
+                        fontWeight: '500',
+                        padding: '2px',
+                        textAlign: 'center',
+                        backgroundColor: alloc ? alloc.colour + '90' : 'rgba(255,255,255,0.1)',
+                        borderColor: alloc ? alloc.colour : 'rgba(255,255,255,0.5)',
+                        color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
+                      }}
+                    >
                       <div style={{
-                        position: 'relative',
-                        backgroundColor: '#dcfce7',
-                        border: '4px solid white',
-                        borderRadius: '8px',
-                        padding: '16px',
-                        width: '280px',
-                        height: '400px',
-                        margin: '0 auto'
+                        fontSize: isMobile ? '10px' : '12px',
+                        opacity: 0.75,
+                        marginBottom: isMobile ? '2px' : '4px',
+                        fontWeight: 'bold'
+                      }}>{sec}</div>
+                      <div style={{
+                        textAlign: 'center',
+                        padding: '0 2px',
+                        fontSize: isMobile ? '10px' : '12px',
+                        lineHeight: 1.2,
+                        wordBreak: 'break-word'
                       }}>
-                        <div style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          backgroundColor: '#bbf7d0',
-                          borderRadius: '8px'
-                        }}></div>
-                        
-                        <div style={{
-                          position: 'relative',
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr',
-                          gridTemplateRows: 'repeat(4, 1fr)',
-                          gap: '4px',
-                          height: '100%',
-                          zIndex: 10
-                        }}>
-                          {sections.map((sec) => {
-                            const key = `${date}-${s}-${p.id}-${sec}`;
-                            const alloc = allocations[key];
-                            
-                            return (
-                              <div 
-                                key={sec} 
-                                style={{
-                                  border: '2px solid rgba(255,255,255,0.5)',
-                                  borderRadius: '4px',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '12px',
-                                  fontWeight: '500',
-                                  padding: '2px',
-                                  textAlign: 'center',
-                                  backgroundColor: alloc ? alloc.colour + '90' : 'rgba(255,255,255,0.1)',
-                                  borderColor: alloc ? alloc.colour : 'rgba(255,255,255,0.5)',
-                                  color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
-                                }}
-                              >
-                                <div style={{
-                                  fontSize: '12px',
-                                  opacity: 0.75,
-                                  marginBottom: '4px',
-                                  fontWeight: 'bold'
-                                }}>{sec}</div>
-                                <div style={{
-                                  textAlign: 'center',
-                                  padding: '0 4px',
-                                  fontSize: '12px',
-                                  lineHeight: 1.2
-                                }}>
-                                  {alloc ? alloc.team : ''}
-                                </div>
-                                {alloc && alloc.isMultiSlot && (
-                                  <div style={{
-                                    fontSize: '12px',
-                                    opacity: 0.6,
-                                    marginTop: '4px'
-                                  }}>
-                                    {alloc.duration}min
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                        {alloc ? alloc.team : ''}
                       </div>
+                      {alloc && alloc.isMultiSlot && (
+                        <div style={{
+                          fontSize: isMobile ? '9px' : '12px',
+                          opacity: 0.6,
+                          marginTop: '2px'
+                        }}>
+                          {alloc.duration}min
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
             </div>
-          ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div style={containerStyle}>
+      <div style={{ maxWidth: isMobile ? '100%' : '1280px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={headerStyle}>
+          <div style={{
+            display: isMobile ? 'block' : 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px'
+          }}>
+            <h1 style={{
+              fontSize: isMobile ? '20px' : '28px',
+              fontWeight: 'bold',
+              color: '#1f2937',
+              margin: 0,
+              marginBottom: isMobile ? '12px' : 0
+            }}>
+              {allocationType} - {clubName}
+            </h1>
+            {!isMobile && (
+              <button
+                onClick={() => window.print()}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                🖨️ Print
+              </button>
+            )}
+          </div>
+          
+          <div style={{
+            display: isMobile ? 'block' : 'flex',
+            gap: '24px',
+            fontSize: isMobile ? '12px' : '14px',
+            color: '#6b7280'
+          }}>
+            <div style={{ marginBottom: isMobile ? '8px' : 0 }}>
+              <strong>Date:</strong> {new Date(date).toLocaleDateString('en-US', {
+                weekday: isMobile ? 'short' : 'long',
+                month: isMobile ? 'short' : 'long',
+                day: 'numeric',
+                year: 'numeric'
+              })}
+            </div>
+            <div style={{ marginBottom: isMobile ? '8px' : 0 }}>
+              <strong>Expires:</strong> {new Date(sharedData.expiresAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+              })}
+            </div>
+          </div>
         </div>
+
+        {/* Mobile Notice */}
+        {isMobile && (
+          <div style={{
+            backgroundColor: '#f0f9ff',
+            border: '1px solid #60a5fa',
+            borderRadius: '8px',
+            padding: '10px 12px',
+            marginBottom: '12px',
+            fontSize: '12px',
+            color: '#1e40af'
+          }}>
+            <strong>ℹ️ Tip:</strong> Swipe or use tabs below to switch between pitches
+          </div>
+        )}
+
+        {/* Pitch Selector for Mobile */}
+        {isMobile && (
+          <div style={{
+            display: 'flex',
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '4px',
+            marginBottom: '12px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          }}>
+            {pitches.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedPitch(p.id)}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  backgroundColor: selectedPitch === p.id ? '#3b82f6' : 'transparent',
+                  color: selectedPitch === p.id ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  fontWeight: selectedPitch === p.id ? 'bold' : 'normal',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Pitch Layouts */}
+        {isMobile ? (
+          // Mobile: Show one pitch at a time
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              backgroundColor: '#f3f4f6',
+              padding: '8px',
+              borderBottom: '1px solid #e5e7eb'
+            }}>
+              <h2 style={{
+                fontSize: '13px',
+                fontWeight: 'bold',
+                color: '#1f2937',
+                margin: 0
+              }}>
+                {pitches.find(p => p.id === selectedPitch)?.name}
+              </h2>
+            </div>
+            {renderPitchGrid(pitches.find(p => p.id === selectedPitch))}
+          </div>
+        ) : (
+          // Desktop: Show both pitches side by side
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '16px'
+          }}>
+            {pitches.map((p) => (
+              <div key={p.id} style={{
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  backgroundColor: '#f3f4f6',
+                  padding: '8px',
+                  borderBottom: '1px solid #e5e7eb'
+                }}>
+                  <h2 style={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    color: '#1f2937',
+                    margin: 0
+                  }}>{p.name}</h2>
+                </div>
+                {renderPitchGrid(p)}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
