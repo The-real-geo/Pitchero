@@ -1,4 +1,4 @@
-// Create this as a new file: src/components/ShareView.jsx
+// Update your ShareView.jsx with this code
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -33,16 +33,40 @@ function ShareView() {
         const data = await getSharedAllocation(shareId);
         setSharedData(data);
         
-        // Auto-expand slots that have allocations
+        // Auto-expand ALL time slots that have allocations
         if (data && data.allocations) {
           const slotsWithAllocations = new Set();
-          Object.keys(data.allocations).forEach(key => {
-            const parts = key.split('-');
-            if (parts.length >= 2) {
-              const timeSlot = parts[1];
+          
+          // Generate time slots based on allocation type
+          const timeSlots = [];
+          const start = data.type === 'match' ? 8 : 17;
+          const end = 21;
+          
+          if (data.type === 'match') {
+            for (let h = start; h < end; h++) {
+              for (let m = 0; m < 60; m += 15) {
+                const minutes = m.toString().padStart(2, '0');
+                timeSlots.push(`${h}:${minutes}`);
+              }
+            }
+            timeSlots.push(`${end}:00`);
+          } else {
+            for (let h = start; h < end; h++) {
+              timeSlots.push(`${h}:00`, `${h}:30`);
+            }
+          }
+          
+          // Check which time slots have allocations and add them ALL to expanded
+          timeSlots.forEach(timeSlot => {
+            const hasAllocations = Object.keys(data.allocations).some(key => {
+              return key.includes(`-${timeSlot}-`);
+            });
+            
+            if (hasAllocations) {
               slotsWithAllocations.add(timeSlot);
             }
           });
+          
           setExpandedSlots(slotsWithAllocations);
         }
       } catch (err) {
@@ -276,88 +300,87 @@ function ShareView() {
                         </span>
                       </h3>
                       
-                      {isExpanded && (
+                      {/* Always show the pitch grid since all slots with allocations are expanded */}
+                      <div style={{
+                        position: 'relative',
+                        backgroundColor: '#dcfce7',
+                        border: '4px solid white',
+                        borderRadius: '8px',
+                        padding: '16px',
+                        width: '280px',
+                        height: '400px',
+                        margin: '0 auto'
+                      }}>
+                        <div style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundColor: '#bbf7d0',
+                          borderRadius: '8px'
+                        }}></div>
+                        
                         <div style={{
                           position: 'relative',
-                          backgroundColor: '#dcfce7',
-                          border: '4px solid white',
-                          borderRadius: '8px',
-                          padding: '16px',
-                          width: '280px',
-                          height: '400px',
-                          margin: '0 auto'
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gridTemplateRows: 'repeat(4, 1fr)',
+                          gap: '4px',
+                          height: '100%',
+                          zIndex: 10
                         }}>
-                          <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: '#bbf7d0',
-                            borderRadius: '8px'
-                          }}></div>
-                          
-                          <div style={{
-                            position: 'relative',
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gridTemplateRows: 'repeat(4, 1fr)',
-                            gap: '4px',
-                            height: '100%',
-                            zIndex: 10
-                          }}>
-                            {sections.map((sec) => {
-                              const key = `${date}-${s}-${p.id}-${sec}`;
-                              const alloc = allocations[key];
-                              
-                              return (
-                                <div 
-                                  key={sec} 
-                                  style={{
-                                    border: '2px solid rgba(255,255,255,0.5)',
-                                    borderRadius: '4px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '12px',
-                                    fontWeight: '500',
-                                    padding: '2px',
-                                    textAlign: 'center',
-                                    backgroundColor: alloc ? alloc.colour + '90' : 'rgba(255,255,255,0.1)',
-                                    borderColor: alloc ? alloc.colour : 'rgba(255,255,255,0.5)',
-                                    color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
-                                  }}
-                                >
-                                  <div style={{
-                                    fontSize: '12px',
-                                    opacity: 0.75,
-                                    marginBottom: '4px',
-                                    fontWeight: 'bold'
-                                  }}>{sec}</div>
-                                  <div style={{
-                                    textAlign: 'center',
-                                    padding: '0 4px',
-                                    fontSize: '12px',
-                                    lineHeight: 1.2
-                                  }}>
-                                    {alloc ? alloc.team : ''}
-                                  </div>
-                                  {alloc && alloc.isMultiSlot && (
-                                    <div style={{
-                                      fontSize: '12px',
-                                      opacity: 0.6,
-                                      marginTop: '4px'
-                                    }}>
-                                      {alloc.duration}min
-                                    </div>
-                                  )}
+                          {sections.map((sec) => {
+                            const key = `${date}-${s}-${p.id}-${sec}`;
+                            const alloc = allocations[key];
+                            
+                            return (
+                              <div 
+                                key={sec} 
+                                style={{
+                                  border: '2px solid rgba(255,255,255,0.5)',
+                                  borderRadius: '4px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '12px',
+                                  fontWeight: '500',
+                                  padding: '2px',
+                                  textAlign: 'center',
+                                  backgroundColor: alloc ? alloc.colour + '90' : 'rgba(255,255,255,0.1)',
+                                  borderColor: alloc ? alloc.colour : 'rgba(255,255,255,0.5)',
+                                  color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
+                                }}
+                              >
+                                <div style={{
+                                  fontSize: '12px',
+                                  opacity: 0.75,
+                                  marginBottom: '4px',
+                                  fontWeight: 'bold'
+                                }}>{sec}</div>
+                                <div style={{
+                                  textAlign: 'center',
+                                  padding: '0 4px',
+                                  fontSize: '12px',
+                                  lineHeight: 1.2
+                                }}>
+                                  {alloc ? alloc.team : ''}
                                 </div>
-                              );
-                            })}
-                          </div>
+                                {alloc && alloc.isMultiSlot && (
+                                  <div style={{
+                                    fontSize: '12px',
+                                    opacity: 0.6,
+                                    marginTop: '4px'
+                                  }}>
+                                    {alloc.duration}min
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })}
