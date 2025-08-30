@@ -1,0 +1,8 @@
+[build]
+  publish = "build"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false  # This is key - don't force redirect if file exists
