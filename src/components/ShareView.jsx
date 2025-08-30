@@ -27,16 +27,6 @@ function ShareView() {
   const [error, setError] = useState(null);
   const [expandedSlots, setExpandedSlots] = useState(new Set());
 
-  const pitchOrientations = {
-    'pitch1': 'portrait',
-    'pitch2': 'portrait'
-  };
-
-  const showGrassArea = {
-    'pitch1': false,
-    'pitch2': true
-  };
-
   useEffect(() => {
     const loadSharedData = async () => {
       try {
