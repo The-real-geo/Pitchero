@@ -1500,7 +1500,7 @@ function TrainingPitchAllocator({ onBack }) {
                                           {alloc && alloc.isMultiSlot && (
                                             <div style={{
                                               fontSize: '12px',
-                                              opacity: 0.6',
+                                              opacity: 0.6,
                                               marginTop: '4px'
                                             }}>
                                               {alloc.duration}min
