@@ -86,6 +86,104 @@ function TrainingPitchAllocator({ onBack }) {
 
   const slots = useMemo(() => timeSlots(), []);
 
+  // Print styles for PDF generation
+  useEffect(() => {
+    const printStyles = `
+      @media print {
+        /* Hide everything except pitch layouts */
+        body > div > div > div:first-child, /* Header with title and status */
+        body > div > div > div:nth-child(2), /* Error display */
+        body > div > div > div:nth-child(3), /* Instructions */
+        body > div > div > div:nth-child(4), /* Action buttons */
+        body > div > div > div:nth-child(5), /* Add allocation form */
+        body > div > div > div:nth-child(6), /* Clear confirmation dialog */
+        body > div > div > div:nth-child(7) /* Summary display */ {
+          display: none !important;
+        }
+        
+        /* Reset background for print */
+        body > div {
+          background-color: white !important;
+          padding: 0 !important;
+        }
+        
+        /* Ensure pitch container is visible and properly styled */
+        body > div > div > div:last-child {
+          display: grid !important;
+          visibility: visible !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        
+        /* Prevent page breaks inside individual pitches */
+        body > div > div > div:last-child > div {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+          page-break-before: auto !important;
+        }
+        
+        /* Force pitches to stay together on same page if possible */
+        body > div > div > div:last-child {
+          page-break-before: auto !important;
+          page-break-after: auto !important;
+        }
+        
+        /* Adjust pitch layout grid for print */
+        @page {
+          size: A4 landscape;
+          margin: 1cm;
+        }
+        
+        /* Ensure time slot sections stay together */
+        body > div > div > div:last-child > div > div > div {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        
+        /* Make sure collapsed time slots expand for print */
+        body > div > div > div:last-child > div > div > div > div:last-child {
+          display: block !important;
+        }
+        
+        /* Remove shadows and unnecessary borders for cleaner print */
+        body > div > div > div:last-child > div {
+          box-shadow: none !important;
+          border: 1px solid #ccc !important;
+        }
+        
+        /* Ensure text is black for better print contrast */
+        body > div > div > div:last-child * {
+          color: black !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        /* Keep background colors for allocations */
+        body > div > div > div:last-child [style*="backgroundColor"] {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
+    `;
+    
+    // Create or update style element
+    let styleEl = document.getElementById('pitch-allocator-print-styles');
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'pitch-allocator-print-styles';
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = printStyles;
+    
+    // Cleanup on unmount
+    return () => {
+      const el = document.getElementById('pitch-allocator-print-styles');
+      if (el) {
+        el.remove();
+      }
+    };
+  }, []);
+
   // Auth monitoring
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -220,7 +318,30 @@ function TrainingPitchAllocator({ onBack }) {
   };
 
   const handlePrint = () => {
-    window.print();
+    // Temporarily expand all time slots for printing
+    const allTimeSlots = slots;
+    const originalExpanded = new Set(manuallyExpandedSlotsTraining);
+    
+    // Expand all slots that have allocations
+    const expandedForPrint = new Set();
+    allTimeSlots.forEach(slot => {
+      if (hasAllocationsForTimeSlotTraining(slot)) {
+        expandedForPrint.add(slot);
+      }
+    });
+    
+    // Update state to show all allocated slots
+    setManuallyExpandedSlotsTraining(expandedForPrint);
+    
+    // Wait for render then print
+    setTimeout(() => {
+      window.print();
+      
+      // Restore original expanded state after print
+      setTimeout(() => {
+        setManuallyExpandedSlotsTraining(originalExpanded);
+      }, 100);
+    }, 100);
   };
 
   const handleExport = () => {
