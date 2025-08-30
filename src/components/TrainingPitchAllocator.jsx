@@ -55,7 +55,8 @@ function TrainingPitchAllocator({ onBack }) {
   loadAllocationsForDate,
   saveAllocationToFirestore,
   clearAllAllocationsForDate,
-  deleteAllocationFromFirestore
+  deleteAllocationFromFirestore,
+  deleteAllocationsByBookingId
 } = useFirebaseAllocations('trainingAllocations');
 
   // Auth state
@@ -185,16 +186,22 @@ function TrainingPitchAllocator({ onBack }) {
     return hasAllocationsForTimeSlotTraining(timeSlot) || manuallyExpandedSlotsTraining.has(timeSlot);
   };
 
-  // Simple clear allocation function - direct approach like earlier versions
+  // Clear allocation function - handles both single and multi-slot bookings
   const clearAllocation = async (key) => {
     const allocation = allocations[key];
     if (!allocation || loading) return;
 
-    // Direct deletion call without complex state tracking
-    if (allocation.id) {
-      await deleteAllocationFromFirestore(allocation.id, allocation.date);
+    // Check if this is part of a multi-slot booking
+    if (allocation.bookingId) {
+      // Delete all allocations with the same bookingId
+      await deleteAllocationsByBookingId(allocation.bookingId, allocation.date);
     } else {
-      console.error("No ID found for allocation:", allocation);
+      // Single slot allocation - delete just this one
+      if (allocation.id) {
+        await deleteAllocationFromFirestore(allocation.id, allocation.date);
+      } else {
+        console.error("No ID found for allocation:", allocation);
+      }
     }
   };
 
