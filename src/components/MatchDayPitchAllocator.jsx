@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 import { useNavigate } from "react-router-dom";
-import { auth } from "../utils/firebase";
+import { auth, createShareableLink } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
@@ -108,6 +108,7 @@ function MatchDayPitchAllocator({ onBack }) {
   const [showSummary, setShowSummary] = useState(false);
   const [summaryType, setSummaryType] = useState('section');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [shareStatus, setShareStatus] = useState(null); // Track share link status
 
   const slots = useMemo(() => matchDayTimeSlots(), []);
 
@@ -536,6 +537,39 @@ function MatchDayPitchAllocator({ onBack }) {
     input.click();
   };
 
+  const handleShare = async () => {
+    if (Object.keys(allocations).length === 0) {
+      setShareStatus('No allocations to share');
+      setTimeout(() => setShareStatus(null), 3000);
+      return;
+    }
+
+    try {
+      setShareStatus('Creating share link...');
+      
+      const result = await createShareableLink(
+        'match', // This is for match day allocations
+        allocations,
+        date,
+        userProfile?.clubId,
+        clubInfo?.name
+      );
+      
+      // Copy to clipboard
+      await navigator.clipboard.writeText(result.url);
+      
+      setShareStatus('Share link copied to clipboard! Link expires in 7 days.');
+      
+      // Clear status after 5 seconds
+      setTimeout(() => setShareStatus(null), 5000);
+      
+    } catch (error) {
+      console.error('Error creating share link:', error);
+      setShareStatus('Failed to create share link');
+      setTimeout(() => setShareStatus(null), 3000);
+    }
+  };
+
   const generateSectionSummary = () => {
     const summary = {};
     const uniqueAllocations = {};
@@ -873,7 +907,48 @@ function MatchDayPitchAllocator({ onBack }) {
           >
             🖨️ Print PDF
           </button>
+
+          <button 
+            onClick={handleShare}
+            disabled={Object.keys(allocations).length === 0}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: Object.keys(allocations).length === 0 ? '#9ca3af' : '#8b5cf6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: Object.keys(allocations).length === 0 ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+            title="Create a shareable link for this allocation"
+          >
+            🔗 Share Link
+          </button>
         </div>
+
+        {/* Share status message */}
+        {shareStatus && (
+          <div className="no-print" style={{
+            backgroundColor: shareStatus.includes('Failed') ? '#fef2f2' : '#f0f9ff',
+            border: `1px solid ${shareStatus.includes('Failed') ? '#fecaca' : '#60a5fa'}`,
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '24px',
+            fontSize: '14px',
+            color: shareStatus.includes('Failed') ? '#dc2626' : '#1e40af',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <span>{shareStatus}</span>
+            {shareStatus.includes('copied') && (
+              <span style={{ fontSize: '12px', opacity: 0.8 }}>
+                ✓ Link copied to clipboard
+              </span>
+            )}
+          </div>
+        )}
         
         <div className="no-print" style={{
           backgroundColor: 'white',

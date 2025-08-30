@@ -9,6 +9,7 @@ import Menu from "./components/Menu";
 import TrainingPitchAllocator from "./components/TrainingPitchAllocator";
 import MatchDayPitchAllocator from "./components/MatchDayPitchAllocator";
 import Settings from "./components/Settings";
+import ShareView from "./components/ShareView";
 
 // Protected Route Component
 const PrivateRoute = ({ children }) => {
@@ -87,6 +88,12 @@ function App() {
               <LoginPage />
             </PublicRoute>
           } 
+        />
+
+        {/* Public share view route - accessible without authentication */}
+        <Route 
+          path="/share/:shareId" 
+          element={<ShareView />} 
         />
 
         {/* Protected menu - this is your main dashboard */}

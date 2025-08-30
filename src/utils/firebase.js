@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, getDocs, getDoc, setDoc, query, where, deleteDoc, doc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { doc } from 'firebase/firestore';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -46,6 +47,58 @@ export const createUserProfile = async (userId, email, clubId, role = 'coach') =
   } catch (err) {
     console.error("Error creating user profile:", err);
     throw err;
+  }
+};
+// Create a shareable link for allocations
+export const createShareableLink = async (allocatorType, allocations, date, clubId, clubName) => {
+  try {
+    // Generate a unique share ID
+    const shareId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create a snapshot of current allocations
+    const shareData = {
+      type: allocatorType, // 'training' or 'match'
+      allocations: allocations,
+      date: date,
+      clubId: clubId,
+      clubName: clubName || 'Unknown Club',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+    };
+    
+    // Save to a public collection in Firebase
+    await setDoc(doc(db, 'sharedAllocations', shareId), shareData);
+    
+    // Return the shareable URL
+    const shareUrl = `${window.location.origin}/share/${shareId}`;
+    return { url: shareUrl, shareId: shareId };
+  } catch (error) {
+    console.error('Error creating shareable link:', error);
+    throw error;
+  }
+};
+
+// Retrieve shared allocation data
+export const getSharedAllocation = async (shareId) => {
+  try {
+    const docRef = doc(db, 'sharedAllocations', shareId);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      
+      // Check if link has expired
+      if (new Date(data.expiresAt) < new Date()) {
+        throw new Error('This share link has expired');
+      }
+      
+      return data;
+    } else {
+      throw new Error('Share link not found');
+    }
+  } catch (error) {
+    console.error('Error retrieving shared allocation:', error);
+    throw error;
   }
 };
 
