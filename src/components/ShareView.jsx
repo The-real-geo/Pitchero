@@ -25,50 +25,12 @@ function ShareView() {
   const [sharedData, setSharedData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expandedSlots, setExpandedSlots] = useState(new Set());
 
   useEffect(() => {
     const loadSharedData = async () => {
       try {
         const data = await getSharedAllocation(shareId);
         setSharedData(data);
-        
-        // Auto-expand ALL time slots that have allocations
-        if (data && data.allocations) {
-          const slotsWithAllocations = new Set();
-          
-          // Generate time slots based on allocation type
-          const timeSlots = [];
-          const start = data.type === 'match' ? 8 : 17;
-          const end = 21;
-          
-          if (data.type === 'match') {
-            for (let h = start; h < end; h++) {
-              for (let m = 0; m < 60; m += 15) {
-                const minutes = m.toString().padStart(2, '0');
-                timeSlots.push(`${h}:${minutes}`);
-              }
-            }
-            timeSlots.push(`${end}:00`);
-          } else {
-            for (let h = start; h < end; h++) {
-              timeSlots.push(`${h}:00`, `${h}:30`);
-            }
-          }
-          
-          // Check which time slots have allocations and add them ALL to expanded
-          timeSlots.forEach(timeSlot => {
-            const hasAllocations = Object.keys(data.allocations).some(key => {
-              return key.includes(`-${timeSlot}-`);
-            });
-            
-            if (hasAllocations) {
-              slotsWithAllocations.add(timeSlot);
-            }
-          });
-          
-          setExpandedSlots(slotsWithAllocations);
-        }
       } catch (err) {
         setError(err.message);
       } finally {
