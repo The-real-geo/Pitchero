@@ -115,78 +115,51 @@ function MatchDayPitchAllocator({ onBack }) {
   useEffect(() => {
     const printStyles = `
       @media print {
-        /* Hide everything except pitch layouts */
-        body > div > div > div:first-child, /* Header with title and status */
-        body > div > div > div:nth-child(2), /* Error display */
-        body > div > div > div:nth-child(3), /* Instructions */
-        body > div > div > div:nth-child(4), /* Action buttons */
-        body > div > div > div:nth-child(5), /* Add allocation form */
-        body > div > div > div:nth-child(6), /* Clear confirmation dialog */
-        body > div > div > div:nth-child(7) /* Summary display */ {
+        /* Hide all elements marked as no-print */
+        .no-print {
           display: none !important;
         }
         
-        /* Reset background for print */
+        /* Reset page styling */
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: white !important;
+        }
+        
         body > div {
           background-color: white !important;
           padding: 0 !important;
         }
         
-        /* Ensure pitch container is visible and properly styled */
-        body > div > div > div:last-child {
-          display: grid !important;
-          visibility: visible !important;
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
-        }
-        
-        /* Prevent page breaks inside individual pitches */
-        body > div > div > div:last-child > div {
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
-          page-break-before: auto !important;
-        }
-        
-        /* Force pitches to stay together on same page if possible */
-        body > div > div > div:last-child {
-          page-break-before: auto !important;
-          page-break-after: auto !important;
-        }
-        
-        /* Adjust pitch layout grid for print */
+        /* Set landscape orientation */
         @page {
           size: A4 landscape;
-          margin: 1cm;
+          margin: 0.5cm;
         }
         
-        /* Ensure time slot sections stay together */
-        body > div > div > div:last-child > div > div > div {
+        /* Ensure pitch grid displays properly */
+        .pitch-grid-container {
+          display: grid !important;
+          grid-template-columns: 1fr 1fr !important;
+          gap: 20px !important;
+          padding: 10px !important;
+          page-break-inside: avoid !important;
+        }
+        
+        /* Keep individual pitches together on same page */
+        .pitch-wrapper {
           page-break-inside: avoid !important;
           break-inside: avoid !important;
-        }
-        
-        /* Make sure collapsed time slots expand for print */
-        body > div > div > div:last-child > div > div > div > div:last-child {
-          display: block !important;
-        }
-        
-        /* Remove shadows and unnecessary borders for cleaner print */
-        body > div > div > div:last-child > div {
-          box-shadow: none !important;
           border: 1px solid #ccc !important;
+          box-shadow: none !important;
         }
         
-        /* Ensure text is black for better print contrast */
-        body > div > div > div:last-child * {
-          color: black !important;
+        /* Preserve colors */
+        * {
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
-        }
-        
-        /* Keep background colors for allocations */
-        body > div > div > div:last-child [style*="backgroundColor"] {
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
+          color-adjust: exact !important;
         }
       }
     `;
@@ -664,7 +637,7 @@ function MatchDayPitchAllocator({ onBack }) {
       boxSizing: 'border-box'
     }}>
       <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%' }}>
-        <div style={{
+        <div className="no-print" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -771,7 +744,7 @@ function MatchDayPitchAllocator({ onBack }) {
 
         {/* Error display */}
         {error && (
-          <div style={{
+          <div className="no-print" style={{
             backgroundColor: '#fef2f2',
             border: '1px solid #fecaca',
             borderRadius: '8px',
@@ -799,7 +772,7 @@ function MatchDayPitchAllocator({ onBack }) {
         )}
 
         {/* Instructions for removing allocations */}
-        <div style={{
+        <div className="no-print" style={{
           backgroundColor: '#ecfdf5',
           border: '1px solid #6ee7b7',
           borderRadius: '8px',
@@ -811,7 +784,7 @@ function MatchDayPitchAllocator({ onBack }) {
           <strong>💡 Tip:</strong> Click on any colored section in the pitch layout below to remove that specific match allocation. Multi-slot and multi-section bookings will be completely removed when you click on any part of them.
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+        <div className="no-print" style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
           <button 
             onClick={() => {
               setSummaryType('section');
@@ -902,7 +875,7 @@ function MatchDayPitchAllocator({ onBack }) {
           </button>
         </div>
         
-        <div style={{
+        <div className="no-print" style={{
           backgroundColor: 'white',
           padding: '24px',
           borderRadius: '8px',
@@ -1128,7 +1101,7 @@ function MatchDayPitchAllocator({ onBack }) {
 
         {/* Clear Confirmation Dialog */}
         {showClearConfirm && (
-          <div style={{
+          <div className="no-print" style={{
             position: 'fixed',
             top: 0,
             left: 0,
@@ -1211,7 +1184,7 @@ function MatchDayPitchAllocator({ onBack }) {
 
         {/* Summary Display */}
         {showSummary && (
-          <div style={{
+          <div className="no-print" style={{
             backgroundColor: 'white',
             padding: '24px',
             borderRadius: '8px',
@@ -1398,14 +1371,14 @@ function MatchDayPitchAllocator({ onBack }) {
         )}
 
         {/* Visual Pitch Layout */}
-        <div style={{
+        <div className="pitch-grid-container" style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: '16px',
           alignItems: 'start'
         }}>
           {pitches.map((p) => (
-            <div key={p.id} style={{
+            <div key={p.id} className="pitch-wrapper" style={{
               backgroundColor: 'white',
               borderRadius: '8px',
               boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
