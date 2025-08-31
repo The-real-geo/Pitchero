@@ -257,9 +257,13 @@ function TrainingPitchAllocator({ onBack }) {
         timeSlot: currentSlot, // This is the actual time slot for this specific allocation
         pitch: pitch,
         section: section,
-        date: date,
-        bookingId: slotsNeeded > 1 ? bookingId : undefined // Add bookingId for multi-slot bookings
+        date: date
       };
+
+      // Only add bookingId for multi-slot bookings
+      if (slotsNeeded > 1) {
+        allocation.bookingId = bookingId;
+      }
 
       // Save each slot allocation to Firebase
       await saveAllocationToFirestore(selectedTeam.name, allocation, date);
