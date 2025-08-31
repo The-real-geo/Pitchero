@@ -48,7 +48,8 @@ export const createUserProfile = async (userId, email, clubId, role = 'coach') =
     throw err;
   }
 };
-// Create a shareable link for allocations
+
+// Create a shareable link for allocations (existing function - kept for backward compatibility)
 export const createShareableLink = async (allocatorType, allocations, date, clubId, clubName) => {
   try {
     // Generate a unique share ID
@@ -73,6 +74,18 @@ export const createShareableLink = async (allocatorType, allocations, date, club
     return { url: shareUrl, shareId: shareId };
   } catch (error) {
     console.error('Error creating shareable link:', error);
+    throw error;
+  }
+};
+
+// Create shared allocation - new function for TrainingPitchAllocator
+export const createSharedAllocation = async (shareId, shareData) => {
+  try {
+    const shareRef = doc(db, 'sharedAllocations', shareId);
+    await setDoc(shareRef, shareData);
+    return shareId;
+  } catch (error) {
+    console.error('Error creating shared allocation:', error);
     throw error;
   }
 };
