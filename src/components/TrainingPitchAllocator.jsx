@@ -124,6 +124,7 @@ function TrainingPitchAllocator({ onBack }) {
   // Logout function
   const handleLogout = async () => {
     try {
+      setShowHamburgerMenu(false); // Close menu before logout
       await signOut(auth);
       navigate('/login');
     } catch (error) {
@@ -568,51 +569,148 @@ function TrainingPitchAllocator({ onBack }) {
             border: '1px solid #d1d5db',
             borderRadius: '8px',
             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-            minWidth: '180px',
+            minWidth: '240px',
             zIndex: 100
           }}>
-            <button
-              onClick={handleExport}
-              disabled={Object.keys(allocations).length === 0}
-              style={{
-                width: '100%',
+            {/* User Info Section */}
+            {user && (
+              <div style={{
                 padding: '12px 16px',
-                backgroundColor: 'white',
-                color: Object.keys(allocations).length === 0 ? '#9ca3af' : '#374151',
-                border: 'none',
                 borderBottom: '1px solid #e5e7eb',
-                cursor: Object.keys(allocations).length === 0 ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                textAlign: 'left',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              📤 Export
-            </button>
+                backgroundColor: '#f9fafb'
+              }}>
+                {clubInfo && (
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#1f2937',
+                    marginBottom: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    🏢 {clubInfo.name}
+                  </div>
+                )}
+                <div style={{
+                  fontSize: '13px',
+                  color: '#6b7280',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  👤 {user.email}
+                </div>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#9ca3af',
+                  marginTop: '4px',
+                  fontStyle: 'italic'
+                }}>
+                  Role: {userProfile?.role || 'loading...'}
+                </div>
+              </div>
+            )}
             
-            <button
-              onClick={handleImport}
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                backgroundColor: 'white',
-                color: loading ? '#9ca3af' : '#374151',
-                border: 'none',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                textAlign: 'left',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              📥 Import
-            </button>
+            {/* Action Items */}
+            <div style={{ padding: '8px 0' }}>
+              <button
+                onClick={handleExport}
+                disabled={Object.keys(allocations).length === 0}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  backgroundColor: 'white',
+                  color: Object.keys(allocations).length === 0 ? '#9ca3af' : '#374151',
+                  border: 'none',
+                  cursor: Object.keys(allocations).length === 0 ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  if (Object.keys(allocations).length > 0) {
+                    e.currentTarget.style.backgroundColor = '#f3f4f6';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
+                📤 Export
+              </button>
+              
+              <button
+                onClick={handleImport}
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  backgroundColor: 'white',
+                  color: loading ? '#9ca3af' : '#374151',
+                  border: 'none',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = '#f3f4f6';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
+                📥 Import
+              </button>
+            </div>
+            
+            {/* Logout Button - Separated at bottom */}
+            {user && (
+              <>
+                <div style={{
+                  borderTop: '1px solid #e5e7eb',
+                  margin: '0'
+                }}></div>
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    backgroundColor: 'white',
+                    color: '#dc2626',
+                    border: 'none',
+                    borderRadius: '0 0 8px 8px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#fef2f2';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'white';
+                  }}
+                >
+                  🚪 Logout
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -669,60 +767,16 @@ function TrainingPitchAllocator({ onBack }) {
             gap: '12px',
             fontSize: '14px'
           }}>
-            {user && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <div style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: '500'
-                }}>
-                  📊 {Object.keys(allocations).length} Allocations
-                </div>
-                {clubInfo && (
-                  <div style={{
-                    padding: '6px 12px',
-                    backgroundColor: '#10b981',
-                    color: 'white',
-                    borderRadius: '20px',
-                    fontSize: '12px',
-                    fontWeight: '500'
-                  }}>
-                    🏢 {clubInfo.name}
-                  </div>
-                )}
-                <div style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#6366f1',
-                  color: 'white',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: '500'
-                }}>
-                  👤 {user.email} ({userProfile?.role || 'loading...'})
-                </div>
-                <button
-                  onClick={handleLogout}
-                  style={{
-                    padding: '4px 8px',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  Logout
-                </button>
-              </div>
-            )}
+            <div style={{
+              padding: '6px 12px',
+              backgroundColor: '#10b981',
+              color: 'white',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: '500'
+            }}>
+              📊 {Object.keys(allocations).length} Allocations
+            </div>
             {loading && (
               <div style={{
                 padding: '6px 12px',
@@ -1741,7 +1795,7 @@ function TrainingPitchAllocator({ onBack }) {
                                           {alloc && alloc.isMultiSlot && (
                                             <div style={{
                                               fontSize: '12px',
-                                              opacity: 0.6,
+                                              opacity: 0.6',
                                               marginTop: '4px'
                                             }}>
                                               {alloc.duration}min
