@@ -694,6 +694,16 @@ function TrainingPitchAllocator({ onBack }) {
     alignItems: 'center',
     gap: '8px'
   }}>
+    <div style={{
+              padding: '6px 12px',
+              backgroundColor: '#10b981',
+              color: 'white',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: '500'
+            }}>
+              📊 {Object.keys(allocations).length} Allocations
+            </div>
     {clubInfo && (
       <div style={{
         padding: '6px 12px',
@@ -744,16 +754,7 @@ function TrainingPitchAllocator({ onBack }) {
                 💾 Saving...
               </div>
             )}
-            <div style={{
-              padding: '6px 12px',
-              backgroundColor: '#10b981',
-              color: 'white',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: '500'
-            }}>
-              📊 {Object.keys(allocations).length} Allocations
-            </div>
+            
           </div>
         </div>
 
