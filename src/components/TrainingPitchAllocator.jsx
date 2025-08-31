@@ -3,6 +3,7 @@ import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 import { useNavigate } from "react-router-dom";
 import { auth } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { createSharedAllocation } from '../utils/firebase';
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const pitches = [
@@ -83,6 +84,10 @@ function TrainingPitchAllocator({ onBack }) {
   const [summaryType, setSummaryType] = useState('section');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [manuallyExpandedSlotsTraining, setManuallyExpandedSlotsTraining] = useState(new Set());
+  
+  // Share functionality state
+  const [shareLink, setShareLink] = useState('');
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
   const slots = useMemo(() => timeSlots(), []);
 
@@ -378,7 +383,7 @@ function TrainingPitchAllocator({ onBack }) {
             const allocationsToImport = importData.allocations || importData;
             
             // Import each allocation to Firebase
-            for (const [allocation] of Object.entries(allocationsToImport)) {
+            for (const [, allocation] of Object.entries(allocationsToImport)) {
               await saveAllocationToFirestore(allocation.team, allocation, allocation.date);
             }
           } catch (error) {
@@ -389,6 +394,35 @@ function TrainingPitchAllocator({ onBack }) {
       }
     };
     input.click();
+  };
+
+  // Share functionality
+  const handleShare = async () => {
+    try {
+      // Create share data object
+      const shareData = {
+        allocations: allocations,
+        date: date,
+        type: 'training', // Important: specify this is training, not match
+        clubName: clubInfo?.name || 'Unknown Club',
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days expiry
+      };
+      
+      // Generate unique share ID
+      const shareId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Save to Firebase
+      await createSharedAllocation(shareId, shareData);
+      
+      // Generate the share link
+      const link = `${window.location.origin}/share/${shareId}`;
+      setShareLink(link);
+      setShowShareDialog(true);
+    } catch (error) {
+      console.error('Error creating share link:', error);
+      alert('Failed to create share link. Please try again.');
+    }
   };
 
   const generateSectionSummary = () => {
@@ -476,6 +510,128 @@ function TrainingPitchAllocator({ onBack }) {
       month: 'short', 
       day: 'numeric' 
     });
+  };
+
+  // Share Dialog Component
+  const ShareDialog = () => {
+    if (!showShareDialog) return null;
+    
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1001
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '32px',
+          borderRadius: '12px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+          maxWidth: '500px',
+          width: '90%'
+        }}>
+          <h3 style={{
+            fontSize: '18px',
+            fontWeight: '600',
+            color: '#1f2937',
+            marginBottom: '16px',
+            margin: '0 0 16px 0'
+          }}>
+            Share Training Allocation
+          </h3>
+          
+          <p style={{
+            fontSize: '14px',
+            color: '#6b7280',
+            marginBottom: '16px',
+            margin: '0 0 16px 0'
+          }}>
+            Your shareable link has been created! This link will expire in 30 days.
+          </p>
+          
+          <div style={{
+            backgroundColor: '#f3f4f6',
+            padding: '12px',
+            borderRadius: '6px',
+            marginBottom: '16px',
+            wordBreak: 'break-all',
+            fontSize: '14px',
+            fontFamily: 'monospace'
+          }}>
+            {shareLink}
+          </div>
+          
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            justifyContent: 'flex-end'
+          }}>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(shareLink);
+                alert('Link copied to clipboard!');
+              }}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              📋 Copy Link
+            </button>
+            
+            <button
+              onClick={() => {
+                window.open(shareLink, '_blank');
+              }}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              🔗 Open Link
+            </button>
+            
+            <button
+              onClick={() => {
+                setShowShareDialog(false);
+                setShareLink('');
+              }}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#6b7280',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -727,6 +883,23 @@ function TrainingPitchAllocator({ onBack }) {
             title="Print or save as PDF (Ctrl+P / Cmd+P as backup)"
           >
             🖨️ Print PDF
+          </button>
+
+          <button 
+            onClick={handleShare}
+            disabled={Object.keys(allocations).length === 0 || loading}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: (Object.keys(allocations).length === 0 || loading) ? '#9ca3af' : '#8b5cf6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: (Object.keys(allocations).length === 0 || loading) ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            🔗 Share
           </button>
         </div>
         
@@ -1049,6 +1222,9 @@ function TrainingPitchAllocator({ onBack }) {
             </div>
           </div>
         )}
+
+        {/* Share Dialog */}
+        <ShareDialog />
 
         {/* Summary Display */}
         {showSummary && (
@@ -1628,7 +1804,7 @@ function TrainingPitchAllocator({ onBack }) {
                                           {alloc && alloc.isMultiSlot && (
                                             <div style={{
                                               fontSize: '12px',
-                                              opacity: 0.6,
+                                              opacity: 0.6',
                                               marginTop: '4px'
                                             }}>
                                               {alloc.duration}min
