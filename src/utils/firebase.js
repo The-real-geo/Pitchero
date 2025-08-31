@@ -34,7 +34,7 @@ export const getUserProfile = async (userId) => {
   }
 };
 
-export const createUserProfile = async (userId, email, clubId, role = 'coach') => {
+export const createUserProfile = async (userId, email, clubId, role = 'member') => {
   try {
     await setDoc(doc(db, 'users', userId), {
       email: email,
