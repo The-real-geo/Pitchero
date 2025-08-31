@@ -1700,6 +1700,100 @@ function MatchDayPitchAllocator({ onBack }) {
                                 transform: 'translate(-50%, -50%)'
                               }}></div>
                               
+                              {/* Penalty areas */}
+                              {pitchOrientations[p.id] === 'portrait' ? (
+                                <>
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '2px',
+                                    left: '25%',
+                                    right: '25%',
+                                    height: '60px',
+                                    border: '2px solid white',
+                                    borderTop: 'none'
+                                  }}></div>
+                                  
+                                  <div style={{
+                                    position: 'absolute',
+                                    bottom: '2px',
+                                    left: '25%',
+                                    right: '25%',
+                                    height: '60px',
+                                    border: '2px solid white',
+                                    borderBottom: 'none'
+                                  }}></div>
+                                </>
+                              ) : (
+                                <>
+                                  <div style={{
+                                    position: 'absolute',
+                                    left: '2px',
+                                    top: '25%',
+                                    bottom: '25%',
+                                    width: '60px',
+                                    border: '2px solid white',
+                                    borderLeft: 'none'
+                                  }}></div>
+                                  
+                                  <div style={{
+                                    position: 'absolute',
+                                    right: '2px',
+                                    top: '25%',
+                                    bottom: '25%',
+                                    width: '60px',
+                                    border: '2px solid white',
+                                    borderRight: 'none'
+                                  }}></div>
+                                </>
+                              )}
+                              
+                              {/* Goal areas */}
+                              {pitchOrientations[p.id] === 'portrait' ? (
+                                <>
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '2px',
+                                    left: '37.5%',
+                                    right: '37.5%',
+                                    height: '25px',
+                                    border: '2px solid white',
+                                    borderTop: 'none'
+                                  }}></div>
+                                  
+                                  <div style={{
+                                    position: 'absolute',
+                                    bottom: '2px',
+                                    left: '37.5%',
+                                    right: '37.5%',
+                                    height: '25px',
+                                    border: '2px solid white',
+                                    borderBottom: 'none'
+                                  }}></div>
+                                </>
+                              ) : (
+                                <>
+                                  <div style={{
+                                    position: 'absolute',
+                                    left: '2px',
+                                    top: '37.5%',
+                                    bottom: '37.5%',
+                                    width: '25px',
+                                    border: '2px solid white',
+                                    borderLeft: 'none'
+                                  }}></div>
+                                  
+                                  <div style={{
+                                    position: 'absolute',
+                                    right: '2px',
+                                    top: '37.5%',
+                                    bottom: '37.5%',
+                                    width: '25px',
+                                    border: '2px solid white',
+                                    borderRight: 'none'
+                                  }}></div>
+                                </>
+                              )}
+                              
                               {/* Corner arcs */}
                               {[
                                 { top: '0px', left: '0px', borderRadius: '0 0 20px 0', borderTop: 'none', borderLeft: 'none' },
@@ -1885,4 +1979,4 @@ function MatchDayPitchAllocator({ onBack }) {
   );
 }
 
-export default MatchDayPitchAllocator; 
+export default MatchDayPitchAllocator;
