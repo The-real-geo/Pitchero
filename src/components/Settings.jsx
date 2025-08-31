@@ -46,6 +46,9 @@ function Settings({ onBack }) {
   // Auth state
   const [user, setUser] = useState(null);
   
+  // Hamburger menu state
+  const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
+  
   // State for teams
   const [teams, setTeams] = useState(defaultTeams);
   const [newTeamName, setNewTeamName] = useState('');
@@ -78,9 +81,24 @@ function Settings({ onBack }) {
     return () => unsubscribe();
   }, []);
 
+  // Close hamburger menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showHamburgerMenu && !event.target.closest('.hamburger-menu-container')) {
+        setShowHamburgerMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showHamburgerMenu]);
+
   // Logout function
   const handleLogout = async () => {
     try {
+      setShowHamburgerMenu(false); // Close menu before logout
       await signOut(auth);
       navigate('/login');
     } catch (error) {
@@ -173,6 +191,7 @@ function Settings({ onBack }) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    setShowHamburgerMenu(false);
   };
 
   const importSettings = () => {
@@ -190,6 +209,7 @@ function Settings({ onBack }) {
             if (importData.pitchOrientations) setPitchOrientations(importData.pitchOrientations);
             if (importData.showGrassArea) setShowGrassArea(importData.showGrassArea);
             if (importData.matchDayPitchAreaRequired) setMatchDayPitchAreaRequired(importData.matchDayPitchAreaRequired);
+            setShowHamburgerMenu(false);
           } catch (error) {
             console.error('Error importing settings:', error);
             alert('Error importing settings file. Please check the file format.');
@@ -202,7 +222,7 @@ function Settings({ onBack }) {
   };
 
   const resetToDefaults = () => {
-    if (window.confirm("Are you sure?")) {
+    if (window.confirm("Are you sure you want to reset all settings to defaults?")) {
       setTeams(defaultTeams);
       setPitchOrientations({
         'pitch1': 'portrait',
@@ -217,7 +237,213 @@ function Settings({ onBack }) {
         defaults[team.name] = getDefaultPitchAreaForTeam(team.name);
       });
       setMatchDayPitchAreaRequired(defaults);
+      setShowHamburgerMenu(false);
     }
+  };
+
+  // Hamburger Menu Component
+  const HamburgerMenu = () => {
+    return (
+      <div className="hamburger-menu-container" style={{ position: 'relative' }}>
+        <button
+          onClick={() => setShowHamburgerMenu(!showHamburgerMenu)}
+          style={{
+            padding: '8px',
+            backgroundColor: 'transparent',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '40px',
+            height: '40px'
+          }}
+          title="Menu"
+        >
+          <div style={{ width: '20px', height: '2px', backgroundColor: '#374151' }}></div>
+          <div style={{ width: '20px', height: '2px', backgroundColor: '#374151' }}></div>
+          <div style={{ width: '20px', height: '2px', backgroundColor: '#374151' }}></div>
+        </button>
+        
+        {showHamburgerMenu && (
+          <div style={{
+            position: 'absolute',
+            top: '45px',
+            right: '0',
+            backgroundColor: 'white',
+            border: '1px solid #d1d5db',
+            borderRadius: '8px',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+            minWidth: '240px',
+            zIndex: 100
+          }}>
+            {/* User Info Section */}
+            {user && (
+              <div style={{
+                padding: '12px 16px',
+                borderBottom: '1px solid #e5e7eb',
+                backgroundColor: '#f9fafb'
+              }}>
+                {clubInfo && (
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#1f2937',
+                    marginBottom: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    🏢 {clubInfo.name}
+                  </div>
+                )}
+                <div style={{
+                  fontSize: '13px',
+                  color: '#6b7280',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  👤 {user.email}
+                </div>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#9ca3af',
+                  marginTop: '4px',
+                  fontStyle: 'italic'
+                }}>
+                  Role: {userProfile?.role || 'loading...'}
+                </div>
+              </div>
+            )}
+            
+            {/* Action Items */}
+            <div style={{ padding: '8px 0' }}>
+              <button
+                onClick={exportSettings}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f3f4f6';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
+                📤 Export Settings
+              </button>
+              
+              <button
+                onClick={importSettings}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f3f4f6';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
+                📥 Import Settings
+              </button>
+              
+              <button
+                onClick={resetToDefaults}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  backgroundColor: 'white',
+                  color: '#ef4444',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#fef2f2';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
+                🔄 Reset to Defaults
+              </button>
+            </div>
+            
+            {/* Logout Button - Separated at bottom */}
+            {user && (
+              <>
+                <div style={{
+                  borderTop: '1px solid #e5e7eb',
+                  margin: '0'
+                }}></div>
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    backgroundColor: 'white',
+                    color: '#dc2626',
+                    border: 'none',
+                    borderRadius: '0 0 8px 8px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#fef2f2';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'white';
+                  }}
+                >
+                  🚪 Logout
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -258,97 +484,8 @@ function Settings({ onBack }) {
             }}>Settings</h1>
           </div>
           
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            {user && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                {clubInfo && (
-                  <div style={{
-                    padding: '6px 12px',
-                    backgroundColor: '#10b981',
-                    color: 'white',
-                    borderRadius: '20px',
-                    fontSize: '12px',
-                    fontWeight: '500'
-                  }}>
-                    🏢 {clubInfo.name}
-                  </div>
-                )}
-                <div style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#6366f1',
-                  color: 'white',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: '500'
-                }}>
-                  👤 {user.email} ({userProfile?.role || 'loading...'})
-                </div>
-                <button
-                  onClick={handleLogout}
-                  style={{
-                    padding: '4px 8px',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  Logout
-                </button>
-              </div>
-            )}
-            <button
-              onClick={exportSettings}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#0891b2',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              Export Settings
-            </button>
-            <button
-              onClick={importSettings}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#7c3aed',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              Import Settings
-            </button>
-            <button
-              onClick={resetToDefaults}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              Reset to Defaults
-            </button>
-          </div>
+          {/* Hamburger Menu */}
+          <HamburgerMenu />
         </div>
         
         {/* Club Information Section */}
