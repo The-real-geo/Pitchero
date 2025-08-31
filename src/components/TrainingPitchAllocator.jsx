@@ -88,106 +88,11 @@ function TrainingPitchAllocator({ onBack }) {
   // Share functionality state
   const [shareLink, setShareLink] = useState('');
   const [showShareDialog, setShowShareDialog] = useState(false);
+  
+  // Hamburger menu state
+  const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
 
   const slots = useMemo(() => timeSlots(), []);
-
-  // Print styles for PDF generation
-  useEffect(() => {
-    const printStyles = `
-      @media print {
-        /* Hide everything except pitch layouts */
-        body > div > div > div:first-child, /* Header with title and status */
-        body > div > div > div:nth-child(2), /* Error display */
-        body > div > div > div:nth-child(3), /* Instructions */
-        body > div > div > div:nth-child(4), /* Action buttons */
-        body > div > div > div:nth-child(5), /* Add allocation form */
-        body > div > div > div:nth-child(6), /* Clear confirmation dialog */
-        body > div > div > div:nth-child(7) /* Summary display */ {
-          display: none !important;
-        }
-        
-        /* Reset background for print */
-        body > div {
-          background-color: white !important;
-          padding: 0 !important;
-        }
-        
-        /* Ensure pitch container is visible and properly styled */
-        body > div > div > div:last-child {
-          display: grid !important;
-          visibility: visible !important;
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
-        }
-        
-        /* Prevent page breaks inside individual pitches */
-        body > div > div > div:last-child > div {
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
-          page-break-before: auto !important;
-        }
-        
-        /* Force pitches to stay together on same page if possible */
-        body > div > div > div:last-child {
-          page-break-before: auto !important;
-          page-break-after: auto !important;
-        }
-        
-        /* Adjust pitch layout grid for print */
-        @page {
-          size: A4 landscape;
-          margin: 1cm;
-        }
-        
-        /* Ensure time slot sections stay together */
-        body > div > div > div:last-child > div > div > div {
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
-        }
-        
-        /* Make sure collapsed time slots expand for print */
-        body > div > div > div:last-child > div > div > div > div:last-child {
-          display: block !important;
-        }
-        
-        /* Remove shadows and unnecessary borders for cleaner print */
-        body > div > div > div:last-child > div {
-          box-shadow: none !important;
-          border: 1px solid #ccc !important;
-        }
-        
-        /* Ensure text is black for better print contrast */
-        body > div > div > div:last-child * {
-          color: black !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        
-        /* Keep background colors for allocations */
-        body > div > div > div:last-child [style*="backgroundColor"] {
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-      }
-    `;
-    
-    // Create or update style element
-    let styleEl = document.getElementById('pitch-allocator-print-styles');
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'pitch-allocator-print-styles';
-      document.head.appendChild(styleEl);
-    }
-    styleEl.textContent = printStyles;
-    
-    // Cleanup on unmount
-    return () => {
-      const el = document.getElementById('pitch-allocator-print-styles');
-      if (el) {
-        el.remove();
-      }
-    };
-  }, []);
 
   // Auth monitoring
   useEffect(() => {
@@ -201,6 +106,20 @@ function TrainingPitchAllocator({ onBack }) {
   useEffect(() => {
     loadAllocationsForDate(date);
   }, [date, loadAllocationsForDate]);
+
+  // Close hamburger menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showHamburgerMenu && !event.target.closest('.hamburger-menu-container')) {
+        setShowHamburgerMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showHamburgerMenu]);
 
   // Logout function
   const handleLogout = async () => {
@@ -326,33 +245,6 @@ function TrainingPitchAllocator({ onBack }) {
     setShowClearConfirm(false);
   };
 
-  const handlePrint = () => {
-    // Temporarily expand all time slots for printing
-    const allTimeSlots = slots;
-    const originalExpanded = new Set(manuallyExpandedSlotsTraining);
-    
-    // Expand all slots that have allocations
-    const expandedForPrint = new Set();
-    allTimeSlots.forEach(slot => {
-      if (hasAllocationsForTimeSlotTraining(slot)) {
-        expandedForPrint.add(slot);
-      }
-    });
-    
-    // Update state to show all allocated slots
-    setManuallyExpandedSlotsTraining(expandedForPrint);
-    
-    // Wait for render then print
-    setTimeout(() => {
-      window.print();
-      
-      // Restore original expanded state after print
-      setTimeout(() => {
-        setManuallyExpandedSlotsTraining(originalExpanded);
-      }, 100);
-    }, 100);
-  };
-
   const handleExport = () => {
     const exportData = {
       allocations: allocations,
@@ -371,6 +263,7 @@ function TrainingPitchAllocator({ onBack }) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    setShowHamburgerMenu(false);
   };
 
   const handleImport = () => {
@@ -390,6 +283,7 @@ function TrainingPitchAllocator({ onBack }) {
             for (const [, allocation] of Object.entries(allocationsToImport)) {
               await saveAllocationToFirestore(allocation.team, allocation, allocation.date);
             }
+            setShowHamburgerMenu(false);
           } catch (error) {
             console.error('Error importing file:', error);
           }
@@ -638,6 +532,93 @@ function TrainingPitchAllocator({ onBack }) {
     );
   };
 
+  // Hamburger Menu Component
+  const HamburgerMenu = () => {
+    return (
+      <div className="hamburger-menu-container" style={{ position: 'relative' }}>
+        <button
+          onClick={() => setShowHamburgerMenu(!showHamburgerMenu)}
+          style={{
+            padding: '8px',
+            backgroundColor: 'transparent',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '40px',
+            height: '40px'
+          }}
+          title="Menu"
+        >
+          <div style={{ width: '20px', height: '2px', backgroundColor: '#374151' }}></div>
+          <div style={{ width: '20px', height: '2px', backgroundColor: '#374151' }}></div>
+          <div style={{ width: '20px', height: '2px', backgroundColor: '#374151' }}></div>
+        </button>
+        
+        {showHamburgerMenu && (
+          <div style={{
+            position: 'absolute',
+            top: '45px',
+            right: '0',
+            backgroundColor: 'white',
+            border: '1px solid #d1d5db',
+            borderRadius: '8px',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+            minWidth: '180px',
+            zIndex: 100
+          }}>
+            <button
+              onClick={handleExport}
+              disabled={Object.keys(allocations).length === 0}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                backgroundColor: 'white',
+                color: Object.keys(allocations).length === 0 ? '#9ca3af' : '#374151',
+                border: 'none',
+                borderBottom: '1px solid #e5e7eb',
+                cursor: Object.keys(allocations).length === 0 ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              📤 Export
+            </button>
+            
+            <button
+              onClick={handleImport}
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                backgroundColor: 'white',
+                color: loading ? '#9ca3af' : '#374151',
+                border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              📥 Import
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div style={{
       padding: '24px',
@@ -681,7 +662,7 @@ function TrainingPitchAllocator({ onBack }) {
             }}>Training Pitch Allocator</h1>
           </div>
           
-          {/* Status indicator */}
+          {/* Status indicator and hamburger menu */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -689,59 +670,59 @@ function TrainingPitchAllocator({ onBack }) {
             fontSize: '14px'
           }}>
             {user && (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px'
-  }}>
-    <div style={{
-              padding: '6px 12px',
-              backgroundColor: '#10b981',
-              color: 'white',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: '500'
-            }}>
-              📊 {Object.keys(allocations).length} Allocations
-            </div>
-    {clubInfo && (
-      <div style={{
-        padding: '6px 12px',
-        backgroundColor: '#10b981',
-        color: 'white',
-        borderRadius: '20px',
-        fontSize: '12px',
-        fontWeight: '500'
-      }}>
-        🏢 {clubInfo.name}
-      </div>
-    )}
-    <div style={{
-      padding: '6px 12px',
-      backgroundColor: '#6366f1',
-      color: 'white',
-      borderRadius: '20px',
-      fontSize: '12px',
-      fontWeight: '500'
-    }}>
-      👤 {user.email} ({userProfile?.role || 'loading...'})
-    </div>
-    <button
-      onClick={handleLogout}
-      style={{
-        padding: '4px 8px',
-        backgroundColor: '#dc2626',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        fontSize: '12px'
-      }}
-    >
-      Logout
-    </button>
-  </div>
-)}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <div style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}>
+                  📊 {Object.keys(allocations).length} Allocations
+                </div>
+                {clubInfo && (
+                  <div style={{
+                    padding: '6px 12px',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: '500'
+                  }}>
+                    🏢 {clubInfo.name}
+                  </div>
+                )}
+                <div style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#6366f1',
+                  color: 'white',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}>
+                  👤 {user.email} ({userProfile?.role || 'loading...'})
+                </div>
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    padding: '4px 8px',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Logout
+                </button>
+              </div>
+            )}
             {loading && (
               <div style={{
                 padding: '6px 12px',
@@ -755,6 +736,8 @@ function TrainingPitchAllocator({ onBack }) {
               </div>
             )}
             
+            {/* Hamburger Menu */}
+            <HamburgerMenu />
           </div>
         </div>
 
@@ -837,57 +820,6 @@ function TrainingPitchAllocator({ onBack }) {
             }}
           >
             Summary by Team
-          </button>
-
-          <button 
-            onClick={handleExport}
-            disabled={Object.keys(allocations).length === 0}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: Object.keys(allocations).length === 0 ? '#9ca3af' : '#06b6d4',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: Object.keys(allocations).length === 0 ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-          >
-            📤 Export
-          </button>
-
-          <button 
-            onClick={handleImport}
-            disabled={loading}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: loading ? '#9ca3af' : '#7c3aed',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-          >
-            📥 Import
-          </button>
-
-          <button 
-            onClick={handlePrint}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#f59e0b',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-            title="Print or save as PDF (Ctrl+P / Cmd+P as backup)"
-          >
-            🖨️ Print PDF
           </button>
 
           <button 
