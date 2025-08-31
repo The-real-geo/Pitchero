@@ -828,6 +828,16 @@ function MatchDayPitchAllocator({ onBack }) {
             gap: '12px',
             fontSize: '14px'
           }}>
+            <div style={{
+              padding: '6px 12px',
+              backgroundColor: '#ea580c',
+              color: 'white',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: '500'
+            }}>
+              📊 {Object.keys(allocations).length} Match Allocations
+            </div>
             {user && (
               <div style={{
                 display: 'flex',
@@ -884,16 +894,7 @@ function MatchDayPitchAllocator({ onBack }) {
                 💾 Saving...
               </div>
             )}
-            <div style={{
-              padding: '6px 12px',
-              backgroundColor: '#ea580c',
-              color: 'white',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: '500'
-            }}>
-              📊 {Object.keys(allocations).length} Match Allocations
-            </div>
+            
           </div>
         </div>
 
