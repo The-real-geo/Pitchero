@@ -132,6 +132,19 @@ function TrainingPitchAllocator({ onBack }) {
     }
   };
 
+  // Date navigation functions
+  const navigateToPreviousDay = () => {
+    const currentDate = new Date(date);
+    currentDate.setDate(currentDate.getDate() - 1);
+    setDate(currentDate.toISOString().split("T")[0]);
+  };
+
+  const navigateToNextDay = () => {
+    const currentDate = new Date(date);
+    currentDate.setDate(currentDate.getDate() + 1);
+    setDate(currentDate.toISOString().split("T")[0]);
+  };
+
   const hasConflict = useMemo(() => {
     const slotsNeeded = duration / 30;
     const startSlotIndex = slots.indexOf(slot);
@@ -907,11 +920,12 @@ function TrainingPitchAllocator({ onBack }) {
             marginBottom: '16px',
             color: '#374151'
           }}>Add New Allocation</h2>
+          
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
             gap: '16px',
-            marginBottom: '16px'
+            marginBottom: '8px'
           }}>
             <div>
               <label style={{
@@ -935,6 +949,56 @@ function TrainingPitchAllocator({ onBack }) {
                   opacity: loading ? 0.6 : 1
                 }}
               />
+              {/* Date navigation buttons */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '4px',
+                marginTop: '8px'
+              }}>
+                <button
+                  onClick={navigateToPreviousDay}
+                  disabled={loading}
+                  style={{
+                    padding: '6px',
+                    backgroundColor: loading ? '#9ca3af' : '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}
+                  title="Previous Day"
+                >
+                  ← Previous Day
+                </button>
+                <button
+                  onClick={navigateToNextDay}
+                  disabled={loading}
+                  style={{
+                    padding: '6px',
+                    backgroundColor: loading ? '#9ca3af' : '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}
+                  title="Next Day"
+                >
+                  Next Day →
+                </button>
+              </div>
             </div>
             
             <div>
@@ -1079,55 +1143,59 @@ function TrainingPitchAllocator({ onBack }) {
                   <option key={t.name} value={t.name}>{t.name}</option>
                 ))}
               </select>
-            </div>
-          </div>
-          
-          <div style={{
-            display: 'flex',
-            gap: '8px',
-            alignItems: 'center'
-          }}>
-            <button 
-              onClick={addAllocation}
-              disabled={hasConflict || loading}
-              style={{
-                padding: '8px 24px',
-                backgroundColor: (hasConflict || loading) ? '#9ca3af' : '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: (hasConflict || loading) ? 'not-allowed' : 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              {loading ? '💾 Saving...' : 'Add Allocation'}
-            </button>
-            
-            <button 
-              onClick={clearAllAllocations}
-              disabled={Object.keys(allocations).length === 0 || loading}
-              style={{
-                padding: '8px 24px',
-                backgroundColor: (Object.keys(allocations).length === 0 || loading) ? '#9ca3af' : '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: (Object.keys(allocations).length === 0 || loading) ? 'not-allowed' : 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              Clear All
-            </button>
-            
-            {hasConflict && (
+              {/* Action buttons under Team dropdown */}
               <div style={{
-                color: '#dc2626',
-                fontSize: '14px',
-                fontWeight: '500'
+                display: 'flex',
+                gap: '8px',
+                marginTop: '8px'
               }}>
-                ⚠️ Scheduling conflict detected
+                <button 
+                  onClick={addAllocation}
+                  disabled={hasConflict || loading}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    backgroundColor: (hasConflict || loading) ? '#9ca3af' : '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: (hasConflict || loading) ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  {loading ? 'Saving...' : 'Add Allocation'}
+                </button>
+                
+                <button 
+                  onClick={clearAllAllocations}
+                  disabled={Object.keys(allocations).length === 0 || loading}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    backgroundColor: (Object.keys(allocations).length === 0 || loading) ? '#9ca3af' : '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: (Object.keys(allocations).length === 0 || loading) ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  Clear All
+                </button>
               </div>
-            )}
+              {hasConflict && (
+                <div style={{
+                  color: '#dc2626',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  marginTop: '4px'
+                }}>
+                  ⚠️ Scheduling conflict detected
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
