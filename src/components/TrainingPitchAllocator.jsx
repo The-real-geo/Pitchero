@@ -973,7 +973,7 @@ function TrainingPitchAllocator({ onBack }) {
                     justifyContent: 'center',
                     gap: '4px'
                   }}
-                  title="Previous Day"
+                  title="Prev Day"
                 >
                   ← Previous Day
                 </button>
