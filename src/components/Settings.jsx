@@ -148,73 +148,127 @@ function Settings({ onBack }) {
     setIsBackingUp(true);
     
     try {
+      console.log('=== Starting Backup Process ===');
+      console.log('Club Info:', clubInfo);
+      console.log('Training Allocations from hook:', trainingAllocations);
+      console.log('Match Day Allocations from hook:', matchDayAllocations);
+      
       let trainingData = trainingAllocations;
       let matchDayData = matchDayAllocations;
       
-      // If data isn't available from the hook, fetch directly from Firebase
-      if (!trainingData || !matchDayData) {
-        if (clubInfo?.clubId) {
-          try {
-            // Fetch both documents in parallel for better performance
-            const [trainingDocSnap, matchDayDocSnap] = await Promise.all([
-              getDoc(doc(db, 'clubs', clubInfo.clubId, 'allocations', 'trainingAllocations')),
-              getDoc(doc(db, 'clubs', clubInfo.clubId, 'allocations', 'matchDayAllocations'))
-            ]);
-            
-            if (trainingDocSnap.exists()) {
-              trainingData = trainingDocSnap.data();
-            }
-            
-            if (matchDayDocSnap.exists()) {
-              matchDayData = matchDayDocSnap.data();
-            }
-          } catch (error) {
-            console.error('Error fetching data from Firebase:', error);
-            alert('❌ Error fetching allocations from database. Please check your permissions.');
-            setIsBackingUp(false);
-            return;
+      // Always try to fetch directly from Firebase for debugging
+      if (clubInfo?.clubId) {
+        console.log(`Fetching from Firebase for club: ${clubInfo.clubId}`);
+        
+        try {
+          // Fetch both documents in parallel
+          const trainingDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'trainingAllocations');
+          const matchDayDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'matchDayAllocations');
+          
+          console.log('Training doc path:', `clubs/${clubInfo.clubId}/allocations/trainingAllocations`);
+          console.log('Match day doc path:', `clubs/${clubInfo.clubId}/allocations/matchDayAllocations`);
+          
+          const [trainingDocSnap, matchDayDocSnap] = await Promise.all([
+            getDoc(trainingDocRef),
+            getDoc(matchDayDocRef)
+          ]);
+          
+          if (trainingDocSnap.exists()) {
+            const rawData = trainingDocSnap.data();
+            console.log('Raw training data from Firebase:', rawData);
+            console.log('Training data keys:', Object.keys(rawData || {}));
+            trainingData = rawData;
+          } else {
+            console.log('Training allocations document does not exist!');
           }
+          
+          if (matchDayDocSnap.exists()) {
+            const rawData = matchDayDocSnap.data();
+            console.log('Raw match day data from Firebase:', rawData);
+            console.log('Match day data keys:', Object.keys(rawData || {}));
+            matchDayData = rawData;
+          } else {
+            console.log('Match day allocations document does not exist!');
+          }
+        } catch (error) {
+          console.error('Error fetching data from Firebase:', error);
+          alert('❌ Error fetching allocations from database. Please check your permissions and console for details.');
+          setIsBackingUp(false);
+          return;
         }
+      } else {
+        console.log('No club ID available!');
       }
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      console.log('Today\'s date for filtering:', today.toISOString());
       
       // Filter future training allocations
       const futureTrainingAllocations = {};
       if (trainingData) {
+        console.log('Processing training data...');
         Object.entries(trainingData).forEach(([date, allocation]) => {
           // Skip metadata fields
-          if (date === 'lastUpdated' || date === 'updatedBy') return;
+          if (date === 'lastUpdated' || date === 'updatedBy') {
+            console.log(`Skipping metadata field: ${date}`);
+            return;
+          }
           
           try {
             const allocationDate = new Date(date);
-            if (!isNaN(allocationDate.getTime()) && allocationDate >= today) {
-              futureTrainingAllocations[date] = allocation;
+            if (!isNaN(allocationDate.getTime())) {
+              if (allocationDate >= today) {
+                futureTrainingAllocations[date] = allocation;
+                console.log(`Added future training allocation for: ${date}`);
+              } else {
+                console.log(`Skipped past training allocation for: ${date}`);
+              }
+            } else {
+              console.log(`Invalid date format: ${date}`);
             }
           } catch (e) {
-            // Silently skip invalid dates
+            console.log(`Error processing date ${date}:`, e);
           }
         });
+      } else {
+        console.log('No training data to process');
       }
       
       // Filter future match day allocations
       const futureMatchDayAllocations = {};
       if (matchDayData) {
+        console.log('Processing match day data...');
         Object.entries(matchDayData).forEach(([date, allocation]) => {
           // Skip metadata fields
-          if (date === 'lastUpdated' || date === 'updatedBy') return;
+          if (date === 'lastUpdated' || date === 'updatedBy') {
+            console.log(`Skipping metadata field: ${date}`);
+            return;
+          }
           
           try {
             const allocationDate = new Date(date);
-            if (!isNaN(allocationDate.getTime()) && allocationDate >= today) {
-              futureMatchDayAllocations[date] = allocation;
+            if (!isNaN(allocationDate.getTime())) {
+              if (allocationDate >= today) {
+                futureMatchDayAllocations[date] = allocation;
+                console.log(`Added future match day allocation for: ${date}`);
+              } else {
+                console.log(`Skipped past match day allocation for: ${date}`);
+              }
+            } else {
+              console.log(`Invalid date format: ${date}`);
             }
           } catch (e) {
-            // Silently skip invalid dates
+            console.log(`Error processing date ${date}:`, e);
           }
         });
+      } else {
+        console.log('No match day data to process');
       }
+      
+      console.log('=== Backup Summary ===');
+      console.log('Future training allocations count:', Object.keys(futureTrainingAllocations).length);
+      console.log('Future match day allocations count:', Object.keys(futureMatchDayAllocations).length);
       
       const backupData = {
         backupDate: new Date().toISOString(),
@@ -238,11 +292,11 @@ function Settings({ onBack }) {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      alert(`✅ Backup created successfully!\n\nTraining allocations: ${Object.keys(futureTrainingAllocations).length} dates\nMatch day allocations: ${Object.keys(futureMatchDayAllocations).length} dates`);
+      alert(`✅ Backup created successfully!\n\nTraining allocations: ${Object.keys(futureTrainingAllocations).length} dates\nMatch day allocations: ${Object.keys(futureMatchDayAllocations).length} dates\n\nPlease check the browser console for detailed information.`);
       setShowHamburgerMenu(false);
     } catch (error) {
       console.error('Error creating backup:', error);
-      alert('❌ Error creating backup. Please try again.');
+      alert('❌ Error creating backup. Please check the browser console for details.');
     } finally {
       setIsBackingUp(false);
     }
