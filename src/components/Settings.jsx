@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom"
 import { auth, db } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, getDocs, query, where, addDoc, deleteDoc } from "firebase/firestore";
+import { doc, setDoc, collection, getDocs, query, where, deleteDoc } from "firebase/firestore";
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 
 const pitches = [
@@ -126,70 +126,6 @@ function Settings({ onBack }) {
       navigate('/login');
     } catch (error) {
       console.error('Error signing out:', error);
-    }
-  };
-
-  // Test Delete Allocation Function (for debugging)
-  const testDeleteAllocation = async (allocationType, documentId) => {
-    try {
-      const collectionName = allocationType === 'training' ? 'trainingAllocations' : 'matchAllocations';
-      await deleteDoc(doc(db, collectionName, documentId));
-      console.log(`✅ Successfully deleted ${allocationType} allocation with ID: ${documentId}`);
-      return true;
-    } catch (error) {
-      console.error(`❌ Failed to delete ${allocationType} allocation:`, error);
-      return false;
-    }
-  };
-
-  // Clear All Future Allocations Function (with confirmation)
-  const clearAllFutureAllocations = async () => {
-    if (!window.confirm('⚠️ WARNING: This will DELETE all future allocations!\n\nThis action cannot be undone. Continue?')) {
-      return;
-    }
-    
-    if (!window.confirm('Are you absolutely sure? All future training and match allocations will be permanently deleted.')) {
-      return;
-    }
-    
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayString = today.toISOString().split('T')[0];
-      
-      let deletedCount = 0;
-      
-      // Delete future training allocations
-      const trainingQuery = query(
-        collection(db, 'trainingAllocations'),
-        where('clubId', '==', clubInfo?.clubId),
-        where('date', '>=', todayString)
-      );
-      const trainingDocs = await getDocs(trainingQuery);
-      
-      for (const docSnapshot of trainingDocs.docs) {
-        await deleteDoc(doc(db, 'trainingAllocations', docSnapshot.id));
-        deletedCount++;
-      }
-      
-      // Delete future match allocations
-      const matchQuery = query(
-        collection(db, 'matchAllocations'),
-        where('clubId', '==', clubInfo?.clubId),
-        where('date', '>=', todayString)
-      );
-      const matchDocs = await getDocs(matchQuery);
-      
-      for (const docSnapshot of matchDocs.docs) {
-        await deleteDoc(doc(db, 'matchAllocations', docSnapshot.id));
-        deletedCount++;
-      }
-      
-      alert(`✅ Deleted ${deletedCount} future allocations.\n\nRefreshing page...`);
-      setTimeout(() => window.location.reload(), 2000);
-    } catch (error) {
-      console.error('Error clearing allocations:', error);
-      alert('❌ Error clearing allocations. Check console for details.');
     }
   };
 
