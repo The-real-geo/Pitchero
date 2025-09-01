@@ -468,7 +468,6 @@ function Settings({ onBack }) {
               } catch (error) {
                 console.error('Error updating Firebase:', error);
                 alert('❌ Error restoring allocations to database. Please check your permissions.');
-              }
             } else {
               alert('❌ Unable to restore allocations. Club information not available.');
             }
