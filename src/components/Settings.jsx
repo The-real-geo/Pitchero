@@ -88,7 +88,7 @@ function Settings() {
   }, []);
 
   // Firestore functions
-  const saveSettingsToFirestore = async () => {
+  const saveSettingsToFirestore = async (customSettings = null) => {
     if (!clubInfo?.clubId || !user) {
       console.error('No club ID or user available');
       return;
@@ -97,7 +97,9 @@ function Settings() {
     setIsSavingSettings(true);
     try {
       const settingsRef = doc(db, 'clubs', clubInfo.clubId, 'settings', 'general');
-      const settingsData = {
+      
+      // Use custom settings if provided, otherwise use current state
+      const settingsData = customSettings || {
         teams,
         pitchOrientations,
         showGrassArea,
@@ -105,6 +107,12 @@ function Settings() {
         lastUpdated: new Date().toISOString(),
         updatedBy: user.email
       };
+      
+      // If custom settings provided, ensure metadata is added
+      if (customSettings) {
+        settingsData.lastUpdated = new Date().toISOString();
+        settingsData.updatedBy = user.email;
+      }
 
       await setDoc(settingsRef, settingsData);
       console.log('Settings saved to Firestore successfully');
@@ -177,33 +185,71 @@ function Settings() {
     setNewTeamColor('#FF0000');
     setErrors({});
     
-    // Save to Firestore
-    await saveSettingsToFirestore();
+    // Save to Firestore with the updated teams directly
+    await saveSettingsToFirestore({
+      teams: updatedTeams,
+      pitchOrientations,
+      showGrassArea,
+      matchDayPitchAreaRequired
+    });
   };
 
   const removeTeam = async (index) => {
     const updatedTeams = teams.filter((_, i) => i !== index);
     setTeams(updatedTeams);
-    await saveSettingsToFirestore();
+    
+    // Save to Firestore with the updated teams directly
+    await saveSettingsToFirestore({
+      teams: updatedTeams,
+      pitchOrientations,
+      showGrassArea,
+      matchDayPitchAreaRequired
+    });
   };
 
   const updateTeamColor = (index, color) => {
     const updatedTeams = [...teams];
     updatedTeams[index].color = color;
     setTeams(updatedTeams);
+    // Note: Not auto-saving color changes to avoid excessive Firestore writes
+    // User should click a save button or it saves when they add/remove teams
+  };
+  
+  // Manual save function for color changes
+  const saveColorChanges = async () => {
+    await saveSettingsToFirestore({
+      teams,
+      pitchOrientations,
+      showGrassArea,
+      matchDayPitchAreaRequired
+    });
   };
 
   // Pitch configuration functions with Firestore save
   const updatePitchOrientation = async (pitchId, orientation) => {
     const updated = { ...pitchOrientations, [pitchId]: orientation };
     setPitchOrientations(updated);
-    await saveSettingsToFirestore();
+    
+    // Save to Firestore with updated settings directly
+    await saveSettingsToFirestore({
+      teams,
+      pitchOrientations: updated,
+      showGrassArea,
+      matchDayPitchAreaRequired
+    });
   };
 
   const updateGrassAreaVisibility = async (pitchId, show) => {
     const updated = { ...showGrassArea, [pitchId]: show };
     setShowGrassArea(updated);
-    await saveSettingsToFirestore();
+    
+    // Save to Firestore with updated settings directly
+    await saveSettingsToFirestore({
+      teams,
+      pitchOrientations,
+      showGrassArea: updated,
+      matchDayPitchAreaRequired
+    });
   };
 
   const updateMatchDayPitchAreaRequired = async (pitchId, areaType, required) => {
@@ -215,7 +261,14 @@ function Settings() {
       }
     };
     setMatchDayPitchAreaRequired(updated);
-    await saveSettingsToFirestore();
+    
+    // Save to Firestore with updated settings directly
+    await saveSettingsToFirestore({
+      teams,
+      pitchOrientations,
+      showGrassArea,
+      matchDayPitchAreaRequired: updated
+    });
   };
 
   const resetToDefaults = async () => {
@@ -224,7 +277,14 @@ function Settings() {
     setShowGrassArea(defaultShowGrassArea);
     setMatchDayPitchAreaRequired(defaultMatchDayPitchAreaRequired);
     setErrors({});
-    await saveSettingsToFirestore();
+    
+    // Save defaults to Firestore
+    await saveSettingsToFirestore({
+      teams: defaultTeams,
+      pitchOrientations: defaultPitchOrientations,
+      showGrassArea: defaultShowGrassArea,
+      matchDayPitchAreaRequired: defaultMatchDayPitchAreaRequired
+    });
   };
 
   // Import/Export functions
@@ -255,7 +315,7 @@ function Settings() {
         throw new Error('Invalid settings format: teams array is required');
       }
       
-      // Apply imported settings
+      // Apply imported settings to state
       if (settings.teams) setTeams(settings.teams);
       if (settings.pitchOrientations) setPitchOrientations(settings.pitchOrientations);
       if (settings.showGrassArea) setShowGrassArea(settings.showGrassArea);
@@ -265,8 +325,13 @@ function Settings() {
       setImportData('');
       setErrors({});
       
-      // Save imported settings to Firestore
-      await saveSettingsToFirestore();
+      // Save imported settings to Firestore with the actual imported data
+      await saveSettingsToFirestore({
+        teams: settings.teams || teams,
+        pitchOrientations: settings.pitchOrientations || pitchOrientations,
+        showGrassArea: settings.showGrassArea || showGrassArea,
+        matchDayPitchAreaRequired: settings.matchDayPitchAreaRequired || matchDayPitchAreaRequired
+      });
     } catch (error) {
       setErrors({ import: `Import failed: ${error.message}` });
     }
@@ -621,6 +686,31 @@ function Settings() {
                 </button>
               </div>
             ))}
+          </div>
+          
+          {/* Save Color Changes Button */}
+          <div style={{
+            marginTop: '16px',
+            display: 'flex',
+            justifyContent: 'flex-end'
+          }}>
+            <button
+              onClick={saveColorChanges}
+              disabled={isSavingSettings}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: isSavingSettings ? '#9ca3af' : '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: isSavingSettings ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                opacity: isSavingSettings ? 0.6 : 1
+              }}
+            >
+              {isSavingSettings ? 'Saving...' : 'Save Color Changes'}
+            </button>
           </div>
 
           <div style={{
