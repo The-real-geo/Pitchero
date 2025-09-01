@@ -41,13 +41,23 @@ function getDefaultPitchAreaForTeam(teamName) {
 
 function Settings({ onBack }) {
   const navigate = useNavigate();
-  const { userProfile, clubInfo } = useFirebaseAllocations('trainingAllocations');
+  const { 
+    userProfile, 
+    clubInfo, 
+    trainingAllocations, 
+    matchDayAllocations,
+    updateTrainingAllocations,
+    updateMatchDayAllocations 
+  } = useFirebaseAllocations('trainingAllocations');
   
   // Auth state
   const [user, setUser] = useState(null);
   
   // Hamburger menu state
   const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
+  
+  // Backup reminder state
+  const [showBackupReminder, setShowBackupReminder] = useState(false);
   
   // State for teams
   const [teams, setTeams] = useState(defaultTeams);
@@ -81,6 +91,18 @@ function Settings({ onBack }) {
     return () => unsubscribe();
   }, []);
 
+  // Check if it's the 1st of the month and user is admin
+  useEffect(() => {
+    const today = new Date();
+    const isFirstOfMonth = today.getDate() === 1;
+    const isAdmin = userProfile?.role === 'admin';
+    
+    if (isFirstOfMonth && isAdmin && !sessionStorage.getItem('backupReminderShown')) {
+      setShowBackupReminder(true);
+      sessionStorage.setItem('backupReminderShown', 'true');
+    }
+  }, [userProfile]);
+
   // Close hamburger menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -112,6 +134,148 @@ function Settings({ onBack }) {
       navigator.clipboard.writeText(clubInfo.clubId);
       alert('Club ID copied to clipboard!');
     }
+  };
+
+  // Backup Allocations Function
+  const backupAllocations = () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Filter future training allocations
+      const futureTrainingAllocations = {};
+      if (trainingAllocations) {
+        Object.entries(trainingAllocations).forEach(([date, allocation]) => {
+          const allocationDate = new Date(date);
+          if (allocationDate >= today) {
+            futureTrainingAllocations[date] = allocation;
+          }
+        });
+      }
+      
+      // Filter future match day allocations
+      const futureMatchDayAllocations = {};
+      if (matchDayAllocations) {
+        Object.entries(matchDayAllocations).forEach(([date, allocation]) => {
+          const allocationDate = new Date(date);
+          if (allocationDate >= today) {
+            futureMatchDayAllocations[date] = allocation;
+          }
+        });
+      }
+      
+      const backupData = {
+        backupDate: new Date().toISOString(),
+        clubId: clubInfo?.clubId,
+        clubName: clubInfo?.name,
+        trainingAllocations: futureTrainingAllocations,
+        matchDayAllocations: futureMatchDayAllocations,
+        backupVersion: "1.0"
+      };
+      
+      const dataStr = JSON.stringify(backupData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `allocations-backup-${clubInfo?.name || 'club'}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      alert(`✅ Backup created successfully!\n\nTraining allocations: ${Object.keys(futureTrainingAllocations).length} dates\nMatch day allocations: ${Object.keys(futureMatchDayAllocations).length} dates`);
+      setShowHamburgerMenu(false);
+    } catch (error) {
+      console.error('Error creating backup:', error);
+      alert('❌ Error creating backup. Please try again.');
+    }
+  };
+
+  // Restore Allocations Function
+  const restoreAllocations = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const backupData = JSON.parse(e.target.result);
+            
+            // Validate backup file
+            if (!backupData.trainingAllocations || !backupData.matchDayAllocations) {
+              alert('❌ Invalid backup file format. Please select a valid allocations backup file.');
+              return;
+            }
+            
+            // Show warning and confirmation
+            const trainingCount = Object.keys(backupData.trainingAllocations).length;
+            const matchDayCount = Object.keys(backupData.matchDayAllocations).length;
+            
+            const confirmMessage = `⚠️ WARNING: This will OVERWRITE all existing allocations!\n\n` +
+              `Backup details:\n` +
+              `• Created: ${new Date(backupData.backupDate).toLocaleDateString()}\n` +
+              `• Club: ${backupData.clubName || 'Unknown'}\n` +
+              `• Training allocations to restore: ${trainingCount} dates\n` +
+              `• Match day allocations to restore: ${matchDayCount} dates\n\n` +
+              `Are you absolutely sure you want to restore these allocations?`;
+            
+            if (!window.confirm(confirmMessage)) {
+              return;
+            }
+            
+            // Second confirmation for safety
+            if (!window.confirm('This action cannot be undone. Continue with restore?')) {
+              return;
+            }
+            
+            // Restore the allocations
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Filter to only restore future dates
+            const futureTrainingAllocations = {};
+            Object.entries(backupData.trainingAllocations).forEach(([date, allocation]) => {
+              const allocationDate = new Date(date);
+              if (allocationDate >= today) {
+                futureTrainingAllocations[date] = allocation;
+              }
+            });
+            
+            const futureMatchDayAllocations = {};
+            Object.entries(backupData.matchDayAllocations).forEach(([date, allocation]) => {
+              const allocationDate = new Date(date);
+              if (allocationDate >= today) {
+                futureMatchDayAllocations[date] = allocation;
+              }
+            });
+            
+            // Update Firebase with restored allocations
+            if (updateTrainingAllocations && updateMatchDayAllocations) {
+              await updateTrainingAllocations(futureTrainingAllocations);
+              await updateMatchDayAllocations(futureMatchDayAllocations);
+              
+              alert(`✅ Allocations restored successfully!\n\n` +
+                `Training allocations restored: ${Object.keys(futureTrainingAllocations).length} dates\n` +
+                `Match day allocations restored: ${Object.keys(futureMatchDayAllocations).length} dates`);
+            } else {
+              alert('❌ Unable to update allocations. Please ensure you have the necessary permissions.');
+            }
+            
+            setShowHamburgerMenu(false);
+          } catch (error) {
+            console.error('Error restoring allocations:', error);
+            alert('❌ Error restoring allocations. Please check the file format and try again.');
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
   };
 
   const handleAddTeam = () => {
@@ -241,6 +405,96 @@ function Settings({ onBack }) {
     }
   };
 
+  // Backup Reminder Modal
+  const BackupReminderModal = () => {
+    if (!showBackupReminder) return null;
+    
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          padding: '32px',
+          maxWidth: '500px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+          border: '2px solid #10b981'
+        }}>
+          <h2 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#1f2937',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            📅 Monthly Backup Reminder
+          </h2>
+          
+          <p style={{
+            fontSize: '16px',
+            color: '#374151',
+            marginBottom: '24px',
+            lineHeight: '1.5'
+          }}>
+            It's the 1st of the month! It's recommended to create a backup of your training and match day allocations to ensure your data is safe.
+          </p>
+          
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            justifyContent: 'flex-end'
+          }}>
+            <button
+              onClick={() => setShowBackupReminder(false)}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#6b7280',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              Remind Me Later
+            </button>
+            <button
+              onClick={() => {
+                setShowBackupReminder(false);
+                backupAllocations();
+              }}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              Create Backup Now
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Hamburger Menu Component
   const HamburgerMenu = () => {
     return (
@@ -320,8 +574,91 @@ function Settings({ onBack }) {
               </div>
             )}
             
-            {/* Action Items */}
+            {/* Allocations Backup Section */}
+            <div style={{
+              borderBottom: '1px solid #e5e7eb',
+              paddingTop: '8px',
+              paddingBottom: '8px'
+            }}>
+              <div style={{
+                padding: '8px 16px',
+                fontSize: '12px',
+                fontWeight: '600',
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                Allocations
+              </div>
+              
+              <button
+                onClick={backupAllocations}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  backgroundColor: 'white',
+                  color: '#059669',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#ecfdf5';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
+                💾 Backup Allocations
+              </button>
+              
+              <button
+                onClick={restoreAllocations}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  backgroundColor: 'white',
+                  color: '#dc2626',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#fef2f2';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
+                ⚠️ Restore Allocations
+              </button>
+            </div>
+            
+            {/* Settings Section */}
             <div style={{ padding: '8px 0' }}>
+              <div style={{
+                padding: '8px 16px',
+                fontSize: '12px',
+                fontWeight: '600',
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                Settings
+              </div>
+              
               <button
                 onClick={exportSettings}
                 style={{
@@ -459,6 +796,9 @@ function Settings({ onBack }) {
       margin: 0,
       boxSizing: 'border-box'
     }}>
+      {/* Backup Reminder Modal */}
+      <BackupReminderModal />
+      
       <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
