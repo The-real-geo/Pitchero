@@ -136,8 +136,8 @@ function TrainingPitchAllocator({ onBack }) {
           // Update teams if they exist in settings
           if (data.teams && Array.isArray(data.teams)) {
             setTeams(data.teams);
-            // Set initial team selection if teams are loaded
-            if (data.teams.length > 0) {
+            // Set initial team selection if teams are loaded and no team is selected
+            if (data.teams.length > 0 && !team) {
               setTeam(data.teams[0].name);
             }
           }
@@ -153,8 +153,8 @@ function TrainingPitchAllocator({ onBack }) {
           }
         } else {
           console.log('No settings found in Firestore, using defaults');
-          // Set initial team selection from defaults
-          if (defaultTeams.length > 0) {
+          // Set initial team selection from defaults if no team is selected
+          if (defaultTeams.length > 0 && !team) {
             setTeam(defaultTeams[0].name);
           }
         }
@@ -171,17 +171,8 @@ function TrainingPitchAllocator({ onBack }) {
     };
 
     loadSettingsFromFirestore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubInfo?.clubId]);
-
-  // Update team selection when teams change
-  useEffect(() => {
-    if (teams.length > 0 && !team) {
-      setTeam(teams[0].name);
-    } else if (teams.length > 0 && team && !teams.find(t => t.name === team)) {
-      // If current team selection is not in the teams list, select the first one
-      setTeam(teams[0].name);
-    }
-  }, [teams, team]);
 
   // Load data when date changes
   useEffect(() => {
