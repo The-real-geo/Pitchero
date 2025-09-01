@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from "react-router-dom"
-import { auth, db } from "../utils/firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, setDoc, collection, getDocs, query, where, deleteDoc } from "firebase/firestore";
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
+import { useNavigate } from "react-router-dom";
+import { auth } from "../utils/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { createSharedAllocation } from '../utils/firebase';
 
+const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const pitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
   { id: "pitch1", name: "Pitch 1 - Astro", hasGrassArea: false }
@@ -26,63 +27,72 @@ const defaultTeams = [
   { name: "Under 16 YCC", color: "#696969" }
 ];
 
-function getDefaultPitchAreaForTeam(teamName) {
-  if (teamName.includes('Under 6') || teamName.includes('Under 7')) {
-    return 'Under 6 & 7';
-  } else if (teamName.includes('Under 8') || teamName.includes('Under 9')) {
-    return 'Under 8 & 9';
-  } else if (teamName.includes('Under 10') || teamName.includes('Under 11') || teamName.includes('Under 12') || teamName.includes('Under 13')) {
-    return 'Under 10-13';
-  } else if (teamName.includes('Under 14') || teamName.includes('Under 15') || teamName.includes('Under 16')) {
-    return 'Under 14+';
-  } else {
-    return 'Under 10-13';
+const timeSlots = (start = 17, end = 21) => {
+  const slots = [];
+  for (let h = start; h < end; h++) {
+    slots.push(`${h}:00`, `${h}:30`);
   }
+  return slots;
+};
+
+function isLightColor(color) {
+  const hex = color.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+  return brightness > 155;
 }
 
-function Settings({ onBack }) {
+function TrainingPitchAllocator({ onBack }) {
+  // Firebase integration
   const navigate = useNavigate();
-  const { 
-    userProfile, 
-    clubInfo
-  } = useFirebaseAllocations('trainingAllocations');
-  
+  const {
+  allocations,
+  loading,
+  error,
+  userProfile,
+  clubInfo,
+  loadAllocationsForDate,
+  saveAllocationToFirestore,
+  clearAllAllocationsForDate,
+  deleteAllocationFromFirestore,
+  deleteAllocationsByBookingId
+} = useFirebaseAllocations('trainingAllocations');
+
   // Auth state
   const [user, setUser] = useState(null);
-  
-  // Hamburger menu state
-  const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
-  
-  // Loading states
-  const [isBackingUp, setIsBackingUp] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
-  
-  // Backup reminder state
-  const [showBackupReminder, setShowBackupReminder] = useState(false);
-  
-  // State for teams
-  const [teams, setTeams] = useState(defaultTeams);
-  const [newTeamName, setNewTeamName] = useState('');
-  const [newTeamColor, setNewTeamColor] = useState('#3B82F6');
 
-  // State for pitch configurations
-  const [pitchOrientations, setPitchOrientations] = useState({
+  // State management
+  const [teams] = useState(defaultTeams);
+  const [pitchOrientations] = useState({
     'pitch1': 'portrait',
     'pitch2': 'portrait'
   });
-  const [showGrassArea, setShowGrassArea] = useState({
+  const [showGrassArea] = useState({
     'pitch1': false,
     'pitch2': true
   });
 
-  // State for match day settings
-  const [matchDayPitchAreaRequired, setMatchDayPitchAreaRequired] = useState(() => {
-    const defaults = {};
-    defaultTeams.forEach(team => {
-      defaults[team.name] = getDefaultPitchAreaForTeam(team.name);
-    });
-    return defaults;
-  });
+  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [team, setTeam] = useState(teams[0].name);
+  const [pitch, setPitch] = useState(pitches[0].id);
+  const [section, setSection] = useState(sections[0]);
+  const [slot, setSlot] = useState(timeSlots()[0]);
+  const [duration, setDuration] = useState(30);
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryType, setSummaryType] = useState('section');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [manuallyExpandedSlotsTraining, setManuallyExpandedSlotsTraining] = useState(new Set());
+  
+  // Share functionality state
+  const [shareLink, setShareLink] = useState('');
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  
+  // Hamburger menu state
+  const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
+
+  const slots = useMemo(() => timeSlots(), []);
 
   // Auth monitoring
   useEffect(() => {
@@ -92,17 +102,10 @@ function Settings({ onBack }) {
     return () => unsubscribe();
   }, []);
 
-  // Check if it's the 1st of the month and user is admin
+  // Load data when date changes
   useEffect(() => {
-    const today = new Date();
-    const isFirstOfMonth = today.getDate() === 1;
-    const isAdmin = userProfile?.role === 'admin';
-    
-    if (isFirstOfMonth && isAdmin && !sessionStorage.getItem('backupReminderShown')) {
-      setShowBackupReminder(true);
-      sessionStorage.setItem('backupReminderShown', 'true');
-    }
-  }, [userProfile]);
+    loadAllocationsForDate(date);
+  }, [date, loadAllocationsForDate]);
 
   // Close hamburger menu when clicking outside
   useEffect(() => {
@@ -129,368 +132,147 @@ function Settings({ onBack }) {
     }
   };
 
-  // Copy club ID to clipboard
-  const copyClubId = () => {
-    if (clubInfo?.clubId) {
-      navigator.clipboard.writeText(clubInfo.clubId);
-      alert('Club ID copied to clipboard!');
-    }
+  // Date navigation functions
+  const navigateToPreviousDay = () => {
+    const currentDate = new Date(date);
+    currentDate.setDate(currentDate.getDate() - 1);
+    setDate(currentDate.toISOString().split("T")[0]);
   };
 
-  // Backup Allocations Function
-  const backupAllocations = async () => {
-    if (isBackingUp) return; // Prevent multiple clicks
+  const navigateToNextDay = () => {
+    const currentDate = new Date(date);
+    currentDate.setDate(currentDate.getDate() + 1);
+    setDate(currentDate.toISOString().split("T")[0]);
+  };
+
+  const hasConflict = useMemo(() => {
+    const slotsNeeded = duration / 30;
+    const startSlotIndex = slots.indexOf(slot);
     
-    setIsBackingUp(true);
+    if (startSlotIndex + slotsNeeded > slots.length) {
+      return true;
+    }
     
-    try {
-      console.log('=== Starting Backup Process ===');
-      console.log('Club Info:', clubInfo);
-      
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayString = today.toISOString().split('T')[0];
-      
-      // Store complete documents including their IDs
-      const trainingBackup = [];
-      const matchBackup = [];
-      
-      try {
-        // Get ALL training allocations for this club
-        const trainingQuery = query(
-          collection(db, 'trainingAllocations'),
-          where('clubId', '==', clubInfo?.clubId || '9W3LNH')
-        );
-        const trainingSnapshot = await getDocs(trainingQuery);
-        
-        trainingSnapshot.forEach((doc) => {
-          const data = doc.data();
-          const dateField = data.date;
-          
-          // Only backup future allocations
-          if (dateField && dateField >= todayString) {
-            trainingBackup.push({
-              id: doc.id,
-              data: data
-            });
-          }
-        });
-        
-        // Get ALL match allocations for this club
-        const matchQuery = query(
-          collection(db, 'matchAllocations'),
-          where('clubId', '==', clubInfo?.clubId || '9W3LNH')
-        );
-        const matchSnapshot = await getDocs(matchQuery);
-        
-        matchSnapshot.forEach((doc) => {
-          const data = doc.data();
-          const dateField = data.date;
-          
-          // Only backup future allocations
-          if (dateField && dateField >= todayString) {
-            matchBackup.push({
-              id: doc.id,
-              data: data
-            });
-          }
-        });
-        
-      } catch (error) {
-        console.error('Error fetching allocations:', error);
-        alert('Error fetching allocations. Check console for details.');
-        setIsBackingUp(false);
-        return;
+    for (let i = 0; i < slotsNeeded; i++) {
+      const checkSlot = slots[startSlotIndex + i];
+      const checkKey = `${date}-${checkSlot}-${pitch}-${section}`;
+      if (allocations[checkKey]) {
+        return true;
       }
-      
-      console.log(`Backing up ${trainingBackup.length} training and ${matchBackup.length} match allocations`);
-      
-      const backupData = {
-        backupDate: new Date().toISOString(),
-        clubId: clubInfo?.clubId,
-        clubName: clubInfo?.name,
-        trainingAllocations: trainingBackup,
-        matchDayAllocations: matchBackup,
-        backupVersion: "2.0" // New version for new structure
-      };
-      
-      // Create and download the file
-      const dataStr = JSON.stringify(backupData, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `allocations-backup-${clubInfo?.name || 'club'}-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      alert(`✅ Backup created successfully!\n\nTraining: ${trainingBackup.length} allocations\nMatch Day: ${matchBackup.length} allocations`);
-      setShowHamburgerMenu(false);
-    } catch (error) {
-      console.error('Error creating backup:', error);
-      alert('❌ Error creating backup. Check console for details.');
-    } finally {
-      setIsBackingUp(false);
     }
-  };
-
-  // Restore Allocations Function
-  const restoreAllocations = () => {
-    if (isRestoring) return; // Prevent multiple clicks
     
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        setIsRestoring(true);
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          try {
-            const backupData = JSON.parse(event.target.result);
-            
-            // Validate backup file
-            if (!backupData.trainingAllocations || !backupData.matchDayAllocations) {
-              alert('❌ Invalid backup file format. Please select a valid allocations backup file.');
-              setIsRestoring(false);
-              return;
-            }
-            
-            // Show warning and confirmation
-            const trainingCount = Object.keys(backupData.trainingAllocations).length;
-            const matchDayCount = Object.keys(backupData.matchDayAllocations).length;
-            
-            const confirmMessage = `⚠️ WARNING: This will OVERWRITE all existing allocations!\n\n` +
-              `Backup details:\n` +
-              `• Created: ${new Date(backupData.backupDate).toLocaleDateString()}\n` +
-              `• Club: ${backupData.clubName || 'Unknown'}\n` +
-              `• Training allocations to restore: ${trainingCount} dates\n` +
-              `• Match day allocations to restore: ${matchDayCount} dates\n\n` +
-              `Are you absolutely sure you want to restore these allocations?`;
-            
-            if (!window.confirm(confirmMessage)) {
-              setIsRestoring(false);
-              return;
-            }
-            
-            // Second confirmation for safety
-            if (!window.confirm('This action cannot be undone. Continue with restore?')) {
-              setIsRestoring(false);
-              return;
-            }
-            
-            // Restore the allocations
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayString = today.toISOString().split('T')[0];
-            
-            // Handle different backup versions
-            const backupVersion = parseFloat(backupData.backupVersion) || 1.0;
-            
-            if (backupVersion >= 2.0) {
-              // New structure - array of {id, data} objects
-              const trainingArray = Array.isArray(backupData.trainingAllocations) 
-                ? backupData.trainingAllocations 
-                : [];
-              const matchArray = Array.isArray(backupData.matchDayAllocations) 
-                ? backupData.matchDayAllocations 
-                : [];
-              
-              // Filter future allocations
-              const futureTraining = trainingArray.filter(item => 
-                item.data && item.data.date && item.data.date >= todayString
-              );
-              const futureMatch = matchArray.filter(item => 
-                item.data && item.data.date && item.data.date >= todayString
-              );
-              
-              // Update Firebase with restored allocations
-              if (clubInfo?.clubId) {
-                try {
-                  let trainingRestored = 0;
-                  let matchRestored = 0;
-                  
-                  // First, delete existing future allocations to avoid duplicates
-                  console.log('Clearing existing future allocations...');
-                  
-                  // Get all existing future allocations for this club
-                  const existingTrainingQuery = query(
-                    collection(db, 'trainingAllocations'),
-                    where('clubId', '==', clubInfo.clubId)
-                  );
-                  const existingTraining = await getDocs(existingTrainingQuery);
-                  let deletedTraining = 0;
-                  
-                  for (const docSnapshot of existingTraining.docs) {
-                    const data = docSnapshot.data();
-                    // Only delete future allocations
-                    if (data.date && data.date >= todayString) {
-                      await deleteDoc(doc(db, 'trainingAllocations', docSnapshot.id));
-                      deletedTraining++;
-                      console.log(`Deleted existing training allocation: ${data.date}`);
-                    }
-                  }
-                  
-                  const existingMatchQuery = query(
-                    collection(db, 'matchAllocations'),
-                    where('clubId', '==', clubInfo.clubId)
-                  );
-                  const existingMatch = await getDocs(existingMatchQuery);
-                  let deletedMatch = 0;
-                  
-                  for (const docSnapshot of existingMatch.docs) {
-                    const data = docSnapshot.data();
-                    // Only delete future allocations
-                    if (data.date && data.date >= todayString) {
-                      await deleteDoc(doc(db, 'matchAllocations', docSnapshot.id));
-                      deletedMatch++;
-                      console.log(`Deleted existing match allocation: ${data.date}`);
-                    }
-                  }
-                  
-                  console.log(`Cleared ${deletedTraining} training and ${deletedMatch} match allocations`);
-                  
-                  // Small delay to ensure deletions are processed
-                  await new Promise(resolve => setTimeout(resolve, 500));
-                  
-                  // Restore training allocations with their original IDs
-                  for (const item of futureTraining) {
-                    try {
-                      await setDoc(
-                        doc(db, 'trainingAllocations', item.id), 
-                        item.data
-                      );
-                      trainingRestored++;
-                      console.log(`Restored training: ${item.data.date}`);
-                    } catch (error) {
-                      console.error(`Failed to restore training ${item.data.date}:`, error);
-                    }
-                  }
-                  
-                  // Restore match allocations with their original IDs
-                  for (const item of futureMatch) {
-                    try {
-                      await setDoc(
-                        doc(db, 'matchAllocations', item.id), 
-                        item.data
-                      );
-                      matchRestored++;
-                      console.log(`Restored match: ${item.data.date}`);
-                    } catch (error) {
-                      console.error(`Failed to restore match ${item.data.date}:`, error);
-                    }
-                  }
-                  
-                  alert(`✅ Restore complete!\n\nTraining: ${trainingRestored} allocations\nMatch Day: ${matchRestored} allocations\n\nRefreshing page...`);
-                  
-                  setTimeout(() => {
-                    window.location.reload();
-                  }, 3000);
-                } catch (error) {
-                  console.error('Restore error:', error);
-                  alert('❌ Error during restore. Check console.');
-                }
-              } else {
-                alert('❌ Unable to restore allocations. Club information not available.');
-              }
-            } else {
-              // Old structure - handle legacy backups
-              alert('⚠️ This backup uses an old format. Please create a new backup with the updated version.');
-              setIsRestoring(false);
-              return;
-            }
-            
-            setShowHamburgerMenu(false);
-          } catch (error) {
-            console.error('Error restoring allocations:', error);
-            alert('❌ Error restoring allocations. Please check the file format and try again.');
-          } finally {
-            setIsRestoring(false);
-          }
-        };
-        reader.readAsText(file);
-      }
-    };
-    input.click();
-  };
+    return false;
+  }, [allocations, date, slot, pitch, section, duration, slots]);
 
-  const handleAddTeam = () => {
-    if (newTeamName.trim() && !teams.find(t => t.name === newTeamName.trim())) {
-      const newTeam = {
-        name: newTeamName.trim(),
-        color: newTeamColor
+  const addAllocation = async () => {
+    const selectedTeam = teams.find(t => t.name === team);
+    if (!selectedTeam || hasConflict || loading) return;
+
+    const slotsNeeded = duration / 30;
+    const startSlotIndex = slots.indexOf(slot);
+    
+    // Generate a unique booking ID for multi-slot allocations
+    const bookingId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Create separate allocation for each 30-minute slot
+    for (let i = 0; i < slotsNeeded; i++) {
+      const currentSlot = slots[startSlotIndex + i];
+      
+      const allocation = {
+        team: selectedTeam.name,
+        colour: selectedTeam.color,
+        duration: duration,
+        isMultiSlot: slotsNeeded > 1,
+        slotIndex: i,
+        totalSlots: slotsNeeded,
+        startTime: slot,
+        endTime: slots[startSlotIndex + slotsNeeded - 1],
+        timeSlot: currentSlot, // This is the actual time slot for this specific allocation
+        pitch: pitch,
+        section: section,
+        date: date
       };
-      setTeams(prev => [...prev, newTeam]);
-      setMatchDayPitchAreaRequired(prev => ({
-        ...prev,
-        [newTeam.name]: getDefaultPitchAreaForTeam(newTeam.name)
-      }));
-      setNewTeamName('');
-      setNewTeamColor('#3B82F6');
+
+      // Only add bookingId for multi-slot bookings
+      if (slotsNeeded > 1) {
+        allocation.bookingId = bookingId;
+      }
+
+      // Save each slot allocation to Firebase
+      await saveAllocationToFirestore(selectedTeam.name, allocation, date);
     }
   };
 
-  const removeTeam = (teamName) => {
-    setTeams(prevTeams => prevTeams.filter(team => team.name !== teamName));
-    setMatchDayPitchAreaRequired(prev => {
-      const updated = { ...prev };
-      delete updated[teamName];
-      return updated;
+  const hasAllocationsForTimeSlotTraining = (timeSlot) => {
+    return pitches.some(pitch => {
+      return sections.some(section => {
+        const key = `${date}-${timeSlot}-${pitch.id}-${section}`;
+        return allocations[key];
+      }) || (showGrassArea[pitch.id] && allocations[`${date}-${timeSlot}-${pitch.id}-grass`]);
     });
   };
 
-  const updatePitchOrientation = (pitchId, orientation) => {
-    setPitchOrientations(prev => ({
-      ...prev,
-      [pitchId]: orientation
-    }));
+  const toggleTimeSlotExpansionTraining = (timeSlot) => {
+    const newExpanded = new Set(manuallyExpandedSlotsTraining);
+    if (newExpanded.has(timeSlot)) {
+      newExpanded.delete(timeSlot);
+    } else {
+      newExpanded.add(timeSlot);
+    }
+    setManuallyExpandedSlotsTraining(newExpanded);
   };
 
-  const updateGrassAreaVisibility = (pitchId, visible) => {
-    setShowGrassArea(prev => ({
-      ...prev,
-      [pitchId]: visible
-    }));
+  const shouldShowTimeSlotExpandedTraining = (timeSlot) => {
+    return hasAllocationsForTimeSlotTraining(timeSlot) || manuallyExpandedSlotsTraining.has(timeSlot);
   };
 
-  const updateMatchDayPitchAreaRequired = (teamName, pitchAreaReq) => {
-    setMatchDayPitchAreaRequired(prev => ({
-      ...prev,
-      [teamName]: pitchAreaReq
-    }));
+  // Clear allocation function - handles both single and multi-slot bookings
+  const clearAllocation = async (key) => {
+    const allocation = allocations[key];
+    if (!allocation || loading) return;
+
+    // Check if this is part of a multi-slot booking
+    if (allocation.bookingId) {
+      // Delete all allocations with the same bookingId
+      await deleteAllocationsByBookingId(allocation.bookingId, allocation.date);
+    } else {
+      // Single slot allocation - delete just this one
+      if (allocation.id) {
+        await deleteAllocationFromFirestore(allocation.id, allocation.date);
+      } else {
+        console.error("No ID found for allocation:", allocation);
+      }
+    }
   };
 
-  const generateRandomColor = () => {
-    const colors = [
-      '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', 
-      '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
-      '#F8C471', '#82E0AA', '#F1948A', '#85929E', '#A569BD'
-    ];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    setNewTeamColor(randomColor);
+  const clearAllAllocations = () => {
+    setShowClearConfirm(true);
   };
 
-  const exportSettings = () => {
-    const settingsData = {
-      teams,
-      pitchOrientations,
-      showGrassArea,
-      matchDayPitchAreaRequired,
+  const confirmClearAll = async () => {
+    if (loading) return;
+    await clearAllAllocationsForDate(date);
+    setShowClearConfirm(false);
+  };
+
+  const cancelClearAll = () => {
+    setShowClearConfirm(false);
+  };
+
+  const handleExport = () => {
+    const exportData = {
+      allocations: allocations,
       exportDate: new Date().toISOString(),
-      appVersion: "PitcHero Settings v1.0"
+      appVersion: "PitcHero v1.0"
     };
     
-    const dataStr = JSON.stringify(settingsData, null, 2);
+    const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     
     const link = document.createElement('a');
     link.href = url;
-    link.download = `pitchero-settings-${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `training-allocations-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -498,7 +280,7 @@ function Settings({ onBack }) {
     setShowHamburgerMenu(false);
   };
 
-  const importSettings = () => {
+  const handleImport = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
@@ -506,17 +288,18 @@ function Settings({ onBack }) {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
           try {
             const importData = JSON.parse(e.target.result);
-            if (importData.teams) setTeams(importData.teams);
-            if (importData.pitchOrientations) setPitchOrientations(importData.pitchOrientations);
-            if (importData.showGrassArea) setShowGrassArea(importData.showGrassArea);
-            if (importData.matchDayPitchAreaRequired) setMatchDayPitchAreaRequired(importData.matchDayPitchAreaRequired);
+            const allocationsToImport = importData.allocations || importData;
+            
+            // Import each allocation to Firebase
+            for (const [, allocation] of Object.entries(allocationsToImport)) {
+              await saveAllocationToFirestore(allocation.team, allocation, allocation.date);
+            }
             setShowHamburgerMenu(false);
           } catch (error) {
-            console.error('Error importing settings:', error);
-            alert('Error importing settings file. Please check the file format.');
+            console.error('Error importing file:', error);
           }
         };
         reader.readAsText(file);
@@ -525,29 +308,125 @@ function Settings({ onBack }) {
     input.click();
   };
 
-  const resetToDefaults = () => {
-    if (window.confirm("Are you sure you want to reset all settings to defaults?")) {
-      setTeams(defaultTeams);
-      setPitchOrientations({
-        'pitch1': 'portrait',
-        'pitch2': 'portrait'
-      });
-      setShowGrassArea({
-        'pitch1': false,
-        'pitch2': true
-      });
-      const defaults = {};
-      defaultTeams.forEach(team => {
-        defaults[team.name] = getDefaultPitchAreaForTeam(team.name);
-      });
-      setMatchDayPitchAreaRequired(defaults);
-      setShowHamburgerMenu(false);
+  // Share functionality
+  const handleShare = async () => {
+    try {
+      // Create share data object
+      const shareData = {
+        allocations: allocations,
+        date: date,
+        type: 'training', // Important: specify this is training, not match
+        clubName: clubInfo?.name || 'Unknown Club',
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days expiry
+      };
+      
+      // Generate unique share ID
+      const shareId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Save to Firebase
+      await createSharedAllocation(shareId, shareData);
+      
+      // Generate the share link
+      const link = `${window.location.origin}/share/${shareId}`;
+      setShareLink(link);
+      setShowShareDialog(true);
+    } catch (error) {
+      console.error('Error creating share link:', error);
+      alert('Failed to create share link. Please try again.');
     }
   };
 
-  // Backup Reminder Modal
-  const BackupReminderModal = () => {
-    if (!showBackupReminder) return null;
+  const generateSectionSummary = () => {
+    const summary = {};
+    const uniqueAllocations = {};
+    
+    Object.entries(allocations).forEach(([key, allocation]) => {
+      const uniqueKey = `${allocation.date}-${allocation.startTime}-${allocation.pitch}-${allocation.section}-${allocation.team}`;
+      if (!uniqueAllocations[uniqueKey]) {
+        uniqueAllocations[uniqueKey] = allocation;
+      }
+    });
+    
+    Object.values(uniqueAllocations).forEach(allocation => {
+      const sectionKey = `${allocation.pitch}-${allocation.section}`;
+      const teamKey = allocation.team;
+      
+      if (!summary[sectionKey]) {
+        summary[sectionKey] = {};
+      }
+      if (!summary[sectionKey][teamKey]) {
+        summary[sectionKey][teamKey] = [];
+      }
+      
+      summary[sectionKey][teamKey].push(allocation);
+    });
+    
+    Object.keys(summary).forEach(sectionKey => {
+      Object.keys(summary[sectionKey]).forEach(teamKey => {
+        summary[sectionKey][teamKey].sort((a, b) => {
+          if (a.date !== b.date) return a.date.localeCompare(b.date);
+          return a.startTime.localeCompare(b.startTime);
+        });
+      });
+    });
+    
+    return summary;
+  };
+
+  const generateTeamSummary = () => {
+    const summary = {};
+    const uniqueAllocations = {};
+    
+    Object.entries(allocations).forEach(([key, allocation]) => {
+      const uniqueKey = `${allocation.date}-${allocation.startTime}-${allocation.pitch}-${allocation.section}-${allocation.team}`;
+      if (!uniqueAllocations[uniqueKey]) {
+        uniqueAllocations[uniqueKey] = allocation;
+      }
+    });
+    
+    Object.values(uniqueAllocations).forEach(allocation => {
+      const teamKey = allocation.team;
+      
+      if (!summary[teamKey]) {
+        summary[teamKey] = [];
+      }
+      
+      summary[teamKey].push(allocation);
+    });
+    
+    Object.keys(summary).forEach(teamKey => {
+      summary[teamKey].sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.startTime.localeCompare(b.startTime);
+      });
+    });
+    
+    return summary;
+  };
+
+  const formatTimeRange = (allocation) => {
+    if (allocation.duration <= 30) {
+      return allocation.startTime;
+    } else {
+      const endTime = allocation.endTime;
+      return `${allocation.startTime} - ${endTime}`;
+    }
+  };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
+  // Share Dialog Component
+  const ShareDialog = () => {
+    if (!showShareDialog) return null;
     
     return (
       <div style={{
@@ -560,36 +439,46 @@ function Settings({ onBack }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000
+        zIndex: 1001
       }}>
         <div style={{
           backgroundColor: 'white',
-          borderRadius: '12px',
           padding: '32px',
-          maxWidth: '500px',
+          borderRadius: '12px',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-          border: '2px solid #10b981'
+          maxWidth: '500px',
+          width: '90%'
         }}>
-          <h2 style={{
-            fontSize: '24px',
+          <h3 style={{
+            fontSize: '18px',
             fontWeight: '600',
             color: '#1f2937',
             marginBottom: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
+            margin: '0 0 16px 0'
           }}>
-            📅 Monthly Backup Reminder
-          </h2>
+            Share Training Allocation
+          </h3>
           
           <p style={{
-            fontSize: '16px',
-            color: '#374151',
-            marginBottom: '24px',
-            lineHeight: '1.5'
+            fontSize: '14px',
+            color: '#6b7280',
+            marginBottom: '16px',
+            margin: '0 0 16px 0'
           }}>
-            It's the 1st of the month! It's recommended to create a backup of your training and match day allocations to ensure your data is safe.
+            Your shareable link has been created! This link will expire in 30 days.
           </p>
+          
+          <div style={{
+            backgroundColor: '#f3f4f6',
+            padding: '12px',
+            borderRadius: '6px',
+            marginBottom: '16px',
+            wordBreak: 'break-all',
+            fontSize: '14px',
+            fontFamily: 'monospace'
+          }}>
+            {shareLink}
+          </div>
           
           <div style={{
             display: 'flex',
@@ -597,9 +486,49 @@ function Settings({ onBack }) {
             justifyContent: 'flex-end'
           }}>
             <button
-              onClick={() => setShowBackupReminder(false)}
+              onClick={() => {
+                navigator.clipboard.writeText(shareLink);
+                alert('Link copied to clipboard!');
+              }}
               style={{
-                padding: '10px 20px',
+                padding: '8px 16px',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              📋 Copy Link
+            </button>
+            
+            <button
+              onClick={() => {
+                window.open(shareLink, '_blank');
+              }}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              🔗 Open Link
+            </button>
+            
+            <button
+              onClick={() => {
+                setShowShareDialog(false);
+                setShareLink('');
+              }}
+              style={{
+                padding: '8px 16px',
                 backgroundColor: '#6b7280',
                 color: 'white',
                 border: 'none',
@@ -609,27 +538,7 @@ function Settings({ onBack }) {
                 fontWeight: '500'
               }}
             >
-              Remind Me Later
-            </button>
-            <button
-              onClick={async () => {
-                setShowBackupReminder(false);
-                await backupAllocations();
-              }}
-              disabled={isBackingUp}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: isBackingUp ? '#9ca3af' : '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: isBackingUp ? 'wait' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                opacity: isBackingUp ? 0.7 : 1
-              }}
-            >
-              {isBackingUp ? 'Creating Backup...' : 'Create Backup Now'}
+              Close
             </button>
           </div>
         </div>
@@ -716,104 +625,18 @@ function Settings({ onBack }) {
               </div>
             )}
             
-            {/* Allocations Backup Section */}
-            <div style={{
-              borderBottom: '1px solid #e5e7eb',
-              paddingTop: '8px',
-              paddingBottom: '8px'
-            }}>
-              <div style={{
-                padding: '8px 16px',
-                fontSize: '12px',
-                fontWeight: '600',
-                color: '#6b7280',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
-                Allocations
-              </div>
-              
-              <button
-                onClick={() => backupAllocations()}
-                disabled={isBackingUp}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  backgroundColor: 'white',
-                  color: isBackingUp ? '#9ca3af' : '#059669',
-                  border: 'none',
-                  cursor: isBackingUp ? 'wait' : 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'background-color 0.2s',
-                  opacity: isBackingUp ? 0.7 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (!isBackingUp) e.currentTarget.style.backgroundColor = '#ecfdf5';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'white';
-                }}
-              >
-                {isBackingUp ? '⏳ Creating Backup...' : '💾 Backup Allocations'}
-              </button>
-              
-              <button
-                onClick={() => restoreAllocations()}
-                disabled={isRestoring}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  backgroundColor: 'white',
-                  color: isRestoring ? '#9ca3af' : '#dc2626',
-                  border: 'none',
-                  cursor: isRestoring ? 'wait' : 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'background-color 0.2s',
-                  opacity: isRestoring ? 0.7 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (!isRestoring) e.currentTarget.style.backgroundColor = '#fef2f2';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'white';
-                }}
-              >
-                {isRestoring ? '⏳ Restoring...' : '⚠️ Restore Allocations'}
-              </button>
-            </div>
-            
-            {/* Settings Section */}
+            {/* Action Items */}
             <div style={{ padding: '8px 0' }}>
-              <div style={{
-                padding: '8px 16px',
-                fontSize: '12px',
-                fontWeight: '600',
-                color: '#6b7280',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
-                Settings
-              </div>
-              
               <button
-                onClick={exportSettings}
+                onClick={handleExport}
+                disabled={Object.keys(allocations).length === 0}
                 style={{
                   width: '100%',
                   padding: '12px 16px',
                   backgroundColor: 'white',
-                  color: '#374151',
+                  color: Object.keys(allocations).length === 0 ? '#9ca3af' : '#374151',
                   border: 'none',
-                  cursor: 'pointer',
+                  cursor: Object.keys(allocations).length === 0 ? 'not-allowed' : 'pointer',
                   fontSize: '14px',
                   fontWeight: '500',
                   textAlign: 'left',
@@ -823,24 +646,27 @@ function Settings({ onBack }) {
                   transition: 'background-color 0.2s'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f3f4f6';
+                  if (Object.keys(allocations).length > 0) {
+                    e.currentTarget.style.backgroundColor = '#f3f4f6';
+                  }
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'white';
                 }}
               >
-                📤 Export Settings
+                📤 Export
               </button>
               
               <button
-                onClick={importSettings}
+                onClick={handleImport}
+                disabled={loading}
                 style={{
                   width: '100%',
                   padding: '12px 16px',
                   backgroundColor: 'white',
-                  color: '#374151',
+                  color: loading ? '#9ca3af' : '#374151',
                   border: 'none',
-                  cursor: 'pointer',
+                  cursor: loading ? 'not-allowed' : 'pointer',
                   fontSize: '14px',
                   fontWeight: '500',
                   textAlign: 'left',
@@ -850,40 +676,15 @@ function Settings({ onBack }) {
                   transition: 'background-color 0.2s'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f3f4f6';
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = '#f3f4f6';
+                  }
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'white';
                 }}
               >
-                📥 Import Settings
-              </button>
-              
-              <button
-                onClick={resetToDefaults}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  backgroundColor: 'white',
-                  color: '#ef4444',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#fef2f2';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'white';
-                }}
-              >
-                🔄 Reset to Defaults
+                📥 Import
               </button>
             </div>
             
@@ -931,7 +732,7 @@ function Settings({ onBack }) {
 
   return (
     <div style={{
-      padding: '40px',
+      padding: '24px',
       backgroundColor: '#f9fafb',
       minHeight: '100vh',
       fontFamily: 'system-ui, sans-serif',
@@ -942,11 +743,13 @@ function Settings({ onBack }) {
       margin: 0,
       boxSizing: 'border-box'
     }}>
-      {/* Backup Reminder Modal */}
-      <BackupReminderModal />
-      
-      <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%' }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '24px'
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button
               onClick={() => navigate("/menu")}
@@ -967,522 +770,1130 @@ function Settings({ onBack }) {
               fontWeight: 'bold',
               color: '#1f2937',
               margin: 0
-            }}>Settings</h1>
+            }}>Training Pitch Allocator</h1>
           </div>
           
-          {/* Hamburger Menu */}
-          <HamburgerMenu />
-        </div>
-        
-        {/* Club Information Section */}
-        {clubInfo && (
+          {/* Status indicator and hamburger menu */}
           <div style={{
-            backgroundColor: 'white',
-            padding: '24px',
-            borderRadius: '12px',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-            marginBottom: '24px',
-            border: '2px solid #10b981'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            fontSize: '14px'
           }}>
-            <h2 style={{
-              fontSize: '20px',
-              fontWeight: '600',
-              color: '#374151',
-              marginBottom: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              🏢 Club Information
-            </h2>
-            
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'auto 1fr auto',
-              gap: '16px',
-              alignItems: 'center',
-              marginBottom: '16px'
+              padding: '6px 12px',
+              backgroundColor: '#10b981',
+              color: 'white',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: '500'
             }}>
-              <div style={{
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#374151'
-              }}>
-                Club Name:
-              </div>
-              <div style={{
-                fontSize: '16px',
-                fontWeight: '600',
-                color: '#1f2937'
-              }}>
-                {clubInfo.name}
-              </div>
-              <div></div>
+              📊 {Object.keys(allocations).length} Allocations
             </div>
+            {loading && (
+              <div style={{
+                padding: '6px 12px',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                borderRadius: '20px',
+                fontSize: '12px',
+                fontWeight: '500'
+              }}>
+                💾 Saving...
+              </div>
+            )}
             
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'auto 1fr auto',
-              gap: '16px',
-              alignItems: 'center'
-            }}>
-              <div style={{
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#374151'
-              }}>
-                Club ID:
-              </div>
-              <div style={{
-                fontFamily: 'monospace',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                color: '#1f2937',
-                backgroundColor: '#f3f4f6',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                letterSpacing: '2px'
-              }}>
-                {clubInfo.clubId}
-              </div>
-              <button
-                onClick={copyClubId}
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  fontWeight: '500'
-                }}
-              >
-                Copy ID
-              </button>
-            </div>
-            
-            <div style={{
-              marginTop: '16px',
-              padding: '12px',
-              backgroundColor: '#f0f9ff',
-              borderRadius: '6px',
-              fontSize: '13px',
-              color: '#0c4a6e'
-            }}>
-              <strong>Share this Club ID with new members:</strong> New users can enter this 6-character code during signup to join your club. Only share with trusted members.
-            </div>
+            {/* Hamburger Menu */}
+            <HamburgerMenu />
+          </div>
+        </div>
+
+        {/* Error display */}
+        {error && (
+          <div style={{
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '24px',
+            color: '#dc2626'
+          }}>
+            <strong>⚠️ Error:</strong> {error}
+            <button
+              onClick={() => loadAllocationsForDate(date)}
+              style={{
+                marginLeft: '12px',
+                padding: '4px 8px',
+                backgroundColor: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              Retry
+            </button>
           </div>
         )}
-        
-        {/* Team Management Section */}
+
+        {/* Instructions for removing allocations */}
         <div style={{
-          backgroundColor: 'white',
-          padding: '32px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          marginBottom: '24px'
+          backgroundColor: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          marginBottom: '24px',
+          fontSize: '14px',
+          color: '#1e40af'
         }}>
-          <h2 style={{
-            fontSize: '24px',
-            fontWeight: '600',
-            color: '#374151',
-            marginBottom: '24px'
-          }}>Team Management</h2>
-          
-          {/* Add New Team */}
-          <div style={{
-            border: '2px dashed #d1d5db',
-            borderRadius: '8px',
-            padding: '24px',
-            marginBottom: '24px',
-            backgroundColor: '#f9fafb'
-          }}>
-            <h3 style={{
-              fontSize: '18px',
-              fontWeight: '600',
-              color: '#374151',
-              marginBottom: '16px'
-            }}>Add New Team</h3>
-            
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr auto auto auto',
-              gap: '12px',
-              alignItems: 'end'
-            }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#374151',
-                  marginBottom: '4px'
-                }}>Team Name</label>
-                <input
-                  type="text"
-                  value={newTeamName}
-                  onChange={(e) => setNewTeamName(e.target.value)}
-                  placeholder="Enter team name..."
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '14px'
-                  }}
-                />
-              </div>
-              
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#374151',
-                  marginBottom: '4px'
-                }}>Color</label>
-                <input
-                  type="color"
-                  value={newTeamColor}
-                  onChange={(e) => setNewTeamColor(e.target.value)}
-                  style={{
-                    width: '60px',
-                    height: '36px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                />
-              </div>
-              
-              <button
-                onClick={generateRandomColor}
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: '#8b5cf6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                Random Color
-              </button>
-              
-              <button
-                onClick={handleAddTeam}
-                disabled={!newTeamName.trim()}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: newTeamName.trim() ? '#10b981' : '#9ca3af',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: newTeamName.trim() ? 'pointer' : 'not-allowed',
-                  fontSize: '14px',
-                  fontWeight: '500'
-                }}
-              >
-                Add Team
-              </button>
-            </div>
-          </div>
-          
-          {/* Current Teams List */}
-          <div>
-            <h3 style={{
-              fontSize: '18px',
-              fontWeight: '600',
-              color: '#374151',
-              marginBottom: '16px'
-            }}>Current Teams ({teams.length})</h3>
-            
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-              gap: '12px'
-            }}>
-              {teams.map((team) => {
-                const isDefaultTeam = defaultTeams.some(dt => dt.name === team.name);
-                return (
-                  <div key={team.name} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 16px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    backgroundColor: '#fafafa'
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px'
-                    }}>
-                      <div
-                        style={{
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '4px',
-                          backgroundColor: team.color,
-                          border: '1px solid #d1d5db'
-                        }}
-                      ></div>
-                      <span style={{
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        color: '#374151'
-                      }}>{team.name}</span>
-                    </div>
-                    
-                    {!isDefaultTeam && (
-                      <button
-                        onClick={() => removeTeam(team.name)}
-                        style={{
-                          padding: '4px 8px',
-                          backgroundColor: '#ef4444',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '12px'
-                        }}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <strong>💡 Tip:</strong> Click on any colored section in the pitch layout below to remove that specific allocation. Multi-slot bookings will be completely removed when you click on any part of them.
         </div>
         
-        {/* Pitch Configuration Section */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+          <button 
+            onClick={() => {
+              setSummaryType('section');
+              setShowSummary(!showSummary);
+            }}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: showSummary && summaryType === 'section' ? '#047857' : '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            Summary by Section
+          </button>
+          
+          <button 
+            onClick={() => {
+              setSummaryType('team');
+              setShowSummary(!showSummary);
+            }}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: showSummary && summaryType === 'team' ? '#6d28d9' : '#8b5cf6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            Summary by Team
+          </button>
+
+          <button 
+            onClick={handleShare}
+            disabled={Object.keys(allocations).length === 0 || loading}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: (Object.keys(allocations).length === 0 || loading) ? '#9ca3af' : '#8b5cf6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: (Object.keys(allocations).length === 0 || loading) ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            🔗 Share
+          </button>
+        </div>
+        
         <div style={{
           backgroundColor: 'white',
-          padding: '32px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          marginBottom: '24px'
+          padding: '24px',
+          borderRadius: '8px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          marginBottom: '32px'
         }}>
           <h2 style={{
-            fontSize: '24px',
+            fontSize: '20px',
             fontWeight: '600',
-            color: '#374151',
-            marginBottom: '24px'
-          }}>Pitch Configuration</h2>
+            marginBottom: '16px',
+            color: '#374151'
+          }}>Add New Allocation</h2>
           
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '20px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: '16px',
+            marginBottom: '8px'
           }}>
-            {pitches.map((pitch) => (
-              <div key={pitch.id} style={{
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                padding: '20px',
-                backgroundColor: '#fafafa'
-              }}>
-                <h3 style={{
-                  fontSize: '18px',
-                  fontWeight: '600',
-                  color: '#374151',
-                  marginBottom: '16px'
-                }}>{pitch.name}</h3>
-                
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#374151',
-                    marginBottom: '8px'
-                  }}>Orientation</label>
-                  
-                  <div style={{
-                    display: 'flex',
-                    gap: '12px'
-                  }}>
-                    <label style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer',
-                      fontSize: '14px'
-                    }}>
-                      <input
-                        type="radio"
-                        name={`orientation-${pitch.id}`}
-                        value="portrait"
-                        checked={pitchOrientations[pitch.id] === 'portrait'}
-                        onChange={() => updatePitchOrientation(pitch.id, 'portrait')}
-                        style={{
-                          margin: 0,
-                          cursor: 'pointer'
-                        }}
-                      />
-                      <span>Portrait</span>
-                    </label>
-                    
-                    <label style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer',
-                      fontSize: '14px'
-                    }}>
-                      <input
-                        type="radio"
-                        name={`orientation-${pitch.id}`}
-                        value="landscape"
-                        checked={pitchOrientations[pitch.id] === 'landscape'}
-                        onChange={() => updatePitchOrientation(pitch.id, 'landscape')}
-                        style={{
-                          margin: 0,
-                          cursor: 'pointer'
-                        }}
-                      />
-                      <span>Landscape</span>
-                    </label>
-                  </div>
-                </div>
-                
-                <div style={{ marginTop: '16px' }}>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#374151',
-                    marginBottom: '8px'
-                  }}>Grass Area</label>
-                  
-                  {pitch.hasGrassArea ? (
-                    <label style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      cursor: 'pointer',
-                      fontSize: '14px'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={showGrassArea[pitch.id]}
-                        onChange={(e) => updateGrassAreaVisibility(pitch.id, e.target.checked)}
-                        style={{
-                          margin: 0,
-                          cursor: 'pointer'
-                        }}
-                      />
-                      <span>Show grass area</span>
-                    </label>
-                  ) : (
-                    <div style={{
-                      fontSize: '14px',
-                      color: '#6b7280',
-                      fontStyle: 'italic'
-                    }}>
-                      Not available for this pitch type
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* Match Day Settings Section */}
-        <div style={{
-          backgroundColor: 'white',
-          padding: '32px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          marginBottom: '24px'
-        }}>
-          <h2 style={{
-            fontSize: '24px',
-            fontWeight: '600',
-            color: '#374151',
-            marginBottom: '24px'
-          }}>Match Day Settings</h2>
-          
-          <p style={{
-            fontSize: '14px',
-            color: '#6b7280',
-            marginBottom: '16px'
-          }}>
-            Configure pitch area requirements for each team's match day allocations.
-          </p>
-          
-          <div style={{
-            backgroundColor: '#f0f9ff',
-            border: '1px solid #0ea5e9',
-            borderRadius: '6px',
-            padding: '12px',
-            marginBottom: '20px',
-            fontSize: '13px',
-            color: '#0c4a6e'
-          }}>
-            <strong>Match Day Auto-Allocation Rules:</strong>
-            <ul style={{ margin: '8px 0 0 20px', padding: 0 }}>
-              <li><strong>Under 6 & 7:</strong> Any single section or grass area for 50 minutes (books 60 min)</li>
-              <li><strong>Under 8 & 9:</strong> 2 vertical sections for 50 minutes (books 60 min)</li>
-              <li><strong>Under 10-13:</strong> 4 sections (half pitch) for 60 minutes (books 60 min)</li>
-              <li><strong>Under 14+:</strong> Full pitch (8 sections) for 80 minutes (books 90 min)</li>
-            </ul>
-          </div>
-          
-          {teams.map((team) => (
-            <div key={team.name} style={{
-              display: 'grid',
-              gridTemplateColumns: 'auto 1fr auto',
-              gap: '16px',
-              alignItems: 'center',
-              padding: '12px 16px',
-              backgroundColor: '#fafafa',
-              borderRadius: '8px',
-              marginBottom: '8px'
-            }}>
-              <div
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '4px',
-                  backgroundColor: team.color,
-                  border: '1px solid #d1d5db'
-                }}
-              ></div>
-              
-              <div style={{
+            <div>
+              <label style={{
+                display: 'block',
                 fontSize: '14px',
                 fontWeight: '500',
-                color: '#374151'
-              }}>
-                {team.name}
-              </div>
-              
-              <select 
-                value={matchDayPitchAreaRequired[team.name] || getDefaultPitchAreaForTeam(team.name)} 
-                onChange={(e) => updateMatchDayPitchAreaRequired(team.name, e.target.value)}
+                color: '#374151',
+                marginBottom: '4px'
+              }}>Date</label>
+              <input 
+                type="date" 
+                value={date} 
+                onChange={(e) => setDate(e.target.value)}
+                disabled={loading}
                 style={{
-                  padding: '6px 8px',
+                  width: '100%',
+                  padding: '8px',
                   border: '1px solid #d1d5db',
                   borderRadius: '4px',
-                  fontSize: '12px',
+                  fontSize: '14px',
+                  opacity: loading ? 0.6 : 1
+                }}
+              />
+              {/* Date navigation buttons */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '4px',
+                marginTop: '8px'
+              }}>
+                <button
+                  onClick={navigateToPreviousDay}
+                  disabled={loading}
+                  style={{
+                    padding: '6px',
+                    backgroundColor: loading ? '#9ca3af' : '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}
+                  title="Previous Day"
+                >
+                  ← Previous Day
+                </button>
+                <button
+                  onClick={navigateToNextDay}
+                  disabled={loading}
+                  style={{
+                    padding: '6px',
+                    backgroundColor: loading ? '#9ca3af' : '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}
+                  title="Next Day"
+                >
+                  Next Day →
+                </button>
+              </div>
+            </div>
+            
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#374151',
+                marginBottom: '4px'
+              }}>Time</label>
+              <select 
+                value={slot} 
+                onChange={(e) => setSlot(e.target.value)}
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px',
                   backgroundColor: 'white',
-                  cursor: 'pointer',
-                  minWidth: '120px'
+                  opacity: loading ? 0.6 : 1
                 }}
               >
-                <option value="Under 6 & 7">Under 6 & 7</option>
-                <option value="Under 8 & 9">Under 8 & 9</option>
-                <option value="Under 10-13">Under 10-13</option>
-                <option value="Under 14+">Under 14+</option>
+                {slots.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
               </select>
+            </div>
+            
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#374151',
+                marginBottom: '4px'
+              }}>Duration</label>
+              <select 
+                value={duration} 
+                onChange={(e) => setDuration(parseInt(e.target.value))}
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  backgroundColor: 'white',
+                  opacity: loading ? 0.6 : 1
+                }}
+              >
+                <option value={30}>30 minutes</option>
+                <option value={60}>60 minutes</option>
+                <option value={90}>90 minutes</option>
+                <option value={120}>120 minutes</option>
+              </select>
+            </div>
+            
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#374151',
+                marginBottom: '4px'
+              }}>Pitch</label>
+              <select 
+                value={pitch} 
+                onChange={(e) => setPitch(e.target.value)}
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  backgroundColor: 'white',
+                  opacity: loading ? 0.6 : 1
+                }}
+              >
+                {pitches.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#374151',
+                marginBottom: '4px'
+              }}>Section</label>
+              <select 
+                value={section} 
+                onChange={(e) => setSection(e.target.value)}
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  backgroundColor: 'white',
+                  opacity: loading ? 0.6 : 1
+                }}
+              >
+                {sections.map((sec) => (
+                  <option key={sec} value={sec}>Section {sec}</option>
+                ))}
+                {showGrassArea[pitch] && (
+                  <option value="grass">Grass Area</option>
+                )}
+              </select>
+            </div>
+            
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#374151',
+                marginBottom: '4px'
+              }}>Team</label>
+              <select 
+                value={team} 
+                onChange={(e) => setTeam(e.target.value)}
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  backgroundColor: 'white',
+                  opacity: loading ? 0.6 : 1
+                }}
+              >
+                {teams.map((t) => (
+                  <option key={t.name} value={t.name}>{t.name}</option>
+                ))}
+              </select>
+              {/* Action buttons under Team dropdown */}
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                marginTop: '8px'
+              }}>
+                <button 
+                  onClick={addAllocation}
+                  disabled={hasConflict || loading}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    backgroundColor: (hasConflict || loading) ? '#9ca3af' : '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: (hasConflict || loading) ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  {loading ? 'Saving...' : 'Add Allocation'}
+                </button>
+                
+                <button 
+                  onClick={clearAllAllocations}
+                  disabled={Object.keys(allocations).length === 0 || loading}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    backgroundColor: (Object.keys(allocations).length === 0 || loading) ? '#9ca3af' : '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: (Object.keys(allocations).length === 0 || loading) ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  Clear All
+                </button>
+              </div>
+              {hasConflict && (
+                <div style={{
+                  color: '#dc2626',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  marginTop: '4px'
+                }}>
+                  ⚠️ Scheduling conflict detected
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Clear Confirmation Dialog */}
+        {showClearConfirm && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              padding: '32px',
+              borderRadius: '12px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+              maxWidth: '400px',
+              width: '90%'
+            }}>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#1f2937',
+                marginBottom: '16px',
+                margin: '0 0 16px 0'
+              }}>
+                Clear All Training Allocations
+              </h3>
+              <p style={{
+                fontSize: '14px',
+                color: '#6b7280',
+                marginBottom: '24px',
+                margin: '0 0 24px 0'
+              }}>
+                Are you sure you want to clear all training allocations for <strong>{new Date(date).toLocaleDateString()}</strong>? 
+                This will permanently delete the allocations from the database.
+              </p>
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                justifyContent: 'flex-end'
+              }}>
+                <button
+                  onClick={cancelClearAll}
+                  disabled={loading}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#f3f4f6',
+                    color: '#374151',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    opacity: loading ? 0.6 : 1
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmClearAll}
+                  disabled={loading}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: loading ? '#9ca3af' : '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  {loading ? 'Clearing...' : 'Clear All'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Share Dialog */}
+        <ShareDialog />
+
+        {/* Summary Display */}
+        {showSummary && (
+          <div style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            marginBottom: '32px'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              <h2 style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#374151',
+                margin: 0
+              }}>
+                Training Schedule Summary - {summaryType === 'section' ? 'By Section' : 'By Team'}
+              </h2>
+              <button
+                onClick={() => setShowSummary(false)}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                Close Summary
+              </button>
+            </div>
+            
+            {summaryType === 'section' ? (
+              <div>
+                {Object.entries(generateSectionSummary()).length === 0 ? (
+                  <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No allocations to display</p>
+                ) : (
+                  Object.entries(generateSectionSummary()).map(([sectionKey, teamsInSection]) => {
+                    const [pitchId, sectionName] = sectionKey.split('-');
+                    const pitchName = pitches.find(p => p.id === pitchId)?.name || pitchId;
+                    
+                    return (
+                      <div key={sectionKey} style={{
+                        marginBottom: '24px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          backgroundColor: '#f3f4f6',
+                          padding: '12px 16px',
+                          borderBottom: '1px solid #e5e7eb'
+                        }}>
+                          <h3 style={{
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            color: '#1f2937',
+                            margin: 0
+                          }}>
+                            {pitchName} - {sectionName === 'grass' ? 'Grass Area' : `Section ${sectionName}`}
+                          </h3>
+                        </div>
+                        
+                        {Object.entries(teamsInSection).map(([teamName, allocations]) => {
+                          const teamData = teams.find(t => t.name === teamName);
+                          const teamColor = teamData?.color || '#6b7280';
+                          
+                          return (
+                            <div key={teamName} style={{
+                              padding: '12px 16px',
+                              borderBottom: '1px solid #f3f4f6'
+                            }}>
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                marginBottom: '8px'
+                              }}>
+                                <div style={{
+                                  width: '12px',
+                                  height: '12px',
+                                  backgroundColor: teamColor,
+                                  borderRadius: '2px'
+                                }}></div>
+                                <span style={{
+                                  fontSize: '14px',
+                                  fontWeight: '500',
+                                  color: '#374151'
+                                }}>{teamName}</span>
+                              </div>
+                              
+                              <div style={{
+                                paddingLeft: '20px',
+                                fontSize: '13px',
+                                color: '#6b7280'
+                              }}>
+                                {allocations.map((allocation, index) => (
+                                  <div key={index} style={{ marginBottom: '4px' }}>
+                                    {formatDate(allocation.date)} • {formatTimeRange(allocation)} • {allocation.duration} minutes
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
+              <div>
+                {Object.entries(generateTeamSummary()).length === 0 ? (
+                  <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No allocations to display</p>
+                ) : (
+                  Object.entries(generateTeamSummary()).map(([teamName, allocations]) => {
+                    const teamData = teams.find(t => t.name === teamName);
+                    const teamColor = teamData?.color || '#6b7280';
+                    
+                    return (
+                      <div key={teamName} style={{
+                        marginBottom: '20px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          backgroundColor: '#f3f4f6',
+                          padding: '12px 16px',
+                          borderBottom: '1px solid #e5e7eb',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <div style={{
+                            width: '16px',
+                            height: '16px',
+                            backgroundColor: teamColor,
+                            borderRadius: '3px'
+                          }}></div>
+                          <h3 style={{
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            color: '#1f2937',
+                            margin: 0
+                          }}>
+                            {teamName} ({allocations.length} session{allocations.length !== 1 ? 's' : ''})
+                          </h3>
+                        </div>
+                        
+                        <div style={{ padding: '12px 16px' }}>
+                          {allocations.map((allocation, index) => {
+                            const pitchName = pitches.find(p => p.id === allocation.pitch)?.name || allocation.pitch;
+                            const sectionDisplay = allocation.section === 'grass' ? 'Grass Area' : `Section ${allocation.section}`;
+                            
+                            return (
+                              <div key={index} style={{
+                                padding: '8px 0',
+                                borderBottom: index < allocations.length - 1 ? '1px solid #f3f4f6' : 'none',
+                                fontSize: '14px',
+                                color: '#374151'
+                              }}>
+                                <div style={{ fontWeight: '500', marginBottom: '2px' }}>
+                                  {formatDate(allocation.date)} • {formatTimeRange(allocation)}
+                                </div>
+                                <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                                  {pitchName} - {sectionDisplay} • {allocation.duration} minutes
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Visual Pitch Layout */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '8px'
+        }}>
+          {pitches.map((p) => (
+            <div key={p.id} style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                backgroundColor: '#f3f4f6',
+                padding: '8px',
+                borderBottom: '1px solid #e5e7eb'
+              }}>
+                <h2 style={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  color: '#1f2937',
+                  margin: 0
+                }}>{p.name}</h2>
+              </div>
+              
+              <div style={{ padding: '4px' }}>
+                {slots.map((s) => {
+                  const hasAllocations = hasAllocationsForTimeSlotTraining(s);
+                  const isExpanded = shouldShowTimeSlotExpandedTraining(s);
+                  const isManuallyExpanded = manuallyExpandedSlotsTraining.has(s);
+                  
+                  return (
+                    <div key={s} style={{ marginBottom: '8px' }}>
+                      <h3 style={{
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: '#374151',
+                        marginBottom: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <span 
+                          style={{
+                            backgroundColor: '#dbeafe',
+                            color: '#1e40af',
+                            padding: '4px 8px',
+                            borderRadius: '9999px',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            cursor: !hasAllocations ? 'pointer' : 'default',
+                            border: isManuallyExpanded ? '2px solid #3b82f6' : '2px solid transparent',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => !hasAllocations && toggleTimeSlotExpansionTraining(s)}
+                          title={!hasAllocations ? 'Click to expand/collapse this time slot' : s}
+                        >
+                          {s} {!hasAllocations && (isManuallyExpanded ? '▼' : '▶')}
+                        </span>
+                      </h3>
+                      
+                      {isExpanded && (
+                        <>
+                          <div style={{
+                            position: 'relative',
+                            backgroundColor: '#dcfce7',
+                            border: '4px solid white',
+                            borderRadius: '8px',
+                            padding: '16px',
+                            width: pitchOrientations[p.id] === 'portrait' ? '280px' : '400px',
+                            height: pitchOrientations[p.id] === 'portrait' ? '400px' : '280px',
+                            margin: '0 auto'
+                          }}>
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundColor: '#bbf7d0',
+                              borderRadius: '8px',
+                              overflow: 'hidden'
+                            }}>
+                              {/* Pitch boundary lines */}
+                              <div style={{
+                                position: 'absolute',
+                                top: '2px',
+                                left: '2px',
+                                right: '2px',
+                                bottom: '2px',
+                                border: '2px solid white',
+                                borderRadius: '4px'
+                              }}></div>
+                              
+                              {/* Center line */}
+                              <div style={{
+                                position: 'absolute',
+                                ...(pitchOrientations[p.id] === 'portrait' ? {
+                                  left: '2px',
+                                  right: '2px',
+                                  top: '50%',
+                                  height: '2px',
+                                  transform: 'translateY(-50%)'
+                                } : {
+                                  top: '2px',
+                                  bottom: '2px',
+                                  left: '50%',
+                                  width: '2px',
+                                  transform: 'translateX(-50%)'
+                                }),
+                                backgroundColor: 'white'
+                              }}></div>
+                              
+                              {/* Center circle */}
+                              <div style={{
+                                position: 'absolute',
+                                left: '50%',
+                                top: '50%',
+                                width: '80px',
+                                height: '80px',
+                                border: '2px solid white',
+                                borderRadius: '50%',
+                                transform: 'translate(-50%, -50%)'
+                              }}></div>
+                              
+                              {/* Center spot */}
+                              <div style={{
+                                position: 'absolute',
+                                left: '50%',
+                                top: '50%',
+                                width: '4px',
+                                height: '4px',
+                                backgroundColor: 'white',
+                                borderRadius: '50%',
+                                transform: 'translate(-50%, -50%)'
+                              }}></div>
+                              
+                              {/* Penalty areas */}
+                              {pitchOrientations[p.id] === 'portrait' ? (
+                                <>
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '2px',
+                                    left: '25%',
+                                    right: '25%',
+                                    height: '60px',
+                                    border: '2px solid white',
+                                    borderTop: 'none'
+                                  }}></div>
+                                  
+                                  <div style={{
+                                    position: 'absolute',
+                                    bottom: '2px',
+                                    left: '25%',
+                                    right: '25%',
+                                    height: '60px',
+                                    border: '2px solid white',
+                                    borderBottom: 'none'
+                                  }}></div>
+                                </>
+                              ) : (
+                                <>
+                                  <div style={{
+                                    position: 'absolute',
+                                    left: '2px',
+                                    top: '25%',
+                                    bottom: '25%',
+                                    width: '60px',
+                                    border: '2px solid white',
+                                    borderLeft: 'none'
+                                  }}></div>
+                                  
+                                  <div style={{
+                                    position: 'absolute',
+                                    right: '2px',
+                                    top: '25%',
+                                    bottom: '25%',
+                                    width: '60px',
+                                    border: '2px solid white',
+                                    borderRight: 'none'
+                                  }}></div>
+                                </>
+                              )}
+                              
+                              {/* Goal areas */}
+                              {pitchOrientations[p.id] === 'portrait' ? (
+                                <>
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '2px',
+                                    left: '37.5%',
+                                    right: '37.5%',
+                                    height: '25px',
+                                    border: '2px solid white',
+                                    borderTop: 'none'
+                                  }}></div>
+                                  
+                                  <div style={{
+                                    position: 'absolute',
+                                    bottom: '2px',
+                                    left: '37.5%',
+                                    right: '37.5%',
+                                    height: '25px',
+                                    border: '2px solid white',
+                                    borderBottom: 'none'
+                                  }}></div>
+                                </>
+                              ) : (
+                                <>
+                                  <div style={{
+                                    position: 'absolute',
+                                    left: '2px',
+                                    top: '37.5%',
+                                    bottom: '37.5%',
+                                    width: '25px',
+                                    border: '2px solid white',
+                                    borderLeft: 'none'
+                                  }}></div>
+                                  
+                                  <div style={{
+                                    position: 'absolute',
+                                    right: '2px',
+                                    top: '37.5%',
+                                    bottom: '37.5%',
+                                    width: '25px',
+                                    border: '2px solid white',
+                                    borderRight: 'none'
+                                  }}></div>
+                                </>
+                              )}
+                              
+                              {/* Corner arcs */}
+                              {[
+                                { top: '0px', left: '0px', borderRadius: '0 0 20px 0', borderTop: 'none', borderLeft: 'none' },
+                                { top: '0px', right: '0px', borderRadius: '0 0 0 20px', borderTop: 'none', borderRight: 'none' },
+                                { bottom: '0px', left: '0px', borderRadius: '0 20px 0 0', borderBottom: 'none', borderLeft: 'none' },
+                                { bottom: '0px', right: '0px', borderRadius: '20px 0 0 0', borderBottom: 'none', borderRight: 'none' }
+                              ].map((corner, i) => (
+                                <div key={i} style={{
+                                  position: 'absolute',
+                                  ...corner,
+                                  width: '20px',
+                                  height: '20px',
+                                  border: '2px solid white'
+                                }}></div>
+                              ))}
+                            </div>
+                            
+                            <div style={{
+                              position: 'relative',
+                              display: 'grid',
+                              gridTemplateColumns: pitchOrientations[p.id] === 'portrait' ? '1fr 1fr' : 'repeat(4, 1fr)',
+                              gridTemplateRows: pitchOrientations[p.id] === 'portrait' ? 'repeat(4, 1fr)' : '1fr 1fr',
+                              gap: '4px',
+                              height: '100%',
+                              zIndex: 10
+                            }}>
+                              {sections.map((sec) => {
+                                const key = `${date}-${s}-${p.id}-${sec}`;
+                                const alloc = allocations[key];
+                                
+                                return (
+                                  <div 
+                                    key={sec} 
+                                    style={{
+                                      border: '2px solid rgba(255,255,255,0.5)',
+                                      borderRadius: '4px',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '12px',
+                                      fontWeight: '500',
+                                      transition: 'all 0.2s',
+                                      position: 'relative',
+                                      padding: '2px',
+                                      textAlign: 'center',
+                                      cursor: alloc ? 'pointer' : 'default',
+                                      backgroundColor: alloc ? alloc.colour + '90' : 'rgba(255,255,255,0.1)',
+                                      borderColor: alloc ? alloc.colour : 'rgba(255,255,255,0.5)',
+                                      color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151',
+                                      '&:hover': alloc ? {
+                                        opacity: 0.8,
+                                        transform: 'scale(0.98)'
+                                      } : {}
+                                    }}
+                                    onClick={() => alloc && clearAllocation(key)}
+                                    title={alloc ? `${alloc.team} (${alloc.duration}min) - Click to remove` : `Section ${sec} - Available`}
+                                  >
+                                    <div style={{
+                                      fontSize: '12px',
+                                      opacity: 0.75,
+                                      marginBottom: '4px',
+                                      fontWeight: 'bold'
+                                    }}>{sec}</div>
+                                    <div style={{
+                                      textAlign: 'center',
+                                      padding: '0 4px',
+                                      fontSize: '12px',
+                                      lineHeight: 1.2
+                                    }}>
+                                      {alloc ? alloc.team : ''}
+                                    </div>
+                                    {alloc && alloc.isMultiSlot && (
+                                      <div style={{
+                                        fontSize: '12px',
+                                        opacity: 0.6,
+                                        marginTop: '4px'
+                                      }}>
+                                        {alloc.duration}min
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          
+                          {/* Grass area for pitches that have it enabled */}
+                          {showGrassArea[p.id] && (
+                            <div style={{ marginTop: '8px' }}>
+                              <div style={{
+                                position: 'relative',
+                                width: pitchOrientations[p.id] === 'portrait' ? '280px' : '400px',
+                                margin: '0 auto',
+                                display: 'grid',
+                                gridTemplateColumns: pitchOrientations[p.id] === 'portrait' ? '1fr 1fr' : '1fr 1fr 1fr 1fr',
+                                gap: '4px',
+                                height: '104px'
+                              }}>
+                                <div style={{
+                                  position: 'relative',
+                                  backgroundColor: '#dcfce7',
+                                  border: '4px solid white',
+                                  borderRadius: '8px',
+                                  padding: '8px'
+                                }}>
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    backgroundColor: '#bbf7d0',
+                                    borderRadius: '8px'
+                                  }}></div>
+                                  
+                                  <div style={{ position: 'relative', zIndex: 10, height: '100%' }}>
+                                    {(() => {
+                                      const key = `${date}-${s}-${p.id}-grass`;
+                                      const alloc = allocations[key];
+                                      return (
+                                        <div 
+                                          style={{
+                                            height: '100%',
+                                            border: '2px solid white',
+                                            borderRadius: '4px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '12px',
+                                            fontWeight: '500',
+                                            transition: 'all 0.2s',
+                                            cursor: alloc ? 'pointer' : 'default',
+                                            backgroundColor: alloc ? alloc.colour + '90' : 'rgba(255,255,255,0.1)',
+                                            borderColor: alloc ? alloc.colour : 'rgba(255,255,255,0.5)',
+                                            color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
+                                          }}
+                                          onClick={() => alloc && clearAllocation(key)}
+                                          title={alloc ? `${alloc.team} (${alloc.duration}min) - Click to remove` : `Grass Area - Available`}
+                                        >
+                                          <div style={{
+                                            fontSize: '12px',
+                                            opacity: 0.75,
+                                            marginBottom: '4px',
+                                            fontWeight: 'bold'
+                                          }}>GRASS</div>
+                                          <div style={{
+                                            textAlign: 'center',
+                                            padding: '0 4px',
+                                            fontSize: '12px',
+                                            lineHeight: 1.2
+                                          }}>
+                                            {alloc ? alloc.team : ''}
+                                          </div>
+                                          {alloc && alloc.isMultiSlot && (
+                                            <div style={{
+                                              fontSize: '12px',
+                                              opacity: 0.6,
+                                              marginTop: '4px'
+                                            }}>
+                                              {alloc.duration}min
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+                                <div></div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Spacer for pitches without grass area */}
+                          {!showGrassArea[p.id] && (
+                            <div style={{ 
+                              marginTop: '8px',
+                              height: '104px',
+                              width: pitchOrientations[p.id] === 'portrait' ? '280px' : '400px',
+                              margin: '8px auto 0 auto'
+                            }}></div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>
@@ -1491,4 +1902,4 @@ function Settings({ onBack }) {
   );
 }
 
-export default Settings;
+export default TrainingPitchAllocator;
