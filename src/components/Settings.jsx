@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom"
 import { auth, db } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, query, where, addDoc } from "firebase/firestore";
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 
 const pitches = [
@@ -153,13 +153,12 @@ function Settings({ onBack }) {
       const todayString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
       console.log('Today\'s date for filtering:', todayString);
       
-      // Initialize allocation objects
+      // Initialize allocation objects - using date field as key
       const futureTrainingAllocations = {};
       const futureMatchDayAllocations = {};
       
       try {
         // Query training allocations collection directly (root-level collection)
-        // Filter by clubId and get all documents
         console.log('Fetching training allocations from root collection...');
         const trainingQuery = query(
           collection(db, 'trainingAllocations'),
@@ -170,19 +169,23 @@ function Settings({ onBack }) {
         console.log(`Found ${trainingSnapshot.size} training allocation documents`);
         
         trainingSnapshot.forEach((doc) => {
-          const dateId = doc.id; // Document ID is the date
           const data = doc.data();
+          const dateField = data.date; // Get the date from inside the document
           
           // Check if this date is today or in the future
-          if (dateId >= todayString) {
-            futureTrainingAllocations[dateId] = data;
-            console.log(`Added training allocation for ${dateId}`);
-          } else {
-            console.log(`Skipped past training allocation for ${dateId}`);
+          if (dateField && dateField >= todayString) {
+            // Store by date, not by document ID
+            futureTrainingAllocations[dateField] = {
+              ...data,
+              _docId: doc.id // Store original doc ID for reference
+            };
+            console.log(`Added training allocation for date ${dateField} (doc ID: ${doc.id})`);
+          } else if (dateField) {
+            console.log(`Skipped past training allocation for date ${dateField}`);
           }
         });
         
-        // Query match allocations collection (assuming similar structure)
+        // Query match allocations collection
         console.log('Fetching match allocations from root collection...');
         const matchQuery = query(
           collection(db, 'matchAllocations'),
@@ -193,15 +196,19 @@ function Settings({ onBack }) {
         console.log(`Found ${matchSnapshot.size} match allocation documents`);
         
         matchSnapshot.forEach((doc) => {
-          const dateId = doc.id; // Document ID is the date
           const data = doc.data();
+          const dateField = data.date; // Get the date from inside the document
           
           // Check if this date is today or in the future
-          if (dateId >= todayString) {
-            futureMatchDayAllocations[dateId] = data;
-            console.log(`Added match allocation for ${dateId}`);
-          } else {
-            console.log(`Skipped past match allocation for ${dateId}`);
+          if (dateField && dateField >= todayString) {
+            // Store by date, not by document ID
+            futureMatchDayAllocations[dateField] = {
+              ...data,
+              _docId: doc.id // Store original doc ID for reference
+            };
+            console.log(`Added match allocation for date ${dateField} (doc ID: ${doc.id})`);
+          } else if (dateField) {
+            console.log(`Skipped past match allocation for date ${dateField}`);
           }
         });
         
@@ -213,7 +220,6 @@ function Settings({ onBack }) {
         
         try {
           if (clubInfo?.clubId) {
-            // Check for allocations as a subcollection under clubs
             const trainingDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'trainingAllocations');
             const matchDayDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'matchDayAllocations');
             
@@ -260,13 +266,26 @@ function Settings({ onBack }) {
         }
       }
       
+      // Clean up the backup data (remove _docId from stored data)
+      const cleanedTrainingAllocations = {};
+      Object.entries(futureTrainingAllocations).forEach(([date, data]) => {
+        const { _docId, ...cleanData } = data;
+        cleanedTrainingAllocations[date] = cleanData;
+      });
+      
+      const cleanedMatchDayAllocations = {};
+      Object.entries(futureMatchDayAllocations).forEach(([date, data]) => {
+        const { _docId, ...cleanData } = data;
+        cleanedMatchDayAllocations[date] = cleanData;
+      });
+      
       const backupData = {
         backupDate: new Date().toISOString(),
         clubId: clubInfo?.clubId,
         clubName: clubInfo?.name,
-        trainingAllocations: futureTrainingAllocations,
-        matchDayAllocations: futureMatchDayAllocations,
-        backupVersion: "1.0"
+        trainingAllocations: cleanedTrainingAllocations,
+        matchDayAllocations: cleanedMatchDayAllocations,
+        backupVersion: "1.1" // Updated version to indicate new structure
       };
       
       // Create and download the file
@@ -282,7 +301,7 @@ function Settings({ onBack }) {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      alert(`✅ Backup created successfully!\n\nTraining allocations: ${Object.keys(futureTrainingAllocations).length} dates\nMatch day allocations: ${Object.keys(futureMatchDayAllocations).length} dates`);
+      alert(`✅ Backup created successfully!\n\nTraining allocations: ${Object.keys(cleanedTrainingAllocations).length} dates\nMatch day allocations: ${Object.keys(cleanedMatchDayAllocations).length} dates`);
       setShowHamburgerMenu(false);
     } catch (error) {
       console.error('Error creating backup:', error);
@@ -362,31 +381,75 @@ function Settings({ onBack }) {
             if (clubInfo?.clubId) {
               try {
                 let trainingRestored = 0;
+                let trainingFailed = [];
                 let matchRestored = 0;
+                let matchFailed = [];
                 
-                // Restore training allocations - write each date as a separate document
+                console.log('Starting restore process...');
+                console.log('Training allocations to restore:', Object.keys(futureTrainingAllocations));
+                console.log('Match allocations to restore:', Object.keys(futureMatchDayAllocations));
+                
+                // Restore training allocations - handle both structures
                 for (const [date, allocation] of Object.entries(futureTrainingAllocations)) {
                   try {
-                    // Write to root-level collection with date as document ID
-                    // Keep the exact structure from the backup
-                    await setDoc(doc(db, 'trainingAllocations', date), allocation, { merge: false });
+                    console.log(`Attempting to restore training allocation for date ${date}:`, allocation);
+                    
+                    // First, check if a document with this date already exists
+                    const existingQuery = query(
+                      collection(db, 'trainingAllocations'),
+                      where('date', '==', date),
+                      where('clubId', '==', clubInfo.clubId)
+                    );
+                    const existingDocs = await getDocs(existingQuery);
+                    
+                    if (!existingDocs.empty) {
+                      // Update existing document(s)
+                      for (const existingDoc of existingDocs.docs) {
+                        await setDoc(doc(db, 'trainingAllocations', existingDoc.id), allocation, { merge: false });
+                        console.log(`✅ Updated existing training allocation for ${date} (doc ID: ${existingDoc.id})`);
+                      }
+                    } else {
+                      // Create new document with auto-generated ID
+                      const docRef = await addDoc(collection(db, 'trainingAllocations'), allocation);
+                      console.log(`✅ Created new training allocation for ${date} (doc ID: ${docRef.id})`);
+                    }
+                    
                     trainingRestored++;
-                    console.log(`Restored training allocation for ${date}`);
                   } catch (docError) {
-                    console.error(`Failed to restore training allocation for ${date}:`, docError);
+                    console.error(`❌ Failed to restore training allocation for ${date}:`, docError);
+                    trainingFailed.push({ date, error: docError.message });
                   }
                 }
                 
-                // Restore match day allocations - write each date as a separate document
+                // Restore match day allocations - handle both structures
                 for (const [date, allocation] of Object.entries(futureMatchDayAllocations)) {
                   try {
-                    // Write to root-level collection with date as document ID
-                    // Keep the exact structure from the backup
-                    await setDoc(doc(db, 'matchAllocations', date), allocation, { merge: false });
+                    console.log(`Attempting to restore match allocation for date ${date}:`, allocation);
+                    
+                    // First, check if a document with this date already exists
+                    const existingQuery = query(
+                      collection(db, 'matchAllocations'),
+                      where('date', '==', date),
+                      where('clubId', '==', clubInfo.clubId)
+                    );
+                    const existingDocs = await getDocs(existingQuery);
+                    
+                    if (!existingDocs.empty) {
+                      // Update existing document(s)
+                      for (const existingDoc of existingDocs.docs) {
+                        await setDoc(doc(db, 'matchAllocations', existingDoc.id), allocation, { merge: false });
+                        console.log(`✅ Updated existing match allocation for ${date} (doc ID: ${existingDoc.id})`);
+                      }
+                    } else {
+                      // Create new document with auto-generated ID
+                      const docRef = await addDoc(collection(db, 'matchAllocations'), allocation);
+                      console.log(`✅ Created new match allocation for ${date} (doc ID: ${docRef.id})`);
+                    }
+                    
                     matchRestored++;
-                    console.log(`Restored match allocation for ${date}`);
                   } catch (docError) {
-                    console.error(`Failed to restore match allocation for ${date}:`, docError);
+                    console.error(`❌ Failed to restore match allocation for ${date}:`, docError);
+                    matchFailed.push({ date, error: docError.message });
                   }
                 }
                 
@@ -394,31 +457,43 @@ function Settings({ onBack }) {
                 try {
                   if (Object.keys(futureTrainingAllocations).length > 0) {
                     const trainingDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'trainingAllocations');
-                    const trainingData = {
-                      ...futureTrainingAllocations,
-                      lastUpdated: new Date().toISOString(),
-                      updatedBy: user?.email
-                    };
-                    await setDoc(trainingDocRef, trainingData, { merge: true });
+                    await setDoc(trainingDocRef, futureTrainingAllocations, { merge: true });
+                    console.log('✅ Updated alternative training structure');
                   }
                   
                   if (Object.keys(futureMatchDayAllocations).length > 0) {
                     const matchDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'matchDayAllocations');
-                    const matchData = {
-                      ...futureMatchDayAllocations,
-                      lastUpdated: new Date().toISOString(),
-                      updatedBy: user?.email
-                    };
-                    await setDoc(matchDocRef, matchData, { merge: true });
+                    await setDoc(matchDocRef, futureMatchDayAllocations, { merge: true });
+                    console.log('✅ Updated alternative match structure');
                   }
                 } catch (altError) {
                   console.log('Could not update alternative structure (this is okay):', altError);
                 }
                 
-                alert(`✅ Allocations restored successfully!\n\n` +
-                  `Training allocations restored: ${trainingRestored} dates\n` +
-                  `Match day allocations restored: ${matchRestored} dates\n\n` +
-                  `The page will refresh in 5 seconds to show the updated allocations.`);
+                // Prepare detailed report
+                let alertMessage = `✅ Allocations restore completed!\n\n`;
+                alertMessage += `Training allocations restored: ${trainingRestored} dates\n`;
+                alertMessage += `Match day allocations restored: ${matchRestored} dates\n`;
+                
+                if (trainingFailed.length > 0 || matchFailed.length > 0) {
+                  alertMessage += `\n⚠️ Some allocations failed to restore:\n`;
+                  if (trainingFailed.length > 0) {
+                    alertMessage += `Training failures: ${trainingFailed.map(f => f.date).join(', ')}\n`;
+                  }
+                  if (matchFailed.length > 0) {
+                    alertMessage += `Match failures: ${matchFailed.map(f => f.date).join(', ')}\n`;
+                  }
+                  alertMessage += `\nCheck the browser console for details.`;
+                  
+                  console.error('Failed restorations:', {
+                    training: trainingFailed,
+                    match: matchFailed
+                  });
+                }
+                
+                alertMessage += `\nThe page will refresh in 5 seconds to show the updated allocations.`;
+                
+                alert(alertMessage);
                 
                 // Wait longer and ensure all writes are complete before refreshing
                 setTimeout(() => {
