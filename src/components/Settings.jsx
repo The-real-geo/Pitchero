@@ -486,6 +486,149 @@ function Settings({ onBack }) {
             // Restore the allocations
             const today = new Date();
             today.setHours(0, 0, 0, 0);
+            const todayString = today.toISOString().split('T')[0];
+            
+            // Filter to only restore future dates
+            const futureTrainingAllocations = {};
+            Object.entries(backupData.trainingAllocations).forEach(([date, allocation]) => {
+              if (date >= todayString) {
+                futureTrainingAllocations[date] = allocation;
+              }
+            });
+            
+            const futureMatchDayAllocations = {};
+            Object.entries(backupData.matchDayAllocations).forEach(([date, allocation]) => {
+              if (date >= todayString) {
+                futureMatchDayAllocations[date] = allocation;
+              }
+            });
+            
+            // Update Firebase with restored allocations
+            if (clubInfo?.clubId) {
+              try {
+                let trainingRestored = 0;
+                let matchRestored = 0;
+                
+                // Restore training allocations - write each date as a separate document
+                for (const [date, allocation] of Object.entries(futureTrainingAllocations)) {
+                  try {
+                    // Ensure clubId is set in the allocation data
+                    const allocationData = {
+                      ...allocation,
+                      clubId: clubInfo.clubId,
+                      date: date,
+                      lastUpdated: new Date().toISOString(),
+                      updatedBy: user?.email
+                    };
+                    
+                    // Write to root-level collection with date as document ID
+                    await setDoc(doc(db, 'trainingAllocations', date), allocationData, { merge: true });
+                    trainingRestored++;
+                    console.log(`Restored training allocation for ${date}`);
+                  } catch (docError) {
+                    console.error(`Failed to restore training allocation for ${date}:`, docError);
+                  }
+                }
+                
+                // Restore match day allocations - write each date as a separate document
+                for (const [date, allocation] of Object.entries(futureMatchDayAllocations)) {
+                  try {
+                    // Ensure clubId is set in the allocation data
+                    const allocationData = {
+                      ...allocation,
+                      clubId: clubInfo.clubId,
+                      date: date,
+                      lastUpdated: new Date().toISOString(),
+                      updatedBy: user?.email
+                    };
+                    
+                    // Write to root-level collection with date as document ID
+                    await setDoc(doc(db, 'matchAllocations', date), allocationData, { merge: true });
+                    matchRestored++;
+                    console.log(`Restored match allocation for ${date}`);
+                  } catch (docError) {
+                    console.error(`Failed to restore match allocation for ${date}:`, docError);
+                  }
+                }
+                
+                // Also try to update the alternative structure (under clubs collection)
+                try {
+                  if (Object.keys(futureTrainingAllocations).length > 0) {
+                    const trainingDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'trainingAllocations');
+                    const trainingData = {
+                      ...futureTrainingAllocations,
+                      lastUpdated: new Date().toISOString(),
+                      updatedBy: user?.email
+                    };
+                    await setDoc(trainingDocRef, trainingData, { merge: true });
+                  }
+                  
+                  if (Object.keys(futureMatchDayAllocations).length > 0) {
+                    const matchDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'matchDayAllocations');
+                    const matchData = {
+                      ...futureMatchDayAllocations,
+                      lastUpdated: new Date().toISOString(),
+                      updatedBy: user?.email
+                    };
+                    await setDoc(matchDocRef, matchData, { merge: true });
+                  }
+                } catch (altError) {
+                  console.log('Could not update alternative structure (this is okay):', altError);
+                }
+                
+                alert(`✅ Allocations restored successfully!\n\n` +
+                  `Training allocations restored: ${trainingRestored} dates\n` +
+                  `Match day allocations restored: ${matchRestored} dates\n\n` +
+                  `Please refresh the page to see the updated allocations.`);
+                
+                // Optionally refresh the page after a short delay
+                setTimeout(() => {
+                  window.location.reload();
+                }, 2000);
+              } catch (error) {
+                console.error('Error updating Firebase:', error);
+                alert('❌ Error restoring allocations to database. Please check your permissions.');
+              }
+            } else {
+              alert('❌ Unable to restore allocations. Club information not available.');
+            }
+            
+            setShowHamburgerMenu(false);
+          } catch (error) {
+            console.error('Error restoring allocations:', error);
+            alert('❌ Error restoring allocations. Please check the file format and try again.');
+          } finally {
+            setIsRestoring(false);
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  };ations).length;
+            
+            const confirmMessage = `⚠️ WARNING: This will OVERWRITE all existing allocations!\n\n` +
+              `Backup details:\n` +
+              `• Created: ${new Date(backupData.backupDate).toLocaleDateString()}\n` +
+              `• Club: ${backupData.clubName || 'Unknown'}\n` +
+              `• Training allocations to restore: ${trainingCount} dates\n` +
+              `• Match day allocations to restore: ${matchDayCount} dates\n\n` +
+              `Are you absolutely sure you want to restore these allocations?`;
+            
+            if (!window.confirm(confirmMessage)) {
+              setIsRestoring(false);
+              return;
+            }
+            
+            // Second confirmation for safety
+            if (!window.confirm('This action cannot be undone. Continue with restore?')) {
+              setIsRestoring(false);
+              return;
+            }
+            
+            // Restore the allocations
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             
             // Filter to only restore future dates
             const futureTrainingAllocations = {};
