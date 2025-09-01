@@ -975,7 +975,7 @@ function TrainingPitchAllocator({ onBack }) {
                   }}
                   title="Prev Day"
                 >
-                  ← Previous Day
+                  ← Prev Day
                 </button>
                 <button
                   onClick={navigateToNextDay}
