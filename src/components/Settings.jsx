@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom"
 import { auth, db } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, setDoc, collection, getDocs, query, where, deleteDoc } from "firebase/firestore";
+import { doc, setDoc, collection, getDocs, query, where, deleteDoc, getDoc, updateDoc } from "firebase/firestore";
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 
 const pitches = [
@@ -59,6 +59,10 @@ function Settings({ onBack }) {
   
   // Backup reminder state
   const [showBackupReminder, setShowBackupReminder] = useState(false);
+  
+  // Loading state for settings
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   
   // State for teams
   const [teams, setTeams] = useState(defaultTeams);
@@ -128,6 +132,83 @@ function Settings({ onBack }) {
       console.error('Error signing out:', error);
     }
   };
+
+  // Save settings to Firestore
+  const saveSettingsToFirestore = async (settingsData) => {
+    if (!clubInfo?.clubId) {
+      console.error('No club ID available');
+      return;
+    }
+
+    setIsSavingSettings(true);
+    try {
+      const settingsRef = doc(db, 'clubs', clubInfo.clubId, 'settings', 'general');
+      
+      const dataToSave = {
+        teams: settingsData.teams || teams,
+        pitchOrientations: settingsData.pitchOrientations || pitchOrientations,
+        showGrassArea: settingsData.showGrassArea || showGrassArea,
+        matchDayPitchAreaRequired: settingsData.matchDayPitchAreaRequired || matchDayPitchAreaRequired,
+        lastUpdated: new Date().toISOString(),
+        updatedBy: user?.email || 'unknown'
+      };
+
+      await setDoc(settingsRef, dataToSave, { merge: true });
+      console.log('Settings saved successfully to Firestore');
+    } catch (error) {
+      console.error('Error saving settings to Firestore:', error);
+      alert('Failed to save settings. Please try again.');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  // Load settings from Firestore
+  const loadSettingsFromFirestore = async () => {
+    if (!clubInfo?.clubId) {
+      console.log('No club ID available yet');
+      return;
+    }
+
+    setIsLoadingSettings(true);
+    try {
+      const settingsRef = doc(db, 'clubs', clubInfo.clubId, 'settings', 'general');
+      const settingsDoc = await getDoc(settingsRef);
+
+      if (settingsDoc.exists()) {
+        const data = settingsDoc.data();
+        console.log('Loaded settings from Firestore:', data);
+        
+        // Update state with loaded settings
+        if (data.teams) setTeams(data.teams);
+        if (data.pitchOrientations) setPitchOrientations(data.pitchOrientations);
+        if (data.showGrassArea) setShowGrassArea(data.showGrassArea);
+        if (data.matchDayPitchAreaRequired) {
+          setMatchDayPitchAreaRequired(data.matchDayPitchAreaRequired);
+        }
+      } else {
+        console.log('No settings found in Firestore, using defaults');
+        // Save default settings to Firestore for first time
+        await saveSettingsToFirestore({
+          teams: defaultTeams,
+          pitchOrientations: { 'pitch1': 'portrait', 'pitch2': 'portrait' },
+          showGrassArea: { 'pitch1': false, 'pitch2': true },
+          matchDayPitchAreaRequired: matchDayPitchAreaRequired
+        });
+      }
+    } catch (error) {
+      console.error('Error loading settings from Firestore:', error);
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
+
+  // Load settings when clubInfo becomes available
+  useEffect(() => {
+    if (clubInfo?.clubId) {
+      loadSettingsFromFirestore();
+    }
+  }, [clubInfo?.clubId]);
 
   // Copy club ID to clipboard
   const copyClubId = () => {
@@ -418,50 +499,97 @@ function Settings({ onBack }) {
     input.click();
   };
 
-  const handleAddTeam = () => {
+  const handleAddTeam = async () => {
     if (newTeamName.trim() && !teams.find(t => t.name === newTeamName.trim())) {
       const newTeam = {
         name: newTeamName.trim(),
         color: newTeamColor
       };
-      setTeams(prev => [...prev, newTeam]);
-      setMatchDayPitchAreaRequired(prev => ({
-        ...prev,
+      const updatedTeams = [...teams, newTeam];
+      setTeams(updatedTeams);
+      
+      const updatedMatchDaySettings = {
+        ...matchDayPitchAreaRequired,
         [newTeam.name]: getDefaultPitchAreaForTeam(newTeam.name)
-      }));
+      };
+      setMatchDayPitchAreaRequired(updatedMatchDaySettings);
+      
+      // Save to Firestore
+      await saveSettingsToFirestore({
+        teams: updatedTeams,
+        pitchOrientations: pitchOrientations,
+        showGrassArea: showGrassArea,
+        matchDayPitchAreaRequired: updatedMatchDaySettings
+      });
+      
       setNewTeamName('');
       setNewTeamColor('#3B82F6');
     }
   };
 
-  const removeTeam = (teamName) => {
-    setTeams(prevTeams => prevTeams.filter(team => team.name !== teamName));
-    setMatchDayPitchAreaRequired(prev => {
-      const updated = { ...prev };
-      delete updated[teamName];
-      return updated;
+  const removeTeam = async (teamName) => {
+    const updatedTeams = teams.filter(team => team.name !== teamName);
+    setTeams(updatedTeams);
+    
+    const updatedMatchDaySettings = { ...matchDayPitchAreaRequired };
+    delete updatedMatchDaySettings[teamName];
+    setMatchDayPitchAreaRequired(updatedMatchDaySettings);
+    
+    // Save to Firestore
+    await saveSettingsToFirestore({
+      teams: updatedTeams,
+      pitchOrientations: pitchOrientations,
+      showGrassArea: showGrassArea,
+      matchDayPitchAreaRequired: updatedMatchDaySettings
     });
   };
 
-  const updatePitchOrientation = (pitchId, orientation) => {
-    setPitchOrientations(prev => ({
-      ...prev,
+  const updatePitchOrientation = async (pitchId, orientation) => {
+    const updatedOrientations = {
+      ...pitchOrientations,
       [pitchId]: orientation
-    }));
+    };
+    setPitchOrientations(updatedOrientations);
+    
+    // Save to Firestore
+    await saveSettingsToFirestore({
+      teams: teams,
+      pitchOrientations: updatedOrientations,
+      showGrassArea: showGrassArea,
+      matchDayPitchAreaRequired: matchDayPitchAreaRequired
+    });
   };
 
-  const updateGrassAreaVisibility = (pitchId, visible) => {
-    setShowGrassArea(prev => ({
-      ...prev,
+  const updateGrassAreaVisibility = async (pitchId, visible) => {
+    const updatedShowGrassArea = {
+      ...showGrassArea,
       [pitchId]: visible
-    }));
+    };
+    setShowGrassArea(updatedShowGrassArea);
+    
+    // Save to Firestore
+    await saveSettingsToFirestore({
+      teams: teams,
+      pitchOrientations: pitchOrientations,
+      showGrassArea: updatedShowGrassArea,
+      matchDayPitchAreaRequired: matchDayPitchAreaRequired
+    });
   };
 
-  const updateMatchDayPitchAreaRequired = (teamName, pitchAreaReq) => {
-    setMatchDayPitchAreaRequired(prev => ({
-      ...prev,
+  const updateMatchDayPitchAreaRequired = async (teamName, pitchAreaReq) => {
+    const updatedMatchDaySettings = {
+      ...matchDayPitchAreaRequired,
       [teamName]: pitchAreaReq
-    }));
+    };
+    setMatchDayPitchAreaRequired(updatedMatchDaySettings);
+    
+    // Save to Firestore
+    await saveSettingsToFirestore({
+      teams: teams,
+      pitchOrientations: pitchOrientations,
+      showGrassArea: showGrassArea,
+      matchDayPitchAreaRequired: updatedMatchDaySettings
+    });
   };
 
   const generateRandomColor = () => {
@@ -502,18 +630,28 @@ function Settings({ onBack }) {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
           try {
             const importData = JSON.parse(e.target.result);
             if (importData.teams) setTeams(importData.teams);
             if (importData.pitchOrientations) setPitchOrientations(importData.pitchOrientations);
             if (importData.showGrassArea) setShowGrassArea(importData.showGrassArea);
             if (importData.matchDayPitchAreaRequired) setMatchDayPitchAreaRequired(importData.matchDayPitchAreaRequired);
+            
+            // Save imported settings to Firestore
+            await saveSettingsToFirestore({
+              teams: importData.teams || teams,
+              pitchOrientations: importData.pitchOrientations || pitchOrientations,
+              showGrassArea: importData.showGrassArea || showGrassArea,
+              matchDayPitchAreaRequired: importData.matchDayPitchAreaRequired || matchDayPitchAreaRequired
+            });
+            
             setShowHamburgerMenu(false);
+            alert('Settings imported and saved successfully!');
           } catch (error) {
             console.error('Error importing settings:', error);
             alert('Error importing settings file. Please check the file format.');
@@ -525,7 +663,7 @@ function Settings({ onBack }) {
     input.click();
   };
 
-  const resetToDefaults = () => {
+  const resetToDefaults = async () => {
     if (window.confirm("Are you sure you want to reset all settings to defaults?")) {
       setTeams(defaultTeams);
       setPitchOrientations({
@@ -541,7 +679,17 @@ function Settings({ onBack }) {
         defaults[team.name] = getDefaultPitchAreaForTeam(team.name);
       });
       setMatchDayPitchAreaRequired(defaults);
+      
+      // Save defaults to Firestore
+      await saveSettingsToFirestore({
+        teams: defaultTeams,
+        pitchOrientations: { 'pitch1': 'portrait', 'pitch2': 'portrait' },
+        showGrassArea: { 'pitch1': false, 'pitch2': true },
+        matchDayPitchAreaRequired: defaults
+      });
+      
       setShowHamburgerMenu(false);
+      alert('Settings reset to defaults and saved!');
     }
   };
 
