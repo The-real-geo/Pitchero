@@ -367,17 +367,9 @@ function Settings({ onBack }) {
                 // Restore training allocations - write each date as a separate document
                 for (const [date, allocation] of Object.entries(futureTrainingAllocations)) {
                   try {
-                    // Ensure clubId is set in the allocation data
-                    const allocationData = {
-                      ...allocation,
-                      clubId: clubInfo.clubId,
-                      date: date,
-                      lastUpdated: new Date().toISOString(),
-                      updatedBy: user?.email
-                    };
-                    
                     // Write to root-level collection with date as document ID
-                    await setDoc(doc(db, 'trainingAllocations', date), allocationData, { merge: true });
+                    // Keep the exact structure from the backup
+                    await setDoc(doc(db, 'trainingAllocations', date), allocation, { merge: false });
                     trainingRestored++;
                     console.log(`Restored training allocation for ${date}`);
                   } catch (docError) {
@@ -388,17 +380,9 @@ function Settings({ onBack }) {
                 // Restore match day allocations - write each date as a separate document
                 for (const [date, allocation] of Object.entries(futureMatchDayAllocations)) {
                   try {
-                    // Ensure clubId is set in the allocation data
-                    const allocationData = {
-                      ...allocation,
-                      clubId: clubInfo.clubId,
-                      date: date,
-                      lastUpdated: new Date().toISOString(),
-                      updatedBy: user?.email
-                    };
-                    
                     // Write to root-level collection with date as document ID
-                    await setDoc(doc(db, 'matchAllocations', date), allocationData, { merge: true });
+                    // Keep the exact structure from the backup
+                    await setDoc(doc(db, 'matchAllocations', date), allocation, { merge: false });
                     matchRestored++;
                     console.log(`Restored match allocation for ${date}`);
                   } catch (docError) {
@@ -434,12 +418,12 @@ function Settings({ onBack }) {
                 alert(`✅ Allocations restored successfully!\n\n` +
                   `Training allocations restored: ${trainingRestored} dates\n` +
                   `Match day allocations restored: ${matchRestored} dates\n\n` +
-                  `Please refresh the page to see the updated allocations.`);
+                  `The page will refresh in 5 seconds to show the updated allocations.`);
                 
-                // Optionally refresh the page after a short delay
+                // Wait longer and ensure all writes are complete before refreshing
                 setTimeout(() => {
                   window.location.reload();
-                }, 2000);
+                }, 5000);
               } catch (error) {
                 console.error('Error updating Firebase:', error);
                 alert('❌ Error restoring allocations to database. Please check your permissions.');
