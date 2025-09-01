@@ -175,15 +175,13 @@ function TrainingPitchAllocator({ onBack }) {
 
   // Update team selection when teams change
   useEffect(() => {
-    if (teams.length > 0) {
-      // Only set team if it's empty or not in the current teams list
-      setTeam(prevTeam => {
-        if (!prevTeam || !teams.find(t => t.name === prevTeam)) {
-          return teams[0].name;
-        }
-        return prevTeam;
-      });
+    if (teams.length > 0 && !team) {
+      setTeam(teams[0].name);
+    } else if (teams.length > 0 && team && !teams.find(t => t.name === team)) {
+      // If current team selection is not in the teams list, select the first one
+      setTeam(teams[0].name);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teams]);
 
   // Load data when date changes
@@ -2005,7 +2003,7 @@ function TrainingPitchAllocator({ onBack }) {
                                           {alloc && alloc.isMultiSlot && (
                                             <div style={{
                                               fontSize: '12px',
-                                              opacity: 0.6,
+                                              opacity: 0.6',
                                               marginTop: '4px'
                                             }}>
                                               {alloc.duration}min
