@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 import { useNavigate } from "react-router-dom";
-import { auth } from "../utils/firebase";
+import { auth, db } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import { createSharedAllocation } from '../utils/firebase';
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
@@ -11,6 +12,7 @@ const pitches = [
   { id: "pitch1", name: "Pitch 1 - Astro", hasGrassArea: false }
 ];
 
+// Default teams as fallback
 const defaultTeams = [
   { name: "Under 6", color: "#00FFFF" },
   { name: "Under 8", color: "#FF0000" },
@@ -26,6 +28,17 @@ const defaultTeams = [
   { name: "Under 15 YCC", color: "#8B4513" },
   { name: "Under 16 YCC", color: "#696969" }
 ];
+
+// Default pitch settings as fallback
+const defaultPitchOrientations = {
+  'pitch1': 'portrait',
+  'pitch2': 'portrait'
+};
+
+const defaultShowGrassArea = {
+  'pitch1': false,
+  'pitch2': true
+};
 
 const timeSlots = (start = 17, end = 21) => {
   const slots = [];
@@ -48,34 +61,33 @@ function TrainingPitchAllocator({ onBack }) {
   // Firebase integration
   const navigate = useNavigate();
   const {
-  allocations,
-  loading,
-  error,
-  userProfile,
-  clubInfo,
-  loadAllocationsForDate,
-  saveAllocationToFirestore,
-  clearAllAllocationsForDate,
-  deleteAllocationFromFirestore,
-  deleteAllocationsByBookingId
-} = useFirebaseAllocations('trainingAllocations');
+    allocations,
+    loading,
+    error,
+    userProfile,
+    clubInfo,
+    loadAllocationsForDate,
+    saveAllocationToFirestore,
+    clearAllAllocationsForDate,
+    deleteAllocationFromFirestore,
+    deleteAllocationsByBookingId
+  } = useFirebaseAllocations('trainingAllocations');
 
   // Auth state
   const [user, setUser] = useState(null);
 
-  // State management
-  const [teams] = useState(defaultTeams);
-  const [pitchOrientations] = useState({
-    'pitch1': 'portrait',
-    'pitch2': 'portrait'
-  });
-  const [showGrassArea] = useState({
-    'pitch1': false,
-    'pitch2': true
-  });
+  // Settings states - initialize with defaults
+  const [teams, setTeams] = useState(defaultTeams);
+  const [pitchOrientations, setPitchOrientations] = useState(defaultPitchOrientations);
+  const [showGrassArea, setShowGrassArea] = useState(defaultShowGrassArea);
+  
+  // Loading state for settings
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [settingsError, setSettingsError] = useState(null);
 
+  // State management
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [team, setTeam] = useState(teams[0].name);
+  const [team, setTeam] = useState('');
   const [pitch, setPitch] = useState(pitches[0].id);
   const [section, setSection] = useState(sections[0]);
   const [slot, setSlot] = useState(timeSlots()[0]);
@@ -101,6 +113,75 @@ function TrainingPitchAllocator({ onBack }) {
     });
     return () => unsubscribe();
   }, []);
+
+  // Load settings from Firestore
+  useEffect(() => {
+    const loadSettingsFromFirestore = async () => {
+      if (!clubInfo?.clubId) {
+        console.log('No club ID available yet');
+        return;
+      }
+
+      setIsLoadingSettings(true);
+      setSettingsError(null);
+
+      try {
+        const settingsRef = doc(db, 'clubs', clubInfo.clubId, 'settings', 'general');
+        const settingsDoc = await getDoc(settingsRef);
+
+        if (settingsDoc.exists()) {
+          const data = settingsDoc.data();
+          console.log('Loaded settings from Firestore:', data);
+
+          // Update teams if they exist in settings
+          if (data.teams && Array.isArray(data.teams)) {
+            setTeams(data.teams);
+            // Set initial team selection if teams are loaded
+            if (data.teams.length > 0) {
+              setTeam(data.teams[0].name);
+            }
+          }
+
+          // Update pitch orientations if they exist
+          if (data.pitchOrientations) {
+            setPitchOrientations(data.pitchOrientations);
+          }
+
+          // Update grass area visibility if it exists
+          if (data.showGrassArea) {
+            setShowGrassArea(data.showGrassArea);
+          }
+        } else {
+          console.log('No settings found in Firestore, using defaults');
+          // Set initial team selection from defaults
+          if (defaultTeams.length > 0) {
+            setTeam(defaultTeams[0].name);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading settings from Firestore:', error);
+        setSettingsError('Failed to load settings. Using default values.');
+        // Ensure we have a default team selected even on error
+        if (teams.length > 0 && !team) {
+          setTeam(teams[0].name);
+        }
+      } finally {
+        setIsLoadingSettings(false);
+      }
+    };
+
+    loadSettingsFromFirestore();
+  }, [clubInfo?.clubId]);
+
+  // Update team selection when teams change
+  useEffect(() => {
+    if (teams.length > 0 && !team) {
+      setTeam(teams[0].name);
+    } else if (teams.length > 0 && !teams.find(t => t.name === team)) {
+      // If current team selection is not in the teams list, select the first one
+      setTeam(teams[0].name);
+    }
+  }, [teams, team]);
 
   // Load data when date changes
   useEffect(() => {
@@ -730,6 +811,48 @@ function TrainingPitchAllocator({ onBack }) {
     );
   };
 
+  // Loading overlay for settings
+  if (isLoadingSettings) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999
+      }}>
+        <div style={{
+          animation: 'spin 1s linear infinite',
+          width: '50px',
+          height: '50px',
+          border: '4px solid #e5e7eb',
+          borderTop: '4px solid #3b82f6',
+          borderRadius: '50%'
+        }}></div>
+        <p style={{
+          marginTop: '16px',
+          fontSize: '16px',
+          color: '#6b7280',
+          fontWeight: '500'
+        }}>
+          Loading settings...
+        </p>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   return (
     <div style={{
       padding: '24px',
@@ -809,7 +932,7 @@ function TrainingPitchAllocator({ onBack }) {
         </div>
 
         {/* Error display */}
-        {error && (
+        {(error || settingsError) && (
           <div style={{
             backgroundColor: '#fef2f2',
             border: '1px solid #fecaca',
@@ -818,22 +941,24 @@ function TrainingPitchAllocator({ onBack }) {
             marginBottom: '24px',
             color: '#dc2626'
           }}>
-            <strong>⚠️ Error:</strong> {error}
-            <button
-              onClick={() => loadAllocationsForDate(date)}
-              style={{
-                marginLeft: '12px',
-                padding: '4px 8px',
-                backgroundColor: '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              Retry
-            </button>
+            <strong>⚠️ Error:</strong> {error || settingsError}
+            {error && (
+              <button
+                onClick={() => loadAllocationsForDate(date)}
+                style={{
+                  marginLeft: '12px',
+                  padding: '4px 8px',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
 
@@ -949,7 +1074,7 @@ function TrainingPitchAllocator({ onBack }) {
                   opacity: loading ? 0.6 : 1
                 }}
               />
-              {/* Date navigation button s */}
+              {/* Date navigation buttons */}
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
@@ -1128,7 +1253,7 @@ function TrainingPitchAllocator({ onBack }) {
               <select 
                 value={team} 
                 onChange={(e) => setTeam(e.target.value)}
-                disabled={loading}
+                disabled={loading || teams.length === 0}
                 style={{
                   width: '100%',
                   padding: '8px',
@@ -1136,12 +1261,16 @@ function TrainingPitchAllocator({ onBack }) {
                   borderRadius: '4px',
                   fontSize: '14px',
                   backgroundColor: 'white',
-                  opacity: loading ? 0.6 : 1
+                  opacity: (loading || teams.length === 0) ? 0.6 : 1
                 }}
               >
-                {teams.map((t) => (
-                  <option key={t.name} value={t.name}>{t.name}</option>
-                ))}
+                {teams.length === 0 ? (
+                  <option value="">No teams configured</option>
+                ) : (
+                  teams.map((t) => (
+                    <option key={t.name} value={t.name}>{t.name}</option>
+                  ))
+                )}
               </select>
               {/* Action buttons under Team dropdown */}
               <div style={{
@@ -1151,20 +1280,20 @@ function TrainingPitchAllocator({ onBack }) {
               }}>
                 <button 
                   onClick={addAllocation}
-                  disabled={hasConflict || loading}
+                  disabled={hasConflict || loading || teams.length === 0}
                   style={{
                     flex: 1,
                     padding: '8px',
-                    backgroundColor: (hasConflict || loading) ? '#9ca3af' : '#3b82f6',
+                    backgroundColor: (hasConflict || loading || teams.length === 0) ? '#9ca3af' : '#3b82f6',
                     color: 'white',
                     border: 'none',
                     borderRadius: '4px',
-                    cursor: (hasConflict || loading) ? 'not-allowed' : 'pointer',
+                    cursor: (hasConflict || loading || teams.length === 0) ? 'not-allowed' : 'pointer',
                     fontSize: '14px',
                     fontWeight: '500'
                   }}
                 >
-                  {loading ? 'Saving...' : 'Add Allocation'}
+                  {loading ? 'Saving...' : teams.length === 0 ? 'No Teams' : 'Add Allocation'}
                 </button>
                 
                 <button 
@@ -1193,6 +1322,16 @@ function TrainingPitchAllocator({ onBack }) {
                   marginTop: '4px'
                 }}>
                   ⚠️ Scheduling conflict detected
+                </div>
+              )}
+              {teams.length === 0 && (
+                <div style={{
+                  color: '#f59e0b',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  marginTop: '4px'
+                }}>
+                  ℹ️ Please configure teams in Settings
                 </div>
               )}
             </div>
