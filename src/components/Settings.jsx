@@ -44,9 +44,7 @@ function Settings({ onBack }) {
   const navigate = useNavigate();
   const { 
     userProfile, 
-    clubInfo, 
-    trainingAllocations, 
-    matchDayAllocations
+    clubInfo
   } = useFirebaseAllocations('trainingAllocations');
   
   // Auth state
