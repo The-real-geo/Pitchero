@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom"
-import { auth } from "../utils/firebase";
+import { auth, db } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 
 const pitches = [
@@ -49,6 +50,12 @@ function Settings({ onBack }) {
     updateTrainingAllocations,
     updateMatchDayAllocations 
   } = useFirebaseAllocations('trainingAllocations');
+  
+  // Debug: Log the allocations to check if they're being fetched
+  useEffect(() => {
+    console.log('Training Allocations:', trainingAllocations);
+    console.log('Match Day Allocations:', matchDayAllocations);
+  }, [trainingAllocations, matchDayAllocations]);
   
   // Auth state
   const [user, setUser] = useState(null);
@@ -137,15 +144,52 @@ function Settings({ onBack }) {
   };
 
   // Backup Allocations Function
-  const backupAllocations = () => {
+  const backupAllocations = async () => {
     try {
+      console.log('Starting backup...');
+      let trainingData = trainingAllocations;
+      let matchDayData = matchDayAllocations;
+      
+      // If data isn't available from the hook, fetch directly from Firebase
+      if (!trainingData || !matchDayData) {
+        console.log('Data not available from hook, fetching from Firebase...');
+        
+        if (clubInfo?.clubId) {
+          try {
+            // Fetch training allocations
+            const trainingDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'trainingAllocations');
+            const trainingDocSnap = await getDoc(trainingDocRef);
+            if (trainingDocSnap.exists()) {
+              trainingData = trainingDocSnap.data();
+              console.log('Fetched training data from Firebase:', trainingData);
+            }
+            
+            // Fetch match day allocations  
+            const matchDayDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'matchDayAllocations');
+            const matchDayDocSnap = await getDoc(matchDayDocRef);
+            if (matchDayDocSnap.exists()) {
+              matchDayData = matchDayDocSnap.data();
+              console.log('Fetched match day data from Firebase:', matchDayData);
+            }
+          } catch (error) {
+            console.error('Error fetching data from Firebase:', error);
+          }
+        }
+      }
+      
+      console.log('Raw training allocations:', trainingData);
+      console.log('Raw match day allocations:', matchDayData);
+      
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
       // Filter future training allocations
       const futureTrainingAllocations = {};
-      if (trainingAllocations) {
-        Object.entries(trainingAllocations).forEach(([date, allocation]) => {
+      if (trainingData) {
+        Object.entries(trainingData).forEach(([date, allocation]) => {
+          // Skip metadata fields
+          if (date === 'lastUpdated' || date === 'updatedBy') return;
+          
           const allocationDate = new Date(date);
           if (allocationDate >= today) {
             futureTrainingAllocations[date] = allocation;
@@ -155,14 +199,20 @@ function Settings({ onBack }) {
       
       // Filter future match day allocations
       const futureMatchDayAllocations = {};
-      if (matchDayAllocations) {
-        Object.entries(matchDayAllocations).forEach(([date, allocation]) => {
+      if (matchDayData) {
+        Object.entries(matchDayData).forEach(([date, allocation]) => {
+          // Skip metadata fields
+          if (date === 'lastUpdated' || date === 'updatedBy') return;
+          
           const allocationDate = new Date(date);
           if (allocationDate >= today) {
             futureMatchDayAllocations[date] = allocation;
           }
         });
       }
+      
+      console.log('Filtered future training allocations:', futureTrainingAllocations);
+      console.log('Filtered future match day allocations:', futureMatchDayAllocations);
       
       const backupData = {
         backupDate: new Date().toISOString(),
@@ -255,15 +305,33 @@ function Settings({ onBack }) {
             });
             
             // Update Firebase with restored allocations
-            if (updateTrainingAllocations && updateMatchDayAllocations) {
-              await updateTrainingAllocations(futureTrainingAllocations);
-              await updateMatchDayAllocations(futureMatchDayAllocations);
-              
-              alert(`✅ Allocations restored successfully!\n\n` +
-                `Training allocations restored: ${Object.keys(futureTrainingAllocations).length} dates\n` +
-                `Match day allocations restored: ${Object.keys(futureMatchDayAllocations).length} dates`);
+            if (clubInfo?.clubId) {
+              try {
+                // Update training allocations
+                const trainingDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'trainingAllocations');
+                await setDoc(trainingDocRef, {
+                  ...futureTrainingAllocations,
+                  lastUpdated: new Date().toISOString(),
+                  updatedBy: user?.email
+                }, { merge: true });
+                
+                // Update match day allocations
+                const matchDayDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'matchDayAllocations');
+                await setDoc(matchDayDocRef, {
+                  ...futureMatchDayAllocations,
+                  lastUpdated: new Date().toISOString(),
+                  updatedBy: user?.email
+                }, { merge: true });
+                
+                alert(`✅ Allocations restored successfully!\n\n` +
+                  `Training allocations restored: ${Object.keys(futureTrainingAllocations).length} dates\n` +
+                  `Match day allocations restored: ${Object.keys(futureMatchDayAllocations).length} dates`);
+              } catch (error) {
+                console.error('Error updating Firebase:', error);
+                alert('❌ Error restoring allocations to database. Please check your permissions.');
+              }
             } else {
-              alert('❌ Unable to update allocations. Please ensure you have the necessary permissions.');
+              alert('❌ Unable to restore allocations. Club information not available.');
             }
             
             setShowHamburgerMenu(false);
@@ -592,7 +660,7 @@ function Settings({ onBack }) {
               </div>
               
               <button
-                onClick={backupAllocations}
+                onClick={() => backupAllocations()}
                 style={{
                   width: '100%',
                   padding: '12px 16px',
@@ -619,7 +687,7 @@ function Settings({ onBack }) {
               </button>
               
               <button
-                onClick={restoreAllocations}
+                onClick={() => restoreAllocations()}
                 style={{
                   width: '100%',
                   padding: '12px 16px',
