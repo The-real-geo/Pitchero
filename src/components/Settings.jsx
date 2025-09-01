@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom"
 import { auth, db } from "../utils/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useFirebaseAllocations } from '../hooks/useFirebaseAllocations';
 
 const pitches = [
@@ -51,17 +51,15 @@ function Settings({ onBack }) {
     updateMatchDayAllocations 
   } = useFirebaseAllocations('trainingAllocations');
   
-  // Debug: Log the allocations to check if they're being fetched
-  useEffect(() => {
-    console.log('Training Allocations:', trainingAllocations);
-    console.log('Match Day Allocations:', matchDayAllocations);
-  }, [trainingAllocations, matchDayAllocations]);
-  
   // Auth state
   const [user, setUser] = useState(null);
   
   // Hamburger menu state
   const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
+  
+  // Loading states
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
   
   // Backup reminder state
   const [showBackupReminder, setShowBackupReminder] = useState(false);
@@ -145,40 +143,39 @@ function Settings({ onBack }) {
 
   // Backup Allocations Function
   const backupAllocations = async () => {
+    if (isBackingUp) return; // Prevent multiple clicks
+    
+    setIsBackingUp(true);
+    
     try {
-      console.log('Starting backup...');
       let trainingData = trainingAllocations;
       let matchDayData = matchDayAllocations;
       
       // If data isn't available from the hook, fetch directly from Firebase
       if (!trainingData || !matchDayData) {
-        console.log('Data not available from hook, fetching from Firebase...');
-        
         if (clubInfo?.clubId) {
           try {
-            // Fetch training allocations
-            const trainingDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'trainingAllocations');
-            const trainingDocSnap = await getDoc(trainingDocRef);
+            // Fetch both documents in parallel for better performance
+            const [trainingDocSnap, matchDayDocSnap] = await Promise.all([
+              getDoc(doc(db, 'clubs', clubInfo.clubId, 'allocations', 'trainingAllocations')),
+              getDoc(doc(db, 'clubs', clubInfo.clubId, 'allocations', 'matchDayAllocations'))
+            ]);
+            
             if (trainingDocSnap.exists()) {
               trainingData = trainingDocSnap.data();
-              console.log('Fetched training data from Firebase:', trainingData);
             }
             
-            // Fetch match day allocations  
-            const matchDayDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'matchDayAllocations');
-            const matchDayDocSnap = await getDoc(matchDayDocRef);
             if (matchDayDocSnap.exists()) {
               matchDayData = matchDayDocSnap.data();
-              console.log('Fetched match day data from Firebase:', matchDayData);
             }
           } catch (error) {
             console.error('Error fetching data from Firebase:', error);
+            alert('❌ Error fetching allocations from database. Please check your permissions.');
+            setIsBackingUp(false);
+            return;
           }
         }
       }
-      
-      console.log('Raw training allocations:', trainingData);
-      console.log('Raw match day allocations:', matchDayData);
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -190,9 +187,13 @@ function Settings({ onBack }) {
           // Skip metadata fields
           if (date === 'lastUpdated' || date === 'updatedBy') return;
           
-          const allocationDate = new Date(date);
-          if (allocationDate >= today) {
-            futureTrainingAllocations[date] = allocation;
+          try {
+            const allocationDate = new Date(date);
+            if (!isNaN(allocationDate.getTime()) && allocationDate >= today) {
+              futureTrainingAllocations[date] = allocation;
+            }
+          } catch (e) {
+            // Silently skip invalid dates
           }
         });
       }
@@ -204,15 +205,16 @@ function Settings({ onBack }) {
           // Skip metadata fields
           if (date === 'lastUpdated' || date === 'updatedBy') return;
           
-          const allocationDate = new Date(date);
-          if (allocationDate >= today) {
-            futureMatchDayAllocations[date] = allocation;
+          try {
+            const allocationDate = new Date(date);
+            if (!isNaN(allocationDate.getTime()) && allocationDate >= today) {
+              futureMatchDayAllocations[date] = allocation;
+            }
+          } catch (e) {
+            // Silently skip invalid dates
           }
         });
       }
-      
-      console.log('Filtered future training allocations:', futureTrainingAllocations);
-      console.log('Filtered future match day allocations:', futureMatchDayAllocations);
       
       const backupData = {
         backupDate: new Date().toISOString(),
@@ -223,6 +225,7 @@ function Settings({ onBack }) {
         backupVersion: "1.0"
       };
       
+      // Create and download the file
       const dataStr = JSON.stringify(backupData, null, 2);
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(dataBlob);
@@ -240,17 +243,22 @@ function Settings({ onBack }) {
     } catch (error) {
       console.error('Error creating backup:', error);
       alert('❌ Error creating backup. Please try again.');
+    } finally {
+      setIsBackingUp(false);
     }
   };
 
   // Restore Allocations Function
   const restoreAllocations = () => {
+    if (isRestoring) return; // Prevent multiple clicks
+    
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
     input.onchange = async (e) => {
       const file = e.target.files[0];
       if (file) {
+        setIsRestoring(true);
         const reader = new FileReader();
         reader.onload = async (e) => {
           try {
@@ -259,6 +267,7 @@ function Settings({ onBack }) {
             // Validate backup file
             if (!backupData.trainingAllocations || !backupData.matchDayAllocations) {
               alert('❌ Invalid backup file format. Please select a valid allocations backup file.');
+              setIsRestoring(false);
               return;
             }
             
@@ -275,11 +284,13 @@ function Settings({ onBack }) {
               `Are you absolutely sure you want to restore these allocations?`;
             
             if (!window.confirm(confirmMessage)) {
+              setIsRestoring(false);
               return;
             }
             
             // Second confirmation for safety
             if (!window.confirm('This action cannot be undone. Continue with restore?')) {
+              setIsRestoring(false);
               return;
             }
             
@@ -290,42 +301,54 @@ function Settings({ onBack }) {
             // Filter to only restore future dates
             const futureTrainingAllocations = {};
             Object.entries(backupData.trainingAllocations).forEach(([date, allocation]) => {
-              const allocationDate = new Date(date);
-              if (allocationDate >= today) {
-                futureTrainingAllocations[date] = allocation;
+              try {
+                const allocationDate = new Date(date);
+                if (!isNaN(allocationDate.getTime()) && allocationDate >= today) {
+                  futureTrainingAllocations[date] = allocation;
+                }
+              } catch (e) {
+                // Silently skip invalid dates
               }
             });
             
             const futureMatchDayAllocations = {};
             Object.entries(backupData.matchDayAllocations).forEach(([date, allocation]) => {
-              const allocationDate = new Date(date);
-              if (allocationDate >= today) {
-                futureMatchDayAllocations[date] = allocation;
+              try {
+                const allocationDate = new Date(date);
+                if (!isNaN(allocationDate.getTime()) && allocationDate >= today) {
+                  futureMatchDayAllocations[date] = allocation;
+                }
+              } catch (e) {
+                // Silently skip invalid dates
               }
             });
             
             // Update Firebase with restored allocations
             if (clubInfo?.clubId) {
               try {
-                // Update training allocations
-                const trainingDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'trainingAllocations');
-                await setDoc(trainingDocRef, {
-                  ...futureTrainingAllocations,
-                  lastUpdated: new Date().toISOString(),
-                  updatedBy: user?.email
-                }, { merge: true });
-                
-                // Update match day allocations
-                const matchDayDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'matchDayAllocations');
-                await setDoc(matchDayDocRef, {
-                  ...futureMatchDayAllocations,
-                  lastUpdated: new Date().toISOString(),
-                  updatedBy: user?.email
-                }, { merge: true });
+                // Update both documents in parallel for better performance
+                await Promise.all([
+                  setDoc(doc(db, 'clubs', clubInfo.clubId, 'allocations', 'trainingAllocations'), {
+                    ...futureTrainingAllocations,
+                    lastUpdated: new Date().toISOString(),
+                    updatedBy: user?.email
+                  }, { merge: true }),
+                  setDoc(doc(db, 'clubs', clubInfo.clubId, 'allocations', 'matchDayAllocations'), {
+                    ...futureMatchDayAllocations,
+                    lastUpdated: new Date().toISOString(),
+                    updatedBy: user?.email
+                  }, { merge: true })
+                ]);
                 
                 alert(`✅ Allocations restored successfully!\n\n` +
                   `Training allocations restored: ${Object.keys(futureTrainingAllocations).length} dates\n` +
-                  `Match day allocations restored: ${Object.keys(futureMatchDayAllocations).length} dates`);
+                  `Match day allocations restored: ${Object.keys(futureMatchDayAllocations).length} dates\n\n` +
+                  `Please refresh the page to see the updated allocations.`);
+                
+                // Optionally refresh the page after a short delay
+                setTimeout(() => {
+                  window.location.reload();
+                }, 2000);
               } catch (error) {
                 console.error('Error updating Firebase:', error);
                 alert('❌ Error restoring allocations to database. Please check your permissions.');
@@ -338,6 +361,8 @@ function Settings({ onBack }) {
           } catch (error) {
             console.error('Error restoring allocations:', error);
             alert('❌ Error restoring allocations. Please check the file format and try again.');
+          } finally {
+            setIsRestoring(false);
           }
         };
         reader.readAsText(file);
@@ -540,22 +565,24 @@ function Settings({ onBack }) {
               Remind Me Later
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
                 setShowBackupReminder(false);
-                backupAllocations();
+                await backupAllocations();
               }}
+              disabled={isBackingUp}
               style={{
                 padding: '10px 20px',
-                backgroundColor: '#10b981',
+                backgroundColor: isBackingUp ? '#9ca3af' : '#10b981',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
-                cursor: 'pointer',
+                cursor: isBackingUp ? 'wait' : 'pointer',
                 fontSize: '14px',
-                fontWeight: '500'
+                fontWeight: '500',
+                opacity: isBackingUp ? 0.7 : 1
               }}
             >
-              Create Backup Now
+              {isBackingUp ? 'Creating Backup...' : 'Create Backup Now'}
             </button>
           </div>
         </div>
@@ -661,56 +688,60 @@ function Settings({ onBack }) {
               
               <button
                 onClick={() => backupAllocations()}
+                disabled={isBackingUp}
                 style={{
                   width: '100%',
                   padding: '12px 16px',
                   backgroundColor: 'white',
-                  color: '#059669',
+                  color: isBackingUp ? '#9ca3af' : '#059669',
                   border: 'none',
-                  cursor: 'pointer',
+                  cursor: isBackingUp ? 'wait' : 'pointer',
                   fontSize: '14px',
                   fontWeight: '500',
                   textAlign: 'left',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  transition: 'background-color 0.2s'
+                  transition: 'background-color 0.2s',
+                  opacity: isBackingUp ? 0.7 : 1
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#ecfdf5';
+                  if (!isBackingUp) e.currentTarget.style.backgroundColor = '#ecfdf5';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'white';
                 }}
               >
-                💾 Backup Allocations
+                {isBackingUp ? '⏳ Creating Backup...' : '💾 Backup Allocations'}
               </button>
               
               <button
                 onClick={() => restoreAllocations()}
+                disabled={isRestoring}
                 style={{
                   width: '100%',
                   padding: '12px 16px',
                   backgroundColor: 'white',
-                  color: '#dc2626',
+                  color: isRestoring ? '#9ca3af' : '#dc2626',
                   border: 'none',
-                  cursor: 'pointer',
+                  cursor: isRestoring ? 'wait' : 'pointer',
                   fontSize: '14px',
                   fontWeight: '500',
                   textAlign: 'left',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  transition: 'background-color 0.2s'
+                  transition: 'background-color 0.2s',
+                  opacity: isRestoring ? 0.7 : 1
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#fef2f2';
+                  if (!isRestoring) e.currentTarget.style.backgroundColor = '#fef2f2';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'white';
                 }}
               >
-                ⚠️ Restore Allocations
+                {isRestoring ? '⏳ Restoring...' : '⚠️ Restore Allocations'}
               </button>
             </div>
             
