@@ -148,8 +148,7 @@ function Settings({ onBack }) {
     try {
       console.log('=== Starting Backup Process ===');
       console.log('Club Info:', clubInfo);
-      console.log('Training Allocations from hook:', trainingAllocations);
-      console.log('Match Day Allocations from hook:', matchDayAllocations);
+      console.log('User:', user?.email);
       
       let trainingData = trainingAllocations;
       let matchDayData = matchDayAllocations;
@@ -159,7 +158,7 @@ function Settings({ onBack }) {
         console.log(`Fetching from Firebase for club: ${clubInfo.clubId}`);
         
         try {
-          // Fetch both documents in parallel
+          // First, let's try a simpler approach - check if the documents exist
           const trainingDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'trainingAllocations');
           const matchDayDocRef = doc(db, 'clubs', clubInfo.clubId, 'allocations', 'matchDayAllocations');
           
@@ -178,6 +177,12 @@ function Settings({ onBack }) {
             trainingData = rawData;
           } else {
             console.log('Training allocations document does not exist!');
+            console.log('Creating empty document...');
+            // Create an empty document if it doesn't exist
+            await setDoc(trainingDocRef, {
+              lastUpdated: new Date().toISOString(),
+              updatedBy: user?.email
+            });
           }
           
           if (matchDayDocSnap.exists()) {
@@ -187,15 +192,38 @@ function Settings({ onBack }) {
             matchDayData = rawData;
           } else {
             console.log('Match day allocations document does not exist!');
+            console.log('Creating empty document...');
+            // Create an empty document if it doesn't exist
+            await setDoc(matchDayDocRef, {
+              lastUpdated: new Date().toISOString(),
+              updatedBy: user?.email
+            });
           }
         } catch (error) {
           console.error('Error fetching data from Firebase:', error);
-          alert('❌ Error fetching allocations from database. Please check your permissions and console for details.');
+          console.error('Error details:', {
+            code: error.code,
+            message: error.message,
+            stack: error.stack
+          });
+          
+          // More specific error messages
+          if (error.code === 'permission-denied') {
+            alert('❌ Permission denied. Please check your Firebase security rules.');
+          } else if (error.code === 'not-found') {
+            alert('❌ Documents not found. They will be created on first allocation save.');
+          } else {
+            alert(`❌ Error: ${error.message}. Please check the console for details.`);
+          }
+          
           setIsBackingUp(false);
           return;
         }
       } else {
         console.log('No club ID available!');
+        alert('❌ No club ID found. Please ensure you are logged in properly.');
+        setIsBackingUp(false);
+        return;
       }
       
       const today = new Date();
@@ -267,6 +295,15 @@ function Settings({ onBack }) {
       console.log('=== Backup Summary ===');
       console.log('Future training allocations count:', Object.keys(futureTrainingAllocations).length);
       console.log('Future match day allocations count:', Object.keys(futureMatchDayAllocations).length);
+      
+      // If no allocations found, warn the user
+      if (Object.keys(futureTrainingAllocations).length === 0 && Object.keys(futureMatchDayAllocations).length === 0) {
+        const proceed = window.confirm('No future allocations found. This might mean:\n\n1. No allocations have been created yet\n2. All allocations are in the past\n\nDo you want to create an empty backup anyway?');
+        if (!proceed) {
+          setIsBackingUp(false);
+          return;
+        }
+      }
       
       const backupData = {
         backupDate: new Date().toISOString(),
