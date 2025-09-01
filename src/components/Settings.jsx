@@ -46,9 +46,7 @@ function Settings({ onBack }) {
     userProfile, 
     clubInfo, 
     trainingAllocations, 
-    matchDayAllocations,
-    updateTrainingAllocations,
-    updateMatchDayAllocations 
+    matchDayAllocations
   } = useFirebaseAllocations('trainingAllocations');
   
   // Auth state
