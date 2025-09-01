@@ -181,8 +181,7 @@ function TrainingPitchAllocator({ onBack }) {
       // If current team selection is not in the teams list, select the first one
       setTeam(teams[0].name);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teams]);
+  }, [teams, team]);
 
   // Load data when date changes
   useEffect(() => {
