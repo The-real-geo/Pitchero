@@ -458,18 +458,14 @@ function Settings({ onBack }) {
                   console.error('Restore error:', error);
                   alert('❌ Error during restore. Check console.');
                 }
+              } else {
+                alert('❌ Unable to restore allocations. Club information not available.');
               }
             } else {
               // Old structure - handle legacy backups
               alert('⚠️ This backup uses an old format. Please create a new backup with the updated version.');
               setIsRestoring(false);
               return;
-            }
-              } catch (error) {
-                console.error('Error updating Firebase:', error);
-                alert('❌ Error restoring allocations to database. Please check your permissions.');
-            } else {
-              alert('❌ Unable to restore allocations. Club information not available.');
             }
             
             setShowHamburgerMenu(false);
