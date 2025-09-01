@@ -847,7 +847,7 @@ function TrainingPitchAllocator({ onBack }) {
           fontSize: '14px',
           color: '#1e40af'
         }}>
-          <strong>💡 Tip:</strong> Click on any colored section in the pitch layout below to remove that specific allocation. Multi-slot bookings will be completely removed when you click on any part of them.
+          <strong>💡 Tip:</strong> Click on any coloured section in the pitch layout below to remove that specific allocation. Multi-slot bookings will be completely removed when you click on any part of them.
         </div>
         
         <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
@@ -949,7 +949,7 @@ function TrainingPitchAllocator({ onBack }) {
                   opacity: loading ? 0.6 : 1
                 }}
               />
-              {/* Date navigation buttons */}
+              {/* Date navigation button s */}
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
