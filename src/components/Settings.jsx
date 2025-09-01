@@ -73,13 +73,27 @@ function Settings() {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            setClubInfo({
-              clubId: userData.clubId,
-              name: userData.clubName || 'Unknown Club'
-            });
+            
+            // Get the actual club info if we have a clubId
+            if (userData.clubId) {
+              const clubDoc = await getDoc(doc(db, 'clubs', userData.clubId));
+              if (clubDoc.exists()) {
+                const clubData = clubDoc.data();
+                setClubInfo({
+                  clubId: userData.clubId,
+                  name: clubData.name || userData.clubName || 'Unknown Club'
+                });
+              } else {
+                // Fallback if club document doesn't exist
+                setClubInfo({
+                  clubId: userData.clubId,
+                  name: userData.clubName || 'Unknown Club'
+                });
+              }
+            }
           }
         } catch (error) {
-          console.error('Error fetching user data:', error);
+          console.error('Error fetching user/club data:', error);
         }
       }
     });
