@@ -81,8 +81,8 @@ function TrainingPitchAllocator({ onBack }) {
   const [pitchOrientations, setPitchOrientations] = useState(defaultPitchOrientations);
   const [showGrassArea, setShowGrassArea] = useState(defaultShowGrassArea);
   
-  // Loading state for settings
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  // Loading state for settings - start as false since we don't have club info yet
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState(null);
 
   // State management
@@ -118,7 +118,7 @@ function TrainingPitchAllocator({ onBack }) {
   useEffect(() => {
     const loadSettingsFromFirestore = async () => {
       if (!clubInfo?.clubId) {
-        console.log('No club ID available yet');
+        // Don't log this as it's normal during initial load
         return;
       }
 
