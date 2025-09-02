@@ -23,13 +23,12 @@ const createClub = async (clubName) => {
     // Generate a 6-character club ID
     const clubId = Math.random().toString(36).substr(2, 6).toUpperCase();
     
-    console.log('Creating club:', { clubName, clubId });
-    await setDoc(doc(db, 'clubs', clubId), {
-      name: clubName,
-      subscription: 'active',
-      createdAt: Date.now(),
-      clubId: clubId
-    });
+    console.log('Creating club:', JSON.stringify({
+  name: formData.clubName,
+  code: newClubCode,
+  createdBy: user.uid,
+  createdAt: 'serverTimestamp()'
+}, null, 2));
     
     console.log(`✅ Club created: ${clubName} (ID: ${clubId})`);
     return clubId;
