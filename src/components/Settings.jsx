@@ -33,11 +33,6 @@ const defaultShowGrassArea = {
   'pitch2': true
 };
 
-const defaultMatchDayPitchAreaRequired = {
-  'pitch1': { full: false, half: false, sections: false },
-  'pitch2': { full: false, half: false, sections: false }
-};
-
 function Settings() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -49,7 +44,6 @@ function Settings() {
   const [newTeamColor, setNewTeamColor] = useState('#FF0000');
   const [pitchOrientations, setPitchOrientations] = useState(defaultPitchOrientations);
   const [showGrassArea, setShowGrassArea] = useState(defaultShowGrassArea);
-  const [matchDayPitchAreaRequired, setMatchDayPitchAreaRequired] = useState(defaultMatchDayPitchAreaRequired);
   
   // Import/Export state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -117,7 +111,6 @@ function Settings() {
         teams,
         pitchOrientations,
         showGrassArea,
-        matchDayPitchAreaRequired,
         lastUpdated: new Date().toISOString(),
         updatedBy: user.email
       };
@@ -156,7 +149,7 @@ function Settings() {
         if (data.teams) setTeams(data.teams);
         if (data.pitchOrientations) setPitchOrientations(data.pitchOrientations);
         if (data.showGrassArea) setShowGrassArea(data.showGrassArea);
-        if (data.matchDayPitchAreaRequired) setMatchDayPitchAreaRequired(data.matchDayPitchAreaRequired);
+        // Note: matchDayPitchAreaRequired is no longer used
       } else {
         console.log('No settings found in Firestore, using defaults');
       }
@@ -203,8 +196,7 @@ function Settings() {
     await saveSettingsToFirestore({
       teams: updatedTeams,
       pitchOrientations,
-      showGrassArea,
-      matchDayPitchAreaRequired
+      showGrassArea
     });
   };
 
@@ -216,8 +208,7 @@ function Settings() {
     await saveSettingsToFirestore({
       teams: updatedTeams,
       pitchOrientations,
-      showGrassArea,
-      matchDayPitchAreaRequired
+      showGrassArea
     });
   };
 
@@ -234,8 +225,7 @@ function Settings() {
     await saveSettingsToFirestore({
       teams,
       pitchOrientations,
-      showGrassArea,
-      matchDayPitchAreaRequired
+      showGrassArea
     });
   };
 
@@ -248,8 +238,7 @@ function Settings() {
     await saveSettingsToFirestore({
       teams,
       pitchOrientations: updated,
-      showGrassArea,
-      matchDayPitchAreaRequired
+      showGrassArea
     });
   };
 
@@ -261,27 +250,7 @@ function Settings() {
     await saveSettingsToFirestore({
       teams,
       pitchOrientations,
-      showGrassArea: updated,
-      matchDayPitchAreaRequired
-    });
-  };
-
-  const updateMatchDayPitchAreaRequired = async (pitchId, areaType, required) => {
-    const updated = {
-      ...matchDayPitchAreaRequired,
-      [pitchId]: {
-        ...matchDayPitchAreaRequired[pitchId],
-        [areaType]: required
-      }
-    };
-    setMatchDayPitchAreaRequired(updated);
-    
-    // Save to Firestore with updated settings directly
-    await saveSettingsToFirestore({
-      teams,
-      pitchOrientations,
-      showGrassArea,
-      matchDayPitchAreaRequired: updated
+      showGrassArea: updated
     });
   };
 
@@ -289,15 +258,13 @@ function Settings() {
     setTeams(defaultTeams);
     setPitchOrientations(defaultPitchOrientations);
     setShowGrassArea(defaultShowGrassArea);
-    setMatchDayPitchAreaRequired(defaultMatchDayPitchAreaRequired);
     setErrors({});
     
     // Save defaults to Firestore
     await saveSettingsToFirestore({
       teams: defaultTeams,
       pitchOrientations: defaultPitchOrientations,
-      showGrassArea: defaultShowGrassArea,
-      matchDayPitchAreaRequired: defaultMatchDayPitchAreaRequired
+      showGrassArea: defaultShowGrassArea
     });
   };
 
@@ -307,7 +274,6 @@ function Settings() {
       teams,
       pitchOrientations,
       showGrassArea,
-      matchDayPitchAreaRequired,
       exportDate: new Date().toISOString(),
       version: '1.0'
     };
@@ -333,7 +299,6 @@ function Settings() {
       if (settings.teams) setTeams(settings.teams);
       if (settings.pitchOrientations) setPitchOrientations(settings.pitchOrientations);
       if (settings.showGrassArea) setShowGrassArea(settings.showGrassArea);
-      if (settings.matchDayPitchAreaRequired) setMatchDayPitchAreaRequired(settings.matchDayPitchAreaRequired);
       
       setShowImportModal(false);
       setImportData('');
@@ -343,8 +308,7 @@ function Settings() {
       await saveSettingsToFirestore({
         teams: settings.teams || teams,
         pitchOrientations: settings.pitchOrientations || pitchOrientations,
-        showGrassArea: settings.showGrassArea || showGrassArea,
-        matchDayPitchAreaRequired: settings.matchDayPitchAreaRequired || matchDayPitchAreaRequired
+        showGrassArea: settings.showGrassArea || showGrassArea
       });
     } catch (error) {
       setErrors({ import: `Import failed: ${error.message}` });
@@ -824,9 +788,9 @@ function Settings() {
                 </div>
               </div>
 
-              {/* Grass Area */}
+              {/* Grass Area - only for pitch2 */}
               {pitchId === 'pitch2' && (
-                <div style={{ marginBottom: '16px' }}>
+                <div>
                   <label style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -847,45 +811,6 @@ function Settings() {
                   </label>
                 </div>
               )}
-
-              {/* Match Day Areas */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#374151',
-                  marginBottom: '8px'
-                }}>
-                  Match Day Areas Required
-                </label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {['full', 'half', 'sections'].map((areaType) => (
-                    <label
-                      key={areaType}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '14px',
-                        color: '#6b7280',
-                        cursor: isSavingSettings ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={matchDayPitchAreaRequired[pitchId][areaType]}
-                        onChange={(e) => updateMatchDayPitchAreaRequired(pitchId, areaType, e.target.checked)}
-                        disabled={isSavingSettings}
-                        style={{ cursor: isSavingSettings ? 'not-allowed' : 'pointer' }}
-                      />
-                      {areaType === 'full' ? 'Full Pitch' :
-                       areaType === 'half' ? 'Half Pitch' :
-                       'Quarter Sections'}
-                    </label>
-                  ))}
-                </div>
-              </div>
             </div>
           ))}
         </div>
