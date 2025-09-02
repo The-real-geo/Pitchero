@@ -1,6 +1,6 @@
 // src/utils/firebase.js
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs, getDoc, setDoc, query, where, deleteDoc, doc } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDocs, getDoc, setDoc, query, where, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 // Firebase configuration
@@ -22,6 +22,9 @@ export const db = getFirestore(app);
 
 // Firebase Authentication reference
 export const auth = getAuth(app);
+
+// Export serverTimestamp for use in other files
+export { serverTimestamp };
 
 // User Profile Functions
 export const getUserProfile = async (userId) => {
@@ -114,17 +117,18 @@ export const getSharedAllocation = async (shareId) => {
   }
 };
 
-// Club Functions
-export const createClub = async (clubName) => {
+// Club Functions - FIXED to use 'code' field
+export const createClub = async (clubName, createdBy) => {
   try {
     // Generate a 6-character club ID
     const clubId = Math.random().toString(36).substr(2, 6).toUpperCase();
     
     await setDoc(doc(db, 'clubs', clubId), {
       name: clubName,
-      subscription: 'active',
-      createdAt: Date.now(),
-      clubId: clubId // Store for reference
+      code: clubId,  // FIXED: Changed from 'clubId' to 'code' to match Firestore rules
+      createdBy: createdBy || auth.currentUser?.uid, // Support passing createdBy or use current user
+      createdAt: serverTimestamp(), // Use serverTimestamp for proper timestamp
+      subscription: 'active'
     });
     
     console.log(`Club created: ${clubName} (ID: ${clubId})`);

@@ -1,8 +1,8 @@
 // pitchero/src/components/LoginPage.js
 import React, { useState } from "react";
-import { auth, db } from "../utils/firebase";
+import { auth, db, createClub, createUserProfile } from "../utils/firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { setDoc, doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/images/logo.PNG";
 
@@ -17,42 +17,6 @@ function LoginPage() {
   const [clubName, setClubName] = useState("");
   const [selectedClubId, setSelectedClubId] = useState("");
   const [isNewClub, setIsNewClub] = useState(true);
-
-const createClub = async (clubName) => {
-  try {
-    // Generate a 6-character club ID
-    const clubId = Math.random().toString(36).substr(2, 6).toUpperCase();
-    
-    console.log('Creating club:', JSON.stringify({
-  name: formData.clubName,
-  code: newClubCode,
-  createdBy: user.uid,
-  createdAt: 'serverTimestamp()'
-}, null, 2));
-    
-    console.log(`✅ Club created: ${clubName} (ID: ${clubId})`);
-    return clubId;
-  } catch (error) {
-    console.error('❌ Error creating club:', error);
-    throw error;
-  }
-};
-
-const createUserProfile = async (userId, email, clubId, role = 'member') => {
-  try {
-    console.log('Creating user profile:', { userId, email, clubId, role });
-    await setDoc(doc(db, 'users', userId), {
-      email: email,
-      clubId: clubId,
-      role: role,
-      createdAt: Date.now()
-    });
-    console.log('✅ User profile created successfully');
-  } catch (error) {
-    console.error('❌ Error creating user profile:', error);
-    throw error; // Re-throw so the parent function knows it failed
-  }
-};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -107,14 +71,16 @@ const createUserProfile = async (userId, email, clubId, role = 'member') => {
         // Create club if needed (only for new clubs)
         if (isNewClub) {
           console.log('🏢 Creating new club...');
-          clubId = await createClub(clubName.trim());
+          // Use the createClub function from firebase.js, passing the user ID
+          clubId = await createClub(clubName.trim(), userCredential.user.uid);
+          console.log('✅ Club created with ID:', clubId);
         }
         
         // Create user profile
         console.log('👤 Creating user profile...');
         const role = isNewClub ? 'admin' : 'member';
         await createUserProfile(userCredential.user.uid, email, clubId, role);
-        console.log('✅ User profile should be created');
+        console.log('✅ User profile created successfully');
       }
       console.log('✅ Success! Navigating to menu...');
       navigate("/menu");
