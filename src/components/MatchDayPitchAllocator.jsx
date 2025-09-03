@@ -60,6 +60,24 @@ function isLightColor(color) {
   return brightness > 155;
 }
 
+// Function to get the sections in the correct order based on orientation
+function getOrderedSections(orientation) {
+  if (orientation === 'portrait') {
+    // Portrait mode: normal order (2x4 grid)
+    // A B
+    // C D
+    // E F
+    // G H
+    return sections;
+  } else {
+    // Landscape mode: rotated 90 degrees counter-clockwise/left (4x2 grid)
+    // When rotated left, top-left (A) becomes bottom-right
+    // B D F H
+    // A C E G
+    return ["B", "D", "F", "H", "A", "C", "E", "G"];
+  }
+}
+
 function getDefaultPitchAreaForTeam(teamName) {
   if (teamName.includes('Under 6') || teamName.includes('Under 7')) {
     return 'Under 6 & 7';
@@ -2046,7 +2064,7 @@ function MatchDayPitchAllocator({ onBack }) {
                               height: '100%',
                               zIndex: 10
                             }}>
-                              {sections.map((sec) => {
+                              {getOrderedSections(pitchOrientations[p.id]).map((sec) => {
                                 const key = `${date}-${s}-${p.id}-${sec}`;
                                 const alloc = allocations[key];
                                 const isPreviewSection = sectionsToAllocate.includes(sec) && p.id === pitch;
