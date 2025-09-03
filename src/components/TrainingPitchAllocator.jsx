@@ -67,11 +67,11 @@ function getOrderedSections(orientation) {
     // G H
     return sections;
   } else {
-    // Landscape mode: rotated 90 degrees clockwise (4x2 grid)
-    // When rotated, top-left (A) becomes bottom-left
-    // G E C A
-    // H F D B
-    return ["G", "E", "C", "A", "H", "F", "D", "B"];
+    // Landscape mode: rotated 90 degrees counter-clockwise/left (4x2 grid)
+    // When rotated left, top-left (A) becomes bottom-right
+    // B D F H
+    // A C E G
+    return ["B", "D", "F", "H", "A", "C", "E", "G"];
   }
 }
 
@@ -1468,7 +1468,7 @@ function TrainingPitchAllocator({ onBack }) {
                   fontSize: '12px'
                 }}
               >
-                Close Summary 
+                Close Summary
               </button>
             </div>
             
