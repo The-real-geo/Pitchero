@@ -57,6 +57,24 @@ function isLightColor(color) {
   return brightness > 155;
 }
 
+// Function to get the sections in the correct order based on orientation
+function getOrderedSections(orientation) {
+  if (orientation === 'portrait') {
+    // Portrait mode: normal order (2x4 grid)
+    // A B
+    // C D
+    // E F
+    // G H
+    return sections;
+  } else {
+    // Landscape mode: rotated 90 degrees clockwise (4x2 grid)
+    // When rotated, top-left (A) becomes bottom-left
+    // G E C A
+    // H F D B
+    return ["G", "E", "C", "A", "H", "F", "D", "B"];
+  }
+}
+
 function TrainingPitchAllocator({ onBack }) {
   // Firebase integration
   const navigate = useNavigate();
@@ -1861,7 +1879,7 @@ function TrainingPitchAllocator({ onBack }) {
                               height: '100%',
                               zIndex: 10
                             }}>
-                              {sections.map((sec) => {
+                              {getOrderedSections(pitchOrientations[p.id]).map((sec) => {
                                 const key = `${date}-${s}-${p.id}-${sec}`;
                                 const alloc = allocations[key];
                                 
@@ -1993,7 +2011,7 @@ function TrainingPitchAllocator({ onBack }) {
                                           {alloc && alloc.isMultiSlot && (
                                             <div style={{
                                               fontSize: '12px',
-                                              opacity: 0.6,
+                                              opacity: 0.6',
                                               marginTop: '4px'
                                             }}>
                                               {alloc.duration}min
