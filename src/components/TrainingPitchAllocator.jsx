@@ -7,7 +7,9 @@ import { doc, getDoc } from "firebase/firestore";
 import { createSharedAllocation } from '../utils/firebase';
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
-const pitches = [
+
+// Default pitch configuration - moved outside component as a constant
+const defaultPitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
   { id: "pitch1", name: "Pitch 1 - Astro", hasGrassArea: false }
 ];
@@ -96,6 +98,7 @@ function TrainingPitchAllocator({ onBack }) {
 
   // Settings states - initialize with defaults
   const [teams, setTeams] = useState(defaultTeams);
+  const [pitches, setPitches] = useState(defaultPitches); // Now using state for pitches
   const [pitchOrientations, setPitchOrientations] = useState(defaultPitchOrientations);
   const [showGrassArea, setShowGrassArea] = useState(defaultShowGrassArea);
   
@@ -106,7 +109,7 @@ function TrainingPitchAllocator({ onBack }) {
   // State management
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [team, setTeam] = useState('');
-  const [pitch, setPitch] = useState(pitches[0].id);
+  const [pitch, setPitch] = useState(defaultPitches[0].id);
   const [section, setSection] = useState(sections[0]);
   const [slot, setSlot] = useState(timeSlots()[0]);
   const [duration, setDuration] = useState(30);
@@ -168,6 +171,15 @@ function TrainingPitchAllocator({ onBack }) {
           // Update grass area visibility if it exists
           if (data.showGrassArea) {
             setShowGrassArea(data.showGrassArea);
+          }
+
+          // Update pitch names if they exist
+          if (data.pitchNames) {
+            setPitches(prevPitches => prevPitches.map(pitch => ({
+              ...pitch,
+              name: data.pitchNames[pitch.id] || pitch.name
+            })));
+            console.log('Updated pitch names from settings:', data.pitchNames);
           }
         } else {
           console.log('No settings found in Firestore, using defaults');

@@ -6,7 +6,9 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
-const pitches = [
+
+// Default pitch configuration - moved outside component as a constant
+const defaultPitches = [
   { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
   { id: "pitch1", name: "Pitch 1 - Astro", hasGrassArea: false }
 ];
@@ -113,6 +115,7 @@ function MatchDayPitchAllocator({ onBack }) {
 
   // Settings states - initialize with defaults
   const [teams, setTeams] = useState(defaultTeams);
+  const [pitches, setPitches] = useState(defaultPitches); // Now using state for pitches
   const [pitchOrientations, setPitchOrientations] = useState(defaultPitchOrientations);
   const [showGrassArea, setShowGrassArea] = useState(defaultShowGrassArea);
   
@@ -132,7 +135,7 @@ function MatchDayPitchAllocator({ onBack }) {
   // Local state for form inputs
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [team, setTeam] = useState('');
-  const [pitch, setPitch] = useState(pitches[0].id);
+  const [pitch, setPitch] = useState(defaultPitches[0].id);
   const [slot, setSlot] = useState(matchDayTimeSlots()[0]);
   const [matchDayLayout, setMatchDayLayout] = useState('A');
   const [manuallyExpandedSlotsMatchDay, setManuallyExpandedSlotsMatchDay] = useState(new Set());
@@ -200,6 +203,15 @@ function MatchDayPitchAllocator({ onBack }) {
           // Update grass area visibility if it exists
           if (data.showGrassArea) {
             setShowGrassArea(data.showGrassArea);
+          }
+          
+          // Update pitch names if they exist
+          if (data.pitchNames) {
+            setPitches(prevPitches => prevPitches.map(pitch => ({
+              ...pitch,
+              name: data.pitchNames[pitch.id] || pitch.name
+            })));
+            console.log('Updated pitch names from settings:', data.pitchNames);
           }
           
           // Check if match day specific settings exist
