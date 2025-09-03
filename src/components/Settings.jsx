@@ -52,6 +52,7 @@ function Settings() {
   const [pitchOrientations, setPitchOrientations] = useState(defaultPitchOrientations);
   const [showGrassArea, setShowGrassArea] = useState(defaultShowGrassArea);
   const [pitchNames, setPitchNames] = useState(defaultPitchNames);
+  const [localPitchNames, setLocalPitchNames] = useState(defaultPitchNames);
   
   // Import/Export state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -161,7 +162,10 @@ function Settings() {
         if (data.teams) setTeams(data.teams);
         if (data.pitchOrientations) setPitchOrientations(data.pitchOrientations);
         if (data.showGrassArea) setShowGrassArea(data.showGrassArea);
-        if (data.pitchNames) setPitchNames(data.pitchNames);
+        if (data.pitchNames) {
+          setPitchNames(data.pitchNames);
+          setLocalPitchNames(data.pitchNames);
+        }
       } else {
         console.log('No settings found in Firestore, using defaults');
       }
@@ -271,17 +275,25 @@ function Settings() {
     });
   };
 
-  const updatePitchName = async (pitchId, name) => {
-    const updated = { ...pitchNames, [pitchId]: name };
-    setPitchNames(updated);
-    
-    // Save to Firestore with updated settings directly
-    await saveSettingsToFirestore({
-      teams,
-      pitchOrientations,
-      showGrassArea,
-      pitchNames: updated
-    });
+  // New functions for pitch name handling
+  const handlePitchNameChange = (pitchId, name) => {
+    setLocalPitchNames(prev => ({ ...prev, [pitchId]: name }));
+  };
+
+  const handlePitchNameBlur = async (pitchId) => {
+    // Only save if the name actually changed
+    if (localPitchNames[pitchId] !== pitchNames[pitchId]) {
+      const updated = { ...pitchNames, [pitchId]: localPitchNames[pitchId] };
+      setPitchNames(updated);
+      
+      // Save to Firestore
+      await saveSettingsToFirestore({
+        teams,
+        pitchOrientations,
+        showGrassArea,
+        pitchNames: updated
+      });
+    }
   };
 
   const resetToDefaults = async () => {
@@ -289,6 +301,7 @@ function Settings() {
     setPitchOrientations(defaultPitchOrientations);
     setShowGrassArea(defaultShowGrassArea);
     setPitchNames(defaultPitchNames);
+    setLocalPitchNames(defaultPitchNames);
     setErrors({});
     
     // Save defaults to Firestore
@@ -332,7 +345,10 @@ function Settings() {
       if (settings.teams) setTeams(settings.teams);
       if (settings.pitchOrientations) setPitchOrientations(settings.pitchOrientations);
       if (settings.showGrassArea) setShowGrassArea(settings.showGrassArea);
-      if (settings.pitchNames) setPitchNames(settings.pitchNames);
+      if (settings.pitchNames) {
+        setPitchNames(settings.pitchNames);
+        setLocalPitchNames(settings.pitchNames);
+      }
       
       setShowImportModal(false);
       setImportData('');
@@ -782,8 +798,9 @@ function Settings() {
                 {isAdmin ? (
                   <input
                     type="text"
-                    value={pitchNames[pitchId]}
-                    onChange={(e) => updatePitchName(pitchId, e.target.value)}
+                    value={localPitchNames[pitchId]}
+                    onChange={(e) => handlePitchNameChange(pitchId, e.target.value)}
+                    onBlur={() => handlePitchNameBlur(pitchId)}
                     disabled={isSavingSettings}
                     style={{
                       width: '100%',
