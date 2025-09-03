@@ -1468,7 +1468,7 @@ function TrainingPitchAllocator({ onBack }) {
                   fontSize: '12px'
                 }}
               >
-                Close Summary
+                Close Summary 
               </button>
             </div>
             
@@ -2011,7 +2011,7 @@ function TrainingPitchAllocator({ onBack }) {
                                           {alloc && alloc.isMultiSlot && (
                                             <div style={{
                                               fontSize: '12px',
-                                              opacity: 0.6',
+                                              opacity: 0.6,
                                               marginTop: '4px'
                                             }}>
                                               {alloc.duration}min
