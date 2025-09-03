@@ -33,10 +33,17 @@ const defaultShowGrassArea = {
   'pitch2': true
 };
 
+// Default pitch names
+const defaultPitchNames = {
+  'pitch1': 'Pitch 1 - Astro',
+  'pitch2': 'Pitch 2 - Grass'
+};
+
 function Settings() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [clubInfo, setClubInfo] = useState(null);
+  const [userRole, setUserRole] = useState(null);
   
   // Settings state
   const [teams, setTeams] = useState(defaultTeams);
@@ -44,6 +51,7 @@ function Settings() {
   const [newTeamColor, setNewTeamColor] = useState('#FF0000');
   const [pitchOrientations, setPitchOrientations] = useState(defaultPitchOrientations);
   const [showGrassArea, setShowGrassArea] = useState(defaultShowGrassArea);
+  const [pitchNames, setPitchNames] = useState(defaultPitchNames);
   
   // Import/Export state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -58,7 +66,7 @@ function Settings() {
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
-  // Get club info from user profile
+  // Get club info and user role from user profile
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -67,6 +75,9 @@ function Settings() {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
+            
+            // Set user role
+            setUserRole(userData.role || 'user');
             
             // Get the actual club info if we have a clubId
             if (userData.clubId) {
@@ -111,6 +122,7 @@ function Settings() {
         teams,
         pitchOrientations,
         showGrassArea,
+        pitchNames,
         lastUpdated: new Date().toISOString(),
         updatedBy: user.email
       };
@@ -149,7 +161,7 @@ function Settings() {
         if (data.teams) setTeams(data.teams);
         if (data.pitchOrientations) setPitchOrientations(data.pitchOrientations);
         if (data.showGrassArea) setShowGrassArea(data.showGrassArea);
-        // Note: matchDayPitchAreaRequired is no longer used
+        if (data.pitchNames) setPitchNames(data.pitchNames);
       } else {
         console.log('No settings found in Firestore, using defaults');
       }
@@ -196,7 +208,8 @@ function Settings() {
     await saveSettingsToFirestore({
       teams: updatedTeams,
       pitchOrientations,
-      showGrassArea
+      showGrassArea,
+      pitchNames
     });
   };
 
@@ -208,7 +221,8 @@ function Settings() {
     await saveSettingsToFirestore({
       teams: updatedTeams,
       pitchOrientations,
-      showGrassArea
+      showGrassArea,
+      pitchNames
     });
   };
 
@@ -225,7 +239,8 @@ function Settings() {
     await saveSettingsToFirestore({
       teams,
       pitchOrientations,
-      showGrassArea
+      showGrassArea,
+      pitchNames
     });
   };
 
@@ -238,7 +253,8 @@ function Settings() {
     await saveSettingsToFirestore({
       teams,
       pitchOrientations: updated,
-      showGrassArea
+      showGrassArea,
+      pitchNames
     });
   };
 
@@ -250,7 +266,21 @@ function Settings() {
     await saveSettingsToFirestore({
       teams,
       pitchOrientations,
-      showGrassArea: updated
+      showGrassArea: updated,
+      pitchNames
+    });
+  };
+
+  const updatePitchName = async (pitchId, name) => {
+    const updated = { ...pitchNames, [pitchId]: name };
+    setPitchNames(updated);
+    
+    // Save to Firestore with updated settings directly
+    await saveSettingsToFirestore({
+      teams,
+      pitchOrientations,
+      showGrassArea,
+      pitchNames: updated
     });
   };
 
@@ -258,13 +288,15 @@ function Settings() {
     setTeams(defaultTeams);
     setPitchOrientations(defaultPitchOrientations);
     setShowGrassArea(defaultShowGrassArea);
+    setPitchNames(defaultPitchNames);
     setErrors({});
     
     // Save defaults to Firestore
     await saveSettingsToFirestore({
       teams: defaultTeams,
       pitchOrientations: defaultPitchOrientations,
-      showGrassArea: defaultShowGrassArea
+      showGrassArea: defaultShowGrassArea,
+      pitchNames: defaultPitchNames
     });
   };
 
@@ -274,6 +306,7 @@ function Settings() {
       teams,
       pitchOrientations,
       showGrassArea,
+      pitchNames,
       exportDate: new Date().toISOString(),
       version: '1.0'
     };
@@ -299,6 +332,7 @@ function Settings() {
       if (settings.teams) setTeams(settings.teams);
       if (settings.pitchOrientations) setPitchOrientations(settings.pitchOrientations);
       if (settings.showGrassArea) setShowGrassArea(settings.showGrassArea);
+      if (settings.pitchNames) setPitchNames(settings.pitchNames);
       
       setShowImportModal(false);
       setImportData('');
@@ -308,7 +342,8 @@ function Settings() {
       await saveSettingsToFirestore({
         teams: settings.teams || teams,
         pitchOrientations: settings.pitchOrientations || pitchOrientations,
-        showGrassArea: settings.showGrassArea || showGrassArea
+        showGrassArea: settings.showGrassArea || showGrassArea,
+        pitchNames: settings.pitchNames || pitchNames
       });
     } catch (error) {
       setErrors({ import: `Import failed: ${error.message}` });
@@ -326,6 +361,9 @@ function Settings() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  // Check if user is admin
+  const isAdmin = userRole === 'admin';
 
   // Loading overlay
   if (isLoadingSettings) {
@@ -399,7 +437,7 @@ function Settings() {
                 color: '#6b7280',
                 marginTop: '4px'
               }}>
-                {clubInfo.name} • {user?.email}
+                {clubInfo.name} • {user?.email} • Role: {userRole}
               </p>
             )}
           </div>
@@ -730,14 +768,57 @@ function Settings() {
                 border: '1px solid #e5e7eb'
               }}
             >
-              <h3 style={{
-                fontSize: '16px',
-                fontWeight: '600',
-                color: '#374151',
-                marginBottom: '16px'
-              }}>
-                {pitchId === 'pitch1' ? 'Pitch 1 - Astro' : 'Pitch 2 - Grass'}
-              </h3>
+              {/* Pitch Name - only editable by admin */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>
+                  Pitch Name
+                </label>
+                {isAdmin ? (
+                  <input
+                    type="text"
+                    value={pitchNames[pitchId]}
+                    onChange={(e) => updatePitchName(pitchId, e.target.value)}
+                    disabled={isSavingSettings}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      opacity: isSavingSettings ? 0.6 : 1
+                    }}
+                    placeholder="Enter pitch name..."
+                  />
+                ) : (
+                  <div style={{
+                    padding: '8px 12px',
+                    backgroundColor: '#f3f4f6',
+                    borderRadius: '6px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    color: '#374151'
+                  }}>
+                    {pitchNames[pitchId]}
+                  </div>
+                )}
+                {isAdmin && (
+                  <p style={{
+                    fontSize: '12px',
+                    color: '#6b7280',
+                    marginTop: '4px',
+                    fontStyle: 'italic'
+                  }}>
+                    Admin only: You can customize this pitch name
+                  </p>
+                )}
+              </div>
 
               {/* Orientation */}
               <div style={{ marginBottom: '16px' }}>
@@ -813,6 +894,19 @@ function Settings() {
               )}
             </div>
           ))}
+          
+          {!isAdmin && (
+            <div style={{
+              marginTop: '16px',
+              padding: '12px',
+              backgroundColor: '#fef3c7',
+              borderRadius: '6px',
+              fontSize: '13px',
+              color: '#d97706'
+            }}>
+              ⚠️ Note: Only administrators can change pitch names. Contact your admin if you need to update them.
+            </div>
+          )}
         </div>
       </div>
 
