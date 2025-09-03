@@ -1829,7 +1829,7 @@ function MatchDayPitchAllocator({ onBack }) {
                   fontWeight: 'bold',
                   color: '#1f2937',
                   margin: 0
-                }}>{pitchNames[p.id] || p.name}</h2>
+                }}>{p.name}</h2>
               </div>
               
               <div style={{ padding: '4px' }}>
