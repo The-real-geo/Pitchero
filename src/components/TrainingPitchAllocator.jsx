@@ -1185,10 +1185,10 @@ function TrainingPitchAllocator({ onBack }) {
                   opacity: loading ? 0.6 : 1
                 }}
               >
-                <option value={30}>30 minutes</option>
-                <option value={60}>60 minutes</option>
-                <option value={90}>90 minutes</option>
-                <option value={120}>120 minutes</option>
+                <option value={30}>30 mins</option>
+                <option value={60}>60 mins</option>
+                <option value={90}>90 mins</option>
+                <option value={120}>120 mins</option>
               </select>
             </div>
             

@@ -751,7 +751,7 @@ function MatchDayPitchAllocator({ onBack }) {
             marginBottom: '16px',
             margin: '0 0 16px 0'
           }}>
-            Your shareable link has been created! This link will expire in 30 days.
+            Your shareable link has been created! This link will expire in 30 days
           </p>
           
           <div style={{
