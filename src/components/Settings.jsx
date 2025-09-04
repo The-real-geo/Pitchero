@@ -297,28 +297,9 @@ function Settings() {
   };
 
   // Navigation function for satellite overview
-<button
-            onClick={() => navigate('/satellite')}
-            style={{
-              padding: '16px 24px',
-              backgroundColor: '#7c3aed',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '18px',
-              fontWeight: '600',
-              transition: 'background-color 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-            onMouseOver={(e) => e.target.style.backgroundColor = '#6d28d9'}
-            onMouseOut={(e) => e.target.style.backgroundColor = '#7c3aed'}
-          >
-            📡 Satellite Overview
-          </button>
+  const navigateToSatelliteOverview = () => {
+    navigate('/satellite-overview');
+  };
 
   const resetToDefaults = async () => {
     setTeams(defaultTeams);
@@ -404,6 +385,11 @@ function Settings() {
 
   // Check if user is admin
   const isAdmin = userRole === 'admin';
+
+  // Navigation function for satellite overview
+  const navigateToSatelliteOverview = () => {
+    navigate('/satellite-overview');
+  };
 
   // Loading overlay
   if (isLoadingSettings) {
@@ -803,24 +789,28 @@ function Settings() {
               Pitch Configuration
             </h2>
             <button
-              onClick={navigateToSatelliteOverview}
+              onClick={() => navigate('/satellite')}
               disabled={isSavingSettings}
               style={{
-                padding: '10px 16px',
-                backgroundColor: isSavingSettings ? '#9ca3af' : '#059669',
+                padding: '16px 24px',
+                backgroundColor: isSavingSettings ? '#9ca3af' : '#7c3aed',
                 color: 'white',
                 border: 'none',
-                borderRadius: '6px',
+                borderRadius: '8px',
                 cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                opacity: isSavingSettings ? 0.6 : 1,
+                fontSize: '18px',
+                fontWeight: '600',
+                transition: 'background-color 0.2s',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px'
+                justifyContent: 'center',
+                gap: '8px',
+                opacity: isSavingSettings ? 0.6 : 1
               }}
+              onMouseOver={(e) => !isSavingSettings && (e.target.style.backgroundColor = '#6d28d9')}
+              onMouseOut={(e) => !isSavingSettings && (e.target.style.backgroundColor = '#7c3aed')}
             >
-              🛰️ Satellite Overview
+              📡 Satellite Overview
             </button>
           </div>
 
