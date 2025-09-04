@@ -1,16 +1,81 @@
 // src/components/satellite/ClubPitchMap.jsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Settings } from 'lucide-react';
+import { auth, db } from '../../utils/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const ClubPitchMap = ({ 
-  clubId, 
-  satelliteConfig, 
   onPitchClick 
 }) => {
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  
+  // States for data loading
+  const [satelliteConfig, setSatelliteConfig] = useState(null);
+  const [clubId, setClubId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Load user and club data
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            if (userData.clubId) {
+              setClubId(userData.clubId);
+            } else {
+              setError('No club associated with this user');
+              setLoading(false);
+            }
+          } else {
+            setError('User data not found');
+            setLoading(false);
+          }
+        } catch (err) {
+          console.error('Error fetching user data:', err);
+          setError('Failed to load user data');
+          setLoading(false);
+        }
+      } else {
+        setError('User not authenticated');
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Load satellite configuration when clubId is available
+  useEffect(() => {
+    const loadSatelliteConfig = async () => {
+      if (!clubId) return;
+
+      try {
+        setLoading(true);
+        const configRef = doc(db, 'clubs', clubId, 'satellite', 'config');
+        const configDoc = await getDoc(configRef);
+        
+        if (configDoc.exists()) {
+          setSatelliteConfig(configDoc.data());
+        } else {
+          setSatelliteConfig(null); // No satellite config yet
+        }
+      } catch (err) {
+        console.error('Error loading satellite config:', err);
+        setError('Failed to load satellite configuration');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSatelliteConfig();
+  }, [clubId]);
 
   // Calculate canvas size maintaining aspect ratio
   const calculateCanvasSize = (imgWidth, imgHeight) => {
@@ -99,12 +164,14 @@ const ClubPitchMap = ({
 
   // Handle pitch clicks (navigation mode)
   const handleCanvasClick = (e) => {
+    if (!satelliteConfig?.pitchBoundaries) return;
+    
     const rect = canvasRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / canvasSize.width) * satelliteConfig.imageWidth;
     const y = ((e.clientY - rect.top) / canvasSize.height) * satelliteConfig.imageHeight;
 
     // Check which pitch was clicked
-    const clickedPitch = satelliteConfig.pitchBoundaries?.find(pitch => {
+    const clickedPitch = satelliteConfig.pitchBoundaries.find(pitch => {
       const bounds = pitch.boundaries;
       return x >= bounds.x1 && x <= bounds.x2 && y >= bounds.y1 && y <= bounds.y2;
     });
@@ -114,6 +181,65 @@ const ClubPitchMap = ({
     }
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div style={{
+        textAlign: 'center',
+        padding: '48px',
+        backgroundColor: '#f9fafb',
+        borderRadius: '12px',
+        margin: '0 auto',
+        maxWidth: '600px'
+      }}>
+        <div style={{
+          animation: 'spin 1s linear infinite',
+          width: '50px',
+          height: '50px',
+          border: '4px solid #e5e7eb',
+          borderTop: '4px solid #3b82f6',
+          borderRadius: '50%',
+          margin: '0 auto 16px auto'
+        }}></div>
+        <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
+          Loading Satellite Map
+        </h3>
+        <p style={{ color: '#6b7280' }}>
+          Please wait while we load your facility map...
+        </p>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div style={{
+        textAlign: 'center',
+        padding: '48px',
+        backgroundColor: '#fef2f2',
+        borderRadius: '12px',
+        margin: '0 auto',
+        maxWidth: '600px'
+      }}>
+        <Settings size={64} color="#ef4444" style={{ marginBottom: '16px' }} />
+        <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#dc2626', marginBottom: '8px' }}>
+          Error Loading Map
+        </h3>
+        <p style={{ color: '#7f1d1d', marginBottom: '16px' }}>
+          {error}
+        </p>
+      </div>
+    );
+  }
+
+  // No satellite image configured
   if (!satelliteConfig?.imageUrl) {
     return (
       <div style={{
@@ -129,7 +255,7 @@ const ClubPitchMap = ({
           No Satellite Image
         </h3>
         <p style={{ color: '#6b7280', marginBottom: '16px' }}>
-          No satellite image has been configured for this facility yet
+          No satellite image has been configured for this facility yet. Please set up the satellite view in Settings.
         </p>
       </div>
     );
@@ -140,10 +266,26 @@ const ClubPitchMap = ({
       {/* Header */}
       <div style={{
         display: 'flex',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: '24px'
       }}>
+        <button
+          onClick={() => navigate('/menu')}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500'
+          }}
+        >
+          ← Back to Menu
+        </button>
+        
         <h2 style={{ 
           fontSize: '32px', 
           fontWeight: 'bold', 
@@ -152,6 +294,9 @@ const ClubPitchMap = ({
         }}>
           BeansFC Facility Overview
         </h2>
+        
+        {/* Empty div for spacing */}
+        <div style={{ width: '120px' }}></div>
       </div>
 
       {/* Canvas Container */}
