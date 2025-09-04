@@ -130,7 +130,7 @@ function LoginPage() {
         boxShadow: "0 10px 25px rgba(0,0,0,0.3)"
       }}>
         <h1 style={{ textAlign: "center", marginBottom: "24px", color: "#1f2937" }}>
-          {isLogin ? "Multi Pitch Build - Login" : "Sign Up"}
+          {isLogin ? "Login" : "Sign Up"}
         </h1>
         
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -254,7 +254,7 @@ function LoginPage() {
               fontWeight: "600"
             }}
           >
-            {isLogin ? "Login" : "Sign Up"}
+            {isLogin ? "Multi Pitch Build - Login" : "Sign Up"}
           </button>
           
           {error && (
