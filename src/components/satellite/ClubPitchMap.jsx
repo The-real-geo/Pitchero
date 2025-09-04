@@ -66,13 +66,20 @@ const ClubPitchMap = ({
 
       try {
         setLoading(true);
-        const configRef = doc(db, 'clubs', clubId, 'satellite', 'config');
-        const configDoc = await getDoc(configRef);
+        // Load from club document directly, not subcollection
+        const clubRef = doc(db, 'clubs', clubId);
+        const clubDoc = await getDoc(clubRef);
         
-        if (configDoc.exists()) {
-          setSatelliteConfig(configDoc.data());
+        if (clubDoc.exists()) {
+          const clubData = clubDoc.data();
+          // Access satelliteConfig field from club document
+          if (clubData.satelliteConfig) {
+            setSatelliteConfig(clubData.satelliteConfig);
+          } else {
+            setSatelliteConfig(null); // No satellite config yet
+          }
         } else {
-          setSatelliteConfig(null); // No satellite config yet
+          setError('Club not found');
         }
       } catch (err) {
         console.error('Error loading satellite config:', err);
