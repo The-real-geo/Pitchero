@@ -1,4 +1,4 @@
-// src/components/satellite/SatelliteManager.jsx - Router Compatible Version
+// src/components/satellite/SatelliteManager.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
@@ -172,7 +172,7 @@ const SatelliteManager = () => {
             {error ? 'Authentication error' : 'No club found for your account'}
           </p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/menu')}
             style={{
               padding: '8px 16px',
               backgroundColor: '#3b82f6',
@@ -203,7 +203,7 @@ const SatelliteManager = () => {
         marginBottom: '20px'
       }}>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/menu')}
           style={{
             padding: '8px 16px',
             backgroundColor: '#6b7280',
