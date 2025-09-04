@@ -191,8 +191,16 @@ const ClubPitchMap = ({
       return x >= bounds.x1 && x <= bounds.x2 && y >= bounds.y1 && y <= bounds.y2;
     });
 
-    if (clickedPitch && onPitchClick) {
-      onPitchClick(clickedPitch);
+    if (clickedPitch) {
+      // Call external handler if provided
+      if (onPitchClick) {
+        onPitchClick(clickedPitch);
+      } else {
+        // Default navigation to training allocator with pitch info
+        console.log('Clicked pitch:', clickedPitch);
+        // Navigate to training allocator for the specific pitch
+        navigate(`/training?pitch=${clickedPitch.pitchNumber || 'pitch1'}`);
+      }
     }
   };
 
