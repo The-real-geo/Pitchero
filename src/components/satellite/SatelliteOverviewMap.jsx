@@ -1,6 +1,6 @@
 // src/components/satellite/SatelliteOverviewMap.jsx
-import React, { useState, useRef, useEffect } from 'react';
-import { Edit3, Eye, Settings, Plus } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Edit3, Eye, Settings } from 'lucide-react';
 
 const SatelliteOverviewMap = ({ 
   clubId, 
@@ -20,11 +20,11 @@ const SatelliteOverviewMap = ({
   const [currentDrawing, setCurrentDrawing] = useState(null);
   const [tempBoundaries, setTempBoundaries] = useState([]);
 
-  useEffect(() => {
-    if (imageLoaded && canvasRef.current) {
-      drawCanvas();
-    }
-  }, [imageLoaded, satelliteConfig, tempBoundaries]);
+useEffect(() => {
+  if (imageLoaded && canvasRef.current) {
+    drawCanvas();
+  }
+}, [imageLoaded, satelliteConfig, tempBoundaries, drawCanvas]);
 
   // Calculate canvas size maintaining aspect ratio
   const calculateCanvasSize = (imgWidth, imgHeight) => {
@@ -55,48 +55,48 @@ const SatelliteOverviewMap = ({
     }
   };
 
-  // Draw the canvas with image and pitch boundaries
-  const drawCanvas = () => {
-    const canvas = canvasRef.current;
-    const image = imageRef.current;
-    if (!canvas || !image || !imageLoaded) return;
+// Draw the canvas with image and pitch boundaries
+const drawCanvas = useCallback(() => {
+  const canvas = canvasRef.current;
+  const image = imageRef.current;
+  if (!canvas || !image || !imageLoaded) return;
 
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw satellite image
-    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  // Draw satellite image
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-    // Scale factor for coordinates
-    const scaleX = canvas.width / satelliteConfig.imageWidth;
-    const scaleY = canvas.height / satelliteConfig.imageHeight;
+  // Scale factor for coordinates
+  const scaleX = canvas.width / satelliteConfig.imageWidth;
+  const scaleY = canvas.height / satelliteConfig.imageHeight;
 
-    // Draw existing pitch boundaries
-    if (satelliteConfig.pitchBoundaries) {
-      satelliteConfig.pitchBoundaries.forEach((pitch, index) => {
-        drawPitchBoundary(ctx, pitch, scaleX, scaleY, index);
-      });
-    }
-
-    // Draw temporary boundaries (during setup)
-    tempBoundaries.forEach((pitch, index) => {
-      drawPitchBoundary(ctx, pitch, scaleX, scaleY, index, true);
+  // Draw existing pitch boundaries
+  if (satelliteConfig.pitchBoundaries) {
+    satelliteConfig.pitchBoundaries.forEach((pitch, index) => {
+      drawPitchBoundary(ctx, pitch, scaleX, scaleY, index);
     });
+  }
 
-    // Draw current drawing rectangle
-    if (currentDrawing && isSetupMode) {
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]);
-      ctx.strokeRect(
-        currentDrawing.x1 * scaleX,
-        currentDrawing.y1 * scaleY,
-        (currentDrawing.x2 - currentDrawing.x1) * scaleX,
-        (currentDrawing.y2 - currentDrawing.y1) * scaleY
-      );
-      ctx.setLineDash([]);
-    }
-  };
+  // Draw temporary boundaries (during setup)
+  tempBoundaries.forEach((pitch, index) => {
+    drawPitchBoundary(ctx, pitch, scaleX, scaleY, index, true);
+  });
+
+  // Draw current drawing rectangle
+  if (currentDrawing && isSetupMode) {
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.strokeRect(
+      currentDrawing.x1 * scaleX,
+      currentDrawing.y1 * scaleY,
+      (currentDrawing.x2 - currentDrawing.x1) * scaleX,
+      (currentDrawing.y2 - currentDrawing.y1) * scaleY
+    );
+    ctx.setLineDash([]);
+  }
+}, [imageLoaded, satelliteConfig, tempBoundaries, currentDrawing, isSetupMode]);
 
   // Draw individual pitch boundary
   const drawPitchBoundary = (ctx, pitch, scaleX, scaleY, index, isTemporary = false) => {
