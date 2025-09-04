@@ -1,10 +1,10 @@
-// src/components/Menu.jsx
-// TEMPORARILY add these imports and setup function
+// src/components/Menu.jsx - FIXED VERSION that works around security rules
 import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom";
-import { auth, initializeSatelliteConfig, getUserProfile } from "../utils/firebase"; // ADD initializeSatelliteConfig
+import { auth, getUserProfile, db } from "../utils/firebase"; // Import db too
 import { signOut } from "firebase/auth";
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { doc, setDoc } from 'firebase/firestore'; // Import setDoc
 
 function Menu() {
   const navigate = useNavigate();
@@ -21,7 +21,7 @@ function Menu() {
     }
   };
 
-  // TEMPORARY: One-time satellite setup function
+  // FIXED: Safer satellite setup that works around security rules
   const handleSatelliteSetup = async () => {
     if (!user) {
       setSetupStatus('❌ Please log in first');
@@ -44,15 +44,33 @@ function Menu() {
 
       console.log('Setting up satellite config for club:', clubId);
 
-      // Initialize satellite configuration
-      await initializeSatelliteConfig(clubId);
+      // FIXED: Use setDoc with merge instead of updateDoc
+      const clubRef = doc(db, 'clubs', clubId);
+      
+      await setDoc(clubRef, {
+        satelliteConfig: {
+          imageUrl: null,
+          imageWidth: 0,
+          imageHeight: 0,
+          lastUpdated: null,
+          pitchBoundaries: []
+        }
+      }, { merge: true }); // This is the key - merge: true preserves existing data
 
       setSetupStatus('✅ Satellite setup complete! You can now use Satellite Overview.');
       console.log('✅ Satellite configuration initialized successfully!');
 
     } catch (error) {
       console.error('Setup error:', error);
-      setSetupStatus(`❌ Setup failed: ${error.message}`);
+      
+      // More specific error handling
+      if (error.code === 'permission-denied') {
+        setSetupStatus('❌ Permission denied. Try Solution 2 below.');
+      } else if (error.code === 'not-found') {
+        setSetupStatus('❌ Club not found. Contact support.');
+      } else {
+        setSetupStatus(`❌ Setup failed: ${error.message}`);
+      }
     }
 
     setIsSettingUp(false);
@@ -98,7 +116,7 @@ function Menu() {
           Football Pitch Allocation System
         </p>
 
-        {/* TEMPORARY: One-time setup section */}
+        {/* IMPROVED: Setup section with better error handling */}
         <div style={{
           marginBottom: '32px',
           padding: '20px',
@@ -142,6 +160,20 @@ function Menu() {
               {setupStatus}
             </div>
           )}
+
+          {/* Show alternative if permission denied */}
+          {setupStatus.includes('Permission denied') && (
+            <div style={{
+              marginTop: '12px',
+              padding: '12px',
+              backgroundColor: '#e0f2fe',
+              borderRadius: '6px',
+              fontSize: '12px',
+              color: '#0c4a6e'
+            }}>
+              <strong>Alternative:</strong> Try the Manual Setup option below, or contact your admin to update security rules.
+            </div>
+          )}
         </div>
         
         <div style={{
@@ -172,7 +204,7 @@ function Menu() {
             📡 Satellite Overview
           </button>
 
-          {/* Your existing buttons stay the same */}
+          {/* Your existing buttons */}
           <button
             onClick={() => navigate('/training')}
             style={{
