@@ -893,7 +893,7 @@ function Settings() {
 
               {/* Grass Area - only for pitch2 */}
               {pitchId === 'pitch2' && (
-                <div style={{ marginBottom: '16px' }}>
+                <div>
                   <label style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -914,38 +914,6 @@ function Settings() {
                   </label>
                 </div>
               )}
-
-              {/* Satellite View Configuration Button */}
-              <div style={{ marginTop: '16px' }}>
-                <button
-                  onClick={() => navigateToSatelliteView(pitchId)}
-                  disabled={isSavingSettings}
-                  style={{
-                    padding: '10px 16px',
-                    backgroundColor: isSavingSettings ? '#9ca3af' : '#059669',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    opacity: isSavingSettings ? 0.6 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  🛰️ Configure Satellite View
-                </button>
-                <p style={{
-                  fontSize: '12px',
-                  color: '#6b7280',
-                  marginTop: '4px',
-                  fontStyle: 'italic'
-                }}>
-                  Set up satellite imagery and pitch boundaries for detailed allocation views
-                </p>
-              </div>
             </div>
           ))}
           
