@@ -1,11 +1,16 @@
 // src/components/Menu.jsx
-import React from 'react';
+// TEMPORARILY add these imports and setup function
+import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom";
-import { auth } from "../utils/firebase";
+import { auth, initializeSatelliteConfig, getUserProfile } from "../utils/firebase"; // ADD initializeSatelliteConfig
 import { signOut } from "firebase/auth";
+import { useAuthState } from 'react-firebase-hooks/auth';
 
 function Menu() {
   const navigate = useNavigate();
+  const [user] = useAuthState(auth);
+  const [setupStatus, setSetupStatus] = useState('');
+  const [isSettingUp, setIsSettingUp] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -14,6 +19,43 @@ function Menu() {
     } catch (error) {
       console.error('Logout error:', error);
     }
+  };
+
+  // TEMPORARY: One-time satellite setup function
+  const handleSatelliteSetup = async () => {
+    if (!user) {
+      setSetupStatus('❌ Please log in first');
+      return;
+    }
+
+    setIsSettingUp(true);
+    setSetupStatus('Setting up satellite configuration...');
+
+    try {
+      // Get user's club ID
+      const userProfile = await getUserProfile(user.uid);
+      const clubId = userProfile?.clubId;
+
+      if (!clubId) {
+        setSetupStatus('❌ No club found for your account');
+        setIsSettingUp(false);
+        return;
+      }
+
+      console.log('Setting up satellite config for club:', clubId);
+
+      // Initialize satellite configuration
+      await initializeSatelliteConfig(clubId);
+
+      setSetupStatus('✅ Satellite setup complete! You can now use Satellite Overview.');
+      console.log('✅ Satellite configuration initialized successfully!');
+
+    } catch (error) {
+      console.error('Setup error:', error);
+      setSetupStatus(`❌ Setup failed: ${error.message}`);
+    }
+
+    setIsSettingUp(false);
   };
 
   return (
@@ -55,13 +97,58 @@ function Menu() {
         }}>
           Football Pitch Allocation System
         </p>
+
+        {/* TEMPORARY: One-time setup section */}
+        <div style={{
+          marginBottom: '32px',
+          padding: '20px',
+          backgroundColor: '#fef3c7',
+          borderRadius: '8px',
+          border: '1px solid #fbbf24'
+        }}>
+          <h3 style={{ color: '#92400e', margin: '0 0 12px 0' }}>
+            🔧 One-Time Satellite Setup Required
+          </h3>
+          <p style={{ fontSize: '14px', color: '#92400e', margin: '0 0 16px 0' }}>
+            Click this button once to enable satellite functionality
+          </p>
+          
+          <button
+            onClick={handleSatelliteSetup}
+            disabled={isSettingUp}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: isSettingUp ? '#9ca3af' : '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: isSettingUp ? 'not-allowed' : 'pointer',
+              fontWeight: '600',
+              fontSize: '14px',
+              marginBottom: '12px'
+            }}
+          >
+            {isSettingUp ? '⏳ Setting Up...' : '🚀 Initialize Satellite Config'}
+          </button>
+          
+          {setupStatus && (
+            <div style={{
+              fontSize: '14px',
+              padding: '8px',
+              borderRadius: '4px',
+              backgroundColor: setupStatus.includes('✅') ? '#d1fae5' : '#fee2e2',
+              color: setupStatus.includes('✅') ? '#065f46' : '#991b1b'
+            }}>
+              {setupStatus}
+            </div>
+          )}
+        </div>
         
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           gap: '16px'
         }}>
-          {/* NEW: Satellite Overview Button */}
           <button
             onClick={() => navigate('/satellite')}
             style={{
@@ -85,7 +172,7 @@ function Menu() {
             📡 Satellite Overview
           </button>
 
-          {/* Your existing buttons */}
+          {/* Your existing buttons stay the same */}
           <button
             onClick={() => navigate('/training')}
             style={{
@@ -192,8 +279,7 @@ function Menu() {
           <div>🔥 Firebase: Connected</div>
           <div>⚡ Components: Ready</div>
           <div>📊 13 Teams • 2 Pitches</div>
-          {/* NEW: Satellite status indicator */}
-          <div>📡 Satellite: Ready</div>
+          <div>📡 Satellite: {setupStatus.includes('✅') ? 'Ready' : 'Setup Required'}</div>
         </div>
       </div>
     </div>
