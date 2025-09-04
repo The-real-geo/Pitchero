@@ -25,7 +25,6 @@ const SatelliteManager = () => {
       if (user) {
         try {
           const profile = await getUserProfile(user.uid);
-          setUserProfile(profile);
           setClubId(profile?.clubId);
           console.log('User club ID:', profile?.clubId);
         } catch (error) {
