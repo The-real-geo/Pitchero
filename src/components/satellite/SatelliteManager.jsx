@@ -15,7 +15,6 @@ const SatelliteManager = () => {
   // State
   const [satelliteConfig, setSatelliteConfig] = useState(null);
   const [clubId, setClubId] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState(searchParams.get('view') || 'overview');
 
