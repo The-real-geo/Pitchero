@@ -296,9 +296,9 @@ function Settings() {
     }
   };
 
-  // Navigation function for satellite view
-  const navigateToSatelliteView = (pitchId) => {
-    navigate(`/satellite/${pitchId}`);
+  // Navigation function for satellite overview
+  const navigateToSatelliteOverview = () => {
+    navigate('/satellite-overview');
   };
 
   const resetToDefaults = async () => {
@@ -769,14 +769,41 @@ function Settings() {
           padding: '24px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
         }}>
-          <h2 style={{
-            fontSize: '20px',
-            fontWeight: '600',
-            color: '#1f2937',
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             marginBottom: '20px'
           }}>
-            Pitch Configuration
-          </h2>
+            <h2 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#1f2937',
+              margin: '0'
+            }}>
+              Pitch Configuration
+            </h2>
+            <button
+              onClick={navigateToSatelliteOverview}
+              disabled={isSavingSettings}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: isSavingSettings ? '#9ca3af' : '#059669',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: isSavingSettings ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                opacity: isSavingSettings ? 0.6 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              🛰️ Satellite Overview
+            </button>
+          </div>
 
           {['pitch1', 'pitch2'].map((pitchId) => (
             <div
