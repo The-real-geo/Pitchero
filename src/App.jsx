@@ -11,6 +11,7 @@ import Settings from "./components/Settings";
 import ShareView from "./components/ShareView";
 // NEW: Import SatelliteManager
 import SatelliteManager from "./components/satellite/SatelliteManager";
+import ClubPitchMap from './components/satellite/ClubPitchMap';
 
 // Protected Route Component
 const PrivateRoute = ({ children }) => {
@@ -114,7 +115,9 @@ function App() {
             </PrivateRoute>
           }
         />
-
+ {/* Protected training/Matchday - Satellite view page */}
+        <Route path="/club-pitch-map" element={<ClubPitchMap />} />
+        
         {/* Protected training page */}
         <Route
           path="/training"
