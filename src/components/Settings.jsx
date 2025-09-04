@@ -296,11 +296,6 @@ function Settings() {
     }
   };
 
-  // Navigation function for satellite overview
-  const navigateToSatelliteOverview = () => {
-    navigate('/satellite-overview');
-  };
-
   const resetToDefaults = async () => {
     setTeams(defaultTeams);
     setPitchOrientations(defaultPitchOrientations);
@@ -385,11 +380,6 @@ function Settings() {
 
   // Check if user is admin
   const isAdmin = userRole === 'admin';
-
-  // Navigation function for satellite overview
-  const navigateToSatelliteOverview = () => {
-    navigate('/satellite-overview');
-  };
 
   // Loading overlay
   if (isLoadingSettings) {
