@@ -1,8 +1,9 @@
+// src/components/satellite/SatelliteImageUpload.jsx
 import React, { useState } from 'react';
 import { Upload, X, Check } from 'lucide-react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc } from 'firebase/firestore';
-import { storage, db } from '../../config/firebase'; // Adjust path to your firebase config
+import { storage, db } from '../../utils/firebase';
 
 const SatelliteImageUpload = ({ clubId, onImageUploaded }) => {
   const [uploading, setUploading] = useState(false);
@@ -122,53 +123,79 @@ const SatelliteImageUpload = ({ clubId, onImageUploaded }) => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Upload Satellite Image</h2>
-        <p className="text-gray-600">
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px' }}>
+      <div style={{ marginBottom: '24px' }}>
+        <h2 style={{ 
+          fontSize: '32px', 
+          fontWeight: 'bold', 
+          color: '#1f2937', 
+          marginBottom: '8px' 
+        }}>Upload Satellite Image</h2>
+        <p style={{ color: '#6b7280' }}>
           Upload an aerial/satellite view of your facility to set up interactive pitch navigation.
         </p>
       </div>
 
       {/* Upload Area */}
       <div
-        className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          dragActive 
-            ? 'border-blue-500 bg-blue-50' 
-            : uploading 
-            ? 'border-gray-300 bg-gray-50' 
-            : 'border-gray-300 hover:border-gray-400'
-        }`}
+        style={{
+          position: 'relative',
+          border: `2px dashed ${dragActive ? '#3b82f6' : uploading ? '#9ca3af' : '#d1d5db'}`,
+          borderRadius: '12px',
+          padding: '48px 32px',
+          textAlign: 'center',
+          backgroundColor: dragActive ? '#eff6ff' : uploading ? '#f9fafb' : 'white',
+          transition: 'all 0.2s ease',
+          cursor: uploading ? 'not-allowed' : 'pointer'
+        }}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
       >
         {uploading ? (
-          <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-lg text-gray-600">Uploading image...</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              border: '4px solid #e5e7eb',
+              borderTop: '4px solid #3b82f6',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              marginBottom: '16px'
+            }}></div>
+            <p style={{ fontSize: '18px', color: '#6b7280' }}>Uploading image...</p>
+            <style jsx>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
           </div>
         ) : preview ? (
-          <div className="space-y-4">
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
             <img 
               src={preview} 
               alt="Preview" 
-              className="max-h-64 mx-auto rounded-lg shadow-md"
+              style={{ 
+                maxHeight: '300px', 
+                borderRadius: '8px', 
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' 
+              }}
             />
-            <div className="flex items-center justify-center text-green-600">
-              <Check className="w-5 h-5 mr-2" />
-              <span>Image uploaded successfully!</span>
+            <div style={{ display: 'flex', alignItems: 'center', color: '#10b981' }}>
+              <Check size={20} style={{ marginRight: '8px' }} />
+              <span style={{ fontSize: '16px', fontWeight: '600' }}>Image uploaded successfully!</span>
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <Upload className="w-16 h-16 text-gray-400 mx-auto" />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+            <Upload size={64} color="#9ca3af" />
             <div>
-              <p className="text-xl text-gray-600 mb-2">
+              <p style={{ fontSize: '20px', color: '#374151', marginBottom: '8px' }}>
                 Drag and drop your satellite image here, or click to browse
               </p>
-              <p className="text-sm text-gray-500">
+              <p style={{ fontSize: '14px', color: '#6b7280' }}>
                 PNG or JPEG, max 5MB. Best quality: 1920x1080 or higher, taken from directly overhead.
               </p>
             </div>
@@ -176,8 +203,15 @@ const SatelliteImageUpload = ({ clubId, onImageUploaded }) => {
               type="file"
               accept="image/png,image/jpeg,image/jpg"
               onChange={handleInputChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               disabled={uploading}
+              style={{
+                position: 'absolute',
+                inset: '0',
+                width: '100%',
+                height: '100%',
+                opacity: 0,
+                cursor: uploading ? 'not-allowed' : 'pointer'
+              }}
             />
           </div>
         )}
@@ -185,23 +219,45 @@ const SatelliteImageUpload = ({ clubId, onImageUploaded }) => {
 
       {/* Error Display */}
       {error && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-center">
-            <X className="w-5 h-5 text-red-500 mr-2" />
-            <span className="text-red-700">{error}</span>
+        <div style={{
+          marginTop: '16px',
+          padding: '16px',
+          backgroundColor: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: '8px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <X size={20} color="#dc2626" style={{ marginRight: '8px' }} />
+            <span style={{ color: '#dc2626' }}>{error}</span>
           </div>
         </div>
       )}
 
       {/* Guidelines */}
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="font-semibold text-blue-900 mb-3">Image Guidelines for Best Results:</h3>
-        <ul className="space-y-2 text-blue-800 text-sm">
-          <li>• Take photo from directly overhead (drone preferred)</li>
-          <li>• Ensure all pitch boundaries are clearly visible</li>
-          <li>• Use even lighting (overcast days work best)</li>
-          <li>• Higher resolution = better accuracy (1920x1080 minimum)</li>
-          <li>• Remove any temporary obstacles (cars, equipment)</li>
+      <div style={{
+        marginTop: '32px',
+        backgroundColor: '#eff6ff',
+        border: '1px solid '#bfdbfe',
+        borderRadius: '12px',
+        padding: '24px'
+      }}>
+        <h3 style={{ 
+          fontWeight: '600', 
+          color: '#1e40af', 
+          marginBottom: '12px' 
+        }}>Image Guidelines for Best Results:</h3>
+        <ul style={{ 
+          color: '#1e40af', 
+          fontSize: '14px',
+          lineHeight: '1.6',
+          paddingLeft: '20px',
+          margin: 0
+        }}>
+          <li>Take photo from directly overhead (drone preferred)</li>
+          <li>Ensure all pitch boundaries are clearly visible</li>
+          <li>Use even lighting (overcast days work best)</li>
+          <li>Higher resolution = better accuracy (1920x1080 minimum)</li>
+          <li>Remove any temporary obstacles (cars, equipment)</li>
         </ul>
       </div>
     </div>
