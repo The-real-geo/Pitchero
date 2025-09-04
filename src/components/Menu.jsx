@@ -61,6 +61,31 @@ function Menu() {
           flexDirection: 'column',
           gap: '16px'
         }}>
+          {/* NEW: Satellite Overview Button */}
+          <button
+            onClick={() => navigate('/satellite')}
+            style={{
+              padding: '16px 24px',
+              backgroundColor: '#7c3aed',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '18px',
+              fontWeight: '600',
+              transition: 'background-color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+            onMouseOver={(e) => e.target.style.backgroundColor = '#6d28d9'}
+            onMouseOut={(e) => e.target.style.backgroundColor = '#7c3aed'}
+          >
+            📡 Satellite Overview
+          </button>
+
+          {/* Your existing buttons */}
           <button
             onClick={() => navigate('/training')}
             style={{
@@ -167,6 +192,8 @@ function Menu() {
           <div>🔥 Firebase: Connected</div>
           <div>⚡ Components: Ready</div>
           <div>📊 13 Teams • 2 Pitches</div>
+          {/* NEW: Satellite status indicator */}
+          <div>📡 Satellite: Ready</div>
         </div>
       </div>
     </div>
