@@ -1,5 +1,6 @@
 // src/components/satellite/ClubPitchMap.jsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import { auth, db } from '../../utils/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -8,6 +9,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 const ClubPitchMap = ({ 
   onPitchClick 
 }) => {
+  const navigate = useNavigate();
+  
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -18,6 +21,11 @@ const ClubPitchMap = ({
   const [clubId, setClubId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Handle navigation back to menu
+  const handleBackToMenu = () => {
+    navigate('/menu');
+  };
 
   // Load user and club data
   useEffect(() => {
@@ -271,7 +279,7 @@ const ClubPitchMap = ({
         marginBottom: '24px'
       }}>
         <button
-          onClick={() => navigate('/menu')}
+          onClick={handleBackToMenu}
           style={{
             padding: '10px 20px',
             backgroundColor: '#6b7280',
