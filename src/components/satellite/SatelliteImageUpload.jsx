@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Upload, X, Check } from 'lucide-react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { storage, db } from '../../utils/firebase';
 
 const SatelliteImageUpload = ({ clubId, onImageUploaded }) => {
@@ -73,7 +73,7 @@ const SatelliteImageUpload = ({ clubId, onImageUploaded }) => {
           'satelliteConfig.imageUrl': downloadURL,
           'satelliteConfig.imageWidth': img.width,
           'satelliteConfig.imageHeight': img.height,
-          'satelliteConfig.lastUpdated': new Date()
+          'satelliteConfig.lastUpdated': serverTimestamp()
         });
         
         // Notify parent component
