@@ -61,10 +61,8 @@ function Menu() {
           flexDirection: 'column',
           gap: '16px'
         }}>
-          
-
           <button
-            onClick={() => navigate('/training')}
+            onClick={() => navigate('/club-pitch-map')}
             style={{
               padding: '16px 24px',
               backgroundColor: '#3b82f6',
@@ -83,30 +81,7 @@ function Menu() {
             onMouseOver={(e) => e.target.style.backgroundColor = '#2563eb'}
             onMouseOut={(e) => e.target.style.backgroundColor = '#3b82f6'}
           >
-            ⚽ Training Pitch Allocator
-          </button>
-          
-          <button
-            onClick={() => navigate('/matchday')}
-            style={{
-              padding: '16px 24px',
-              backgroundColor: '#059669',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '18px',
-              fontWeight: '600',
-              transition: 'background-color 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-            onMouseOver={(e) => e.target.style.backgroundColor = '#047857'}
-            onMouseOut={(e) => e.target.style.backgroundColor = '#059669'}
-          >
-            🏆 Match Day Allocator
+            ➕ Add new Training/Match allocation
           </button>
           
           <button
