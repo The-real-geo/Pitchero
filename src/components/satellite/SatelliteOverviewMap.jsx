@@ -20,12 +20,6 @@ const SatelliteOverviewMap = ({
   const [currentDrawing, setCurrentDrawing] = useState(null);
   const [tempBoundaries, setTempBoundaries] = useState([]);
 
-useEffect(() => {
-  if (imageLoaded && canvasRef.current) {
-    drawCanvas();
-  }
-}, [imageLoaded, satelliteConfig, tempBoundaries, drawCanvas]);
-
   // Calculate canvas size maintaining aspect ratio
   const calculateCanvasSize = (imgWidth, imgHeight) => {
     const maxWidth = 1000;
@@ -124,6 +118,12 @@ const drawCanvas = useCallback(() => {
     );
   };
 
+  useEffect(() => {
+  if (imageLoaded && canvasRef.current) {
+    drawCanvas();
+  }
+}, [imageLoaded, satelliteConfig, tempBoundaries, drawCanvas]);
+  
   // Handle mouse events for drawing (setup mode)
   const handleMouseDown = (e) => {
     if (!isSetupMode) return;
