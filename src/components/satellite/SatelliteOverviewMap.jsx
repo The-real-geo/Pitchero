@@ -1,3 +1,4 @@
+// src/components/satellite/SatelliteOverviewMap.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { Edit3, Eye, Settings, Plus } from 'lucide-react';
 
@@ -27,8 +28,8 @@ const SatelliteOverviewMap = ({
 
   // Calculate canvas size maintaining aspect ratio
   const calculateCanvasSize = (imgWidth, imgHeight) => {
-    const maxWidth = 800;
-    const maxHeight = 600;
+    const maxWidth = 1000;
+    const maxHeight = 700;
     const aspectRatio = imgWidth / imgHeight;
     
     let width = maxWidth;
@@ -84,7 +85,7 @@ const SatelliteOverviewMap = ({
 
     // Draw current drawing rectangle
     if (currentDrawing && isSetupMode) {
-      ctx.strokeStyle = '#3B82F6';
+      ctx.strokeStyle = '#3b82f6';
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 5]);
       ctx.strokeRect(
@@ -108,13 +109,13 @@ const SatelliteOverviewMap = ({
     ctx.fillStyle = isTemporary ? 'rgba(59, 130, 246, 0.3)' : 'rgba(34, 197, 94, 0.3)';
     ctx.fillRect(x, y, width, height);
     
-    ctx.strokeStyle = isTemporary ? '#3B82F6' : '#16A34A';
+    ctx.strokeStyle = isTemporary ? '#3b82f6' : '#16a34a';
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, width, height);
 
     // Draw pitch label
-    ctx.fillStyle = '#1F2937';
-    ctx.font = 'bold 16px sans-serif';
+    ctx.fillStyle = '#1f2937';
+    ctx.font = 'bold 18px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(
       pitch.pitchNumber || `Pitch ${index + 1}`,
@@ -149,7 +150,7 @@ const SatelliteOverviewMap = ({
     if (!isDrawing || !currentDrawing) return;
 
     // Minimum size check
-    const minSize = 20;
+    const minSize = 30;
     const width = Math.abs(currentDrawing.x2 - currentDrawing.x1);
     const height = Math.abs(currentDrawing.y2 - currentDrawing.y1);
 
@@ -202,40 +203,83 @@ const SatelliteOverviewMap = ({
 
   if (!satelliteConfig?.imageUrl) {
     return (
-      <div className="text-center py-12 bg-gray-50 rounded-lg">
-        <Settings className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Satellite Image</h3>
-        <p className="text-gray-600 mb-4">Upload a satellite image to get started</p>
+      <div style={{
+        textAlign: 'center',
+        padding: '48px',
+        backgroundColor: '#f9fafb',
+        borderRadius: '12px',
+        margin: '0 auto',
+        maxWidth: '600px'
+      }}>
+        <Settings size={64} color="#9ca3af" style={{ marginBottom: '16px' }} />
+        <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
+          No Satellite Image
+        </h3>
+        <p style={{ color: '#6b7280', marginBottom: '16px' }}>
+          Upload a satellite image to get started with interactive pitch navigation
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px' }}>
       {/* Controls */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">
-          {isSetupMode ? 'Setup Pitch Boundaries' : 'Facility Overview'}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '24px'
+      }}>
+        <h2 style={{ 
+          fontSize: '32px', 
+          fontWeight: 'bold', 
+          color: '#1f2937', 
+          margin: 0 
+        }}>
+          {isSetupMode ? 'Setup Pitch Boundaries' : 'BeansFC Facility Overview'}
         </h2>
         
-        <div className="flex gap-2">
+        <div style={{ display: 'flex', gap: '12px' }}>
           {isSetupMode ? (
             <>
               <button
                 onClick={handleSaveConfiguration}
                 disabled={tempBoundaries.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px 20px',
+                  backgroundColor: tempBoundaries.length === 0 ? '#9ca3af' : '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: tempBoundaries.length === 0 ? 'not-allowed' : 'pointer',
+                  fontWeight: '600'
+                }}
               >
-                <Eye className="w-4 h-4" />
+                <Eye size={16} />
                 Save & Exit Setup
               </button>
             </>
           ) : (
             <button
               onClick={onEnterSetupMode}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 20px',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
             >
-              <Edit3 className="w-4 h-4" />
+              <Edit3 size={16} />
               Setup Pitches
             </button>
           )}
@@ -244,8 +288,14 @@ const SatelliteOverviewMap = ({
 
       {/* Instructions */}
       {isSetupMode && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-blue-800">
+        <div style={{
+          backgroundColor: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: '8px',
+          padding: '16px',
+          marginBottom: '24px'
+        }}>
+          <p style={{ color: '#1e40af', margin: 0 }}>
             <strong>Setup Mode:</strong> Click and drag to draw rectangles around each pitch. 
             Make sure to draw inside the actual pitch boundaries for accurate click detection.
           </p>
@@ -253,19 +303,29 @@ const SatelliteOverviewMap = ({
       )}
 
       {/* Canvas Container */}
-      <div className="relative bg-white rounded-lg shadow-sm border overflow-hidden">
+      <div style={{
+        position: 'relative',
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        border: '1px solid #e5e7eb',
+        overflow: 'hidden',
+        display: 'flex',
+        justifyContent: 'center'
+      }}>
         <canvas
           ref={canvasRef}
           width={canvasSize.width}
           height={canvasSize.height}
-          style={{ maxWidth: '100%', height: 'auto' }}
-          className={`block mx-auto ${
-            isSetupMode 
-              ? 'cursor-crosshair' 
+          style={{ 
+            maxWidth: '100%', 
+            height: 'auto',
+            cursor: isSetupMode 
+              ? 'crosshair' 
               : satelliteConfig.pitchBoundaries?.length > 0 
-              ? 'cursor-pointer' 
-              : ''
-          }`}
+              ? 'pointer' 
+              : 'default'
+          }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -284,18 +344,57 @@ const SatelliteOverviewMap = ({
 
       {/* Pitch List (Setup Mode) */}
       {isSetupMode && tempBoundaries.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border p-4">
-          <h3 className="font-semibold mb-3">Drawn Pitches ({tempBoundaries.length})</h3>
-          <div className="grid gap-2">
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #e5e7eb',
+          padding: '24px',
+          marginTop: '24px'
+        }}>
+          <h3 style={{ 
+            fontWeight: '600', 
+            marginBottom: '16px',
+            color: '#1f2937'
+          }}>
+            Drawn Pitches ({tempBoundaries.length})
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {tempBoundaries.map((pitch, index) => (
-              <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                <span>Pitch {pitch.pitchNumber}</span>
-                <span className="text-sm text-gray-600">
+              <div 
+                key={index} 
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px',
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '8px'
+                }}
+              >
+                <span style={{ fontWeight: '500' }}>Pitch {pitch.pitchNumber}</span>
+                <span style={{ fontSize: '14px', color: '#6b7280' }}>
                   {pitch.sizeType} ({Math.round(pitch.boundaries.x2 - pitch.boundaries.x1)} × {Math.round(pitch.boundaries.y2 - pitch.boundaries.y1)}px)
                 </span>
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Navigation Instructions */}
+      {!isSetupMode && satelliteConfig.pitchBoundaries?.length > 0 && (
+        <div style={{
+          backgroundColor: '#f0f9ff',
+          border: '1px solid #0ea5e9',
+          borderRadius: '8px',
+          padding: '16px',
+          marginTop: '24px',
+          textAlign: 'center'
+        }}>
+          <p style={{ color: '#0c4a6e', margin: 0 }}>
+            Click on any pitch area to navigate to the detailed allocation view for that pitch.
+          </p>
         </div>
       )}
     </div>
