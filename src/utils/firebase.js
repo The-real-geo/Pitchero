@@ -1,7 +1,8 @@
 // src/utils/firebase.js
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs, getDoc, setDoc, query, where, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDocs, getDoc, setDoc, updateDoc, query, where, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"; // NEW: Added Firebase Storage
 
 // Firebase configuration
 const firebaseConfig = {
@@ -23,10 +24,16 @@ export const db = getFirestore(app);
 // Firebase Authentication reference
 export const auth = getAuth(app);
 
+// Firebase Storage reference
+export const storage = getStorage(app); // NEW: Added Storage reference
+
 // Export serverTimestamp for use in other files
 export { serverTimestamp };
 
-// User Profile Functions
+// ================================
+// EXISTING USER PROFILE FUNCTIONS
+// ================================
+
 export const getUserProfile = async (userId) => {
   try {
     const userDoc = await getDoc(doc(db, 'users', userId));
@@ -51,6 +58,10 @@ export const createUserProfile = async (userId, email, clubId, role = 'member') 
     throw err;
   }
 };
+
+// ================================
+// EXISTING SHARING FUNCTIONS
+// ================================
 
 // Create a shareable link for allocations (existing function - kept for backward compatibility)
 export const createShareableLink = async (allocatorType, allocations, date, clubId, clubName) => {
@@ -117,6 +128,10 @@ export const getSharedAllocation = async (shareId) => {
   }
 };
 
+// ================================
+// EXISTING CLUB FUNCTIONS
+// ================================
+
 // Club Functions - FIXED to use 'code' field
 export const createClub = async (clubName, createdBy) => {
   try {
@@ -161,6 +176,201 @@ export const getAllClubs = async () => {
     return [];
   }
 };
+
+// ================================
+// NEW: SATELLITE CONFIGURATION FUNCTIONS
+// ================================
+
+// Initialize satellite configuration for a club
+export const initializeSatelliteConfig = async (clubId) => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+  
+  try {
+    const clubRef = doc(db, 'clubs', clubId);
+    
+    await updateDoc(clubRef, {
+      'satelliteConfig': {
+        imageUrl: null,
+        imageWidth: 0,
+        imageHeight: 0,
+        lastUpdated: null,
+        pitchBoundaries: []
+      }
+    });
+    
+    console.log(`Satellite config initialized for club: ${clubId}`);
+    return true;
+  } catch (err) {
+    console.error("Error initializing satellite config:", err);
+    throw err;
+  }
+};
+
+// Update satellite image URL and dimensions
+export const updateSatelliteImage = async (clubId, imageUrl, imageWidth, imageHeight) => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+  
+  try {
+    const clubRef = doc(db, 'clubs', clubId);
+    
+    await updateDoc(clubRef, {
+      'satelliteConfig.imageUrl': imageUrl,
+      'satelliteConfig.imageWidth': imageWidth,
+      'satelliteConfig.imageHeight': imageHeight,
+      'satelliteConfig.lastUpdated': serverTimestamp()
+    });
+    
+    console.log(`Satellite image updated for club: ${clubId}`);
+    return true;
+  } catch (err) {
+    console.error("Error updating satellite image:", err);
+    throw err;
+  }
+};
+
+// Save pitch boundaries configuration
+export const savePitchBoundaries = async (clubId, pitchBoundaries) => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+  
+  try {
+    // Ensure user belongs to the club (security check)
+    const userProfile = await getUserProfile(user.uid);
+    if (!userProfile || userProfile.clubId !== clubId) {
+      throw new Error('User not authorized for this club');
+    }
+    
+    const clubRef = doc(db, 'clubs', clubId);
+    
+    // Add additional metadata to boundaries
+    const boundariesWithMetadata = pitchBoundaries.map((boundary, index) => ({
+      ...boundary,
+      pitchId: boundary.pitchId || `pitch-${index + 1}`,
+      sectionsAvailable: getSectionsForSize(boundary.sizeType),
+      isActive: true,
+      createdBy: user.uid,
+      createdAt: serverTimestamp()
+    }));
+    
+    await updateDoc(clubRef, {
+      'satelliteConfig.pitchBoundaries': boundariesWithMetadata,
+      'satelliteConfig.lastUpdated': serverTimestamp()
+    });
+    
+    console.log(`Pitch boundaries saved for club: ${clubId}`);
+    return true;
+  } catch (err) {
+    console.error("Error saving pitch boundaries:", err);
+    throw err;
+  }
+};
+
+// Get satellite configuration for a club
+export const getSatelliteConfig = async (clubId) => {
+  try {
+    const clubDoc = await getDoc(doc(db, 'clubs', clubId));
+    
+    if (clubDoc.exists()) {
+      const data = clubDoc.data();
+      return data.satelliteConfig || null;
+    }
+    
+    return null;
+  } catch (err) {
+    console.error("Error getting satellite config:", err);
+    return null;
+  }
+};
+
+// Upload satellite image to Firebase Storage
+export const uploadSatelliteImage = async (clubId, imageFile) => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+  
+  try {
+    // Validate file
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    
+    if (!allowedTypes.includes(imageFile.type)) {
+      throw new Error('Please upload a JPEG or PNG image');
+    }
+    
+    if (imageFile.size > maxSize) {
+      throw new Error('Image must be smaller than 5MB');
+    }
+    
+    // Create storage reference
+    const timestamp = Date.now();
+    const fileExtension = imageFile.name.split('.').pop();
+    const fileName = `satellite-${timestamp}.${fileExtension}`;
+    const storageRef = ref(storage, `clubs/${clubId}/${fileName}`);
+    
+    // Upload file
+    console.log('Uploading satellite image...');
+    const uploadResult = await uploadBytes(storageRef, imageFile);
+    
+    // Get download URL
+    const downloadURL = await getDownloadURL(uploadResult.ref);
+    
+    console.log('Satellite image uploaded successfully:', downloadURL);
+    return {
+      url: downloadURL,
+      fileName: fileName,
+      size: imageFile.size
+    };
+  } catch (err) {
+    console.error("Error uploading satellite image:", err);
+    throw err;
+  }
+};
+
+// Helper function to get sections based on pitch size
+const getSectionsForSize = (sizeType) => {
+  const sizeConfig = {
+    small: 1,   // Training pitch
+    medium: 4,  // Junior pitch  
+    large: 8    // Full pitch
+  };
+  return sizeConfig[sizeType] || 8;
+};
+
+// Delete pitch boundary
+export const deletePitchBoundary = async (clubId, pitchId) => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+  
+  try {
+    // Get current satellite config
+    const satelliteConfig = await getSatelliteConfig(clubId);
+    if (!satelliteConfig?.pitchBoundaries) {
+      throw new Error('No pitch boundaries found');
+    }
+    
+    // Filter out the pitch to delete
+    const updatedBoundaries = satelliteConfig.pitchBoundaries.filter(
+      boundary => boundary.pitchId !== pitchId
+    );
+    
+    const clubRef = doc(db, 'clubs', clubId);
+    await updateDoc(clubRef, {
+      'satelliteConfig.pitchBoundaries': updatedBoundaries,
+      'satelliteConfig.lastUpdated': serverTimestamp()
+    });
+    
+    console.log(`Deleted pitch boundary: ${pitchId}`);
+    return true;
+  } catch (err) {
+    console.error("Error deleting pitch boundary:", err);
+    throw err;
+  }
+};
+
+// ================================
+// EXISTING ALLOCATION FUNCTIONS (UNCHANGED)
+// ================================
 
 // Multi-tenant Allocation Functions
 export const saveAllocation = async (allocatorType, allocation, date, clubId) => {
@@ -307,6 +517,10 @@ export const deleteAllocation = async (allocatorType, docId, date, clubId) => {
   }
 };
 
+// ================================
+// EXISTING USER MANAGEMENT FUNCTIONS
+// ================================
+
 // User Management Functions (for admins)
 export const getUsersInClub = async (clubId) => {
   try {
@@ -351,6 +565,10 @@ export const updateUserRole = async (userId, newRole) => {
     throw err;
   }
 };
+
+// ================================
+// EXISTING TEST FUNCTIONS
+// ================================
 
 // Test Functions
 export const testFirebaseConnection = async () => {
