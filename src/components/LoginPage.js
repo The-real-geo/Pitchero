@@ -254,7 +254,7 @@ function LoginPage() {
               fontWeight: "600"
             }}
           >
-            {isLogin ? "Multi Pitch Build - Login" : "Sign Up"}
+            {isLogin ? "Multi_Pitch_Build - Login" : "Sign Up"}
           </button>
           
           {error && (
