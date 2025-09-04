@@ -3,13 +3,14 @@ import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./utils/firebase";
-
 import LoginPage from "./components/LoginPage";
 import Menu from "./components/Menu";
 import TrainingPitchAllocator from "./components/TrainingPitchAllocator";
 import MatchDayPitchAllocator from "./components/MatchDayPitchAllocator";
 import Settings from "./components/Settings";
 import ShareView from "./components/ShareView";
+// NEW: Import SatelliteManager
+import SatelliteManager from "./components/satellite/SatelliteManager";
 
 // Protected Route Component
 const PrivateRoute = ({ children }) => {
@@ -21,7 +22,6 @@ const PrivateRoute = ({ children }) => {
       setUser(currentUser);
       setLoading(false);
     });
-
     return () => unsubscribe(); // Cleanup subscription
   }, []);
 
@@ -53,7 +53,6 @@ const PublicRoute = ({ children }) => {
       setUser(currentUser);
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -102,6 +101,16 @@ function App() {
           element={
             <PrivateRoute>
               <Menu />
+            </PrivateRoute>
+          }
+        />
+
+        {/* NEW: Protected satellite route */}
+        <Route
+          path="/satellite"
+          element={
+            <PrivateRoute>
+              <SatelliteManager />
             </PrivateRoute>
           }
         />
