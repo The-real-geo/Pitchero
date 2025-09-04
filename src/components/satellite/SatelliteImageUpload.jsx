@@ -237,7 +237,7 @@ const SatelliteImageUpload = ({ clubId, onImageUploaded }) => {
       <div style={{
         marginTop: '32px',
         backgroundColor: '#eff6ff',
-        border: '1px solid '#bfdbfe',
+        border: '1px solid #bfdbfe',
         borderRadius: '12px',
         padding: '24px'
       }}>
