@@ -1219,7 +1219,7 @@ const UnifiedPitchAllocator = () => {
                   padding: '10px 16px',
                   backgroundColor: '#f3f4f6',
                   border: '1px solid #d1d5db',
-                  borderRadius: '6px',
+                  borderRadius: '10px',
                   cursor: 'pointer',
                   fontSize: '14px',
                   height: '42px'
