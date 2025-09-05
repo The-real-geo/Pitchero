@@ -49,6 +49,15 @@ const UnifiedPitchAllocator = () => {
   // Time slots - reusing existing pattern
   const slots = useMemo(() => timeSlots(), []);
 
+  // Normalize pitch ID to ensure consistency - MUST BE DEFINED EARLY
+  const normalizedPitchId = useMemo(() => {
+    // If pitchId is just a number like '1' or '2', convert to 'pitch1' or 'pitch2'
+    if (pitchId && !pitchId.startsWith('pitch')) {
+      return `pitch${pitchId}`;
+    }
+    return pitchId;
+  }, [pitchId]);
+
   // Helper function from existing allocators
   const isLightColor = (color) => {
     if (!color) return true;
@@ -112,7 +121,7 @@ const UnifiedPitchAllocator = () => {
     
     if (isUnder6or7) {
       const options = sections.map(sec => ({ value: sec, label: `Section ${sec}` }));
-      if (showGrassArea[pitchId]) {
+      if (showGrassArea[normalizedPitchId]) {
         options.push({ value: 'grass', label: 'Grass Area' });
       }
       return options;
@@ -140,7 +149,7 @@ const UnifiedPitchAllocator = () => {
     }
     
     return sections.map(sec => ({ value: sec, label: `Section ${sec}` }));
-  }, [showGrassArea, pitchId]);
+  }, [showGrassArea, normalizedPitchId]);
 
   // Get sections to allocate - reusing existing logic
   const getSectionsToAllocate = useCallback((teamName, selectedLayout) => {
@@ -233,11 +242,11 @@ const UnifiedPitchAllocator = () => {
 
   // FIXED: Load allocations from Firebase when date, pitch or club changes
   useEffect(() => {
-    if (!clubInfo?.clubId || !date || !pitchId) return;
+    if (!clubInfo?.clubId || !date || !normalizedPitchId) return;
 
     const loadAllocations = async () => {
       try {
-        console.log('Loading allocations for:', { date, pitchId, clubId: clubInfo.clubId });
+        console.log('Loading allocations for:', { date, pitchId: normalizedPitchId, clubId: clubInfo.clubId });
         
         // Load both training and match allocations
         const trainingDocRef = doc(db, 'trainingAllocations', `${clubInfo.clubId}-${date}`);
@@ -255,7 +264,7 @@ const UnifiedPitchAllocator = () => {
           const trainingData = trainingDoc.data();
           // Filter for current pitch only
           Object.entries(trainingData).forEach(([key, value]) => {
-            if (key.includes(`-${pitchId}-`) && typeof value === 'object') {
+            if (key.includes(`-${normalizedPitchId}-`) && typeof value === 'object') {
               combinedAllocations[key] = { ...value, type: 'training' };
             }
           });
@@ -267,7 +276,7 @@ const UnifiedPitchAllocator = () => {
           const matchData = matchDoc.data();
           // Filter for current pitch only
           Object.entries(matchData).forEach(([key, value]) => {
-            if (key.includes(`-${pitchId}-`) && typeof value === 'object') {
+            if (key.includes(`-${normalizedPitchId}-`) && typeof value === 'object') {
               combinedAllocations[key] = { ...value, type: 'game' };
             }
           });
@@ -283,7 +292,7 @@ const UnifiedPitchAllocator = () => {
     };
 
     loadAllocations();
-  }, [date, pitchId, clubInfo?.clubId]);
+  }, [date, normalizedPitchId, clubInfo?.clubId]);
 
   // Conflict checking - following existing allocator pattern
   const hasConflict = useMemo(() => {
@@ -301,7 +310,7 @@ const UnifiedPitchAllocator = () => {
     for (let i = 0; i < slotsNeeded; i++) {
       const checkSlot = slots[startSlotIndex + i];
       for (const sectionToCheck of sectionsToCheck) {
-        const checkKey = `${date}-${checkSlot}-${pitchId}-${sectionToCheck}`;
+        const checkKey = `${date}-${checkSlot}-${normalizedPitchId}-${sectionToCheck}`;
         if (allocations[checkKey]) {
           return true;
         }
@@ -309,7 +318,7 @@ const UnifiedPitchAllocator = () => {
     }
     
     return false;
-  }, [allocations, date, slot, pitchId, section, sectionGroup, duration, slots, allocationType, team, getSectionsToAllocate]);
+  }, [allocations, date, slot, normalizedPitchId, section, sectionGroup, duration, slots, allocationType, team, getSectionsToAllocate]);
 
   // Add allocation - following existing allocator pattern
   const addAllocation = async () => {
@@ -343,7 +352,7 @@ const UnifiedPitchAllocator = () => {
         const currentSlot = slots[startSlotIndex + i];
         
         for (const sectionToAllocate of sectionsToAllocate) {
-          const key = `${date}-${currentSlot}-${pitchId}-${sectionToAllocate}`;
+          const key = `${date}-${currentSlot}-${normalizedPitchId}-${sectionToAllocate}`;
           newAllocations[key] = {
             team: selectedTeam.name,
             teamName: selectedTeam.name,
@@ -355,7 +364,7 @@ const UnifiedPitchAllocator = () => {
             totalSlots: slotsNeeded,
             startTime: slot,
             endTime: slots[startSlotIndex + slotsNeeded - 1],
-            pitch: pitchId,
+            pitch: normalizedPitchId,
             section: sectionToAllocate,
             date: date,
             type: allocationType,
@@ -424,10 +433,10 @@ const UnifiedPitchAllocator = () => {
           if (allocation.type === 'game') {
             const sectionsToRemove = getSectionsToAllocate(allocation.team, allocation.sectionGroup);
             sectionsToRemove.forEach(sec => {
-              keysToRemove.push(`${allocation.date}-${slotToRemove}-${allocation.pitch}-${sec}`);
+              keysToRemove.push(`${allocation.date}-${slotToRemove}-${normalizedPitchId}-${sec}`);
             });
           } else {
-            keysToRemove.push(`${allocation.date}-${slotToRemove}-${allocation.pitch}-${allocation.section}`);
+            keysToRemove.push(`${allocation.date}-${slotToRemove}-${normalizedPitchId}-${allocation.section}`);
           }
         }
       } else {
@@ -747,7 +756,7 @@ const UnifiedPitchAllocator = () => {
                     {sections.map(sec => (
                       <option key={sec} value={sec}>Section {sec}</option>
                     ))}
-                    {showGrassArea[pitchId] && (
+                    {showGrassArea[normalizedPitchId] && (
                       <option value="grass">Grass Area</option>
                     )}
                   </select>
@@ -957,7 +966,7 @@ const UnifiedPitchAllocator = () => {
                 zIndex: 10
               }}>
                 {sections.map(sec => {
-                  const key = `${date}-${slot}-${pitchId}-${sec}`;
+                  const key = `${date}-${slot}-${normalizedPitchId}-${sec}`;
                   const allocation = allocations[key];
                   
                   return (
@@ -1026,7 +1035,7 @@ const UnifiedPitchAllocator = () => {
             </div>
 
             {/* Grass Area (if enabled) */}
-            {showGrassArea[pitchId] && (
+            {showGrassArea[normalizedPitchId] && (
               <div style={{
                 width: '280px',
                 height: '80px',
@@ -1045,34 +1054,34 @@ const UnifiedPitchAllocator = () => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: (() => {
-                    const grassKey = `${date}-${slot}-${pitchId}-grass`;
+                    const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
                     const allocation = allocations[grassKey];
                     return allocation && isAdmin ? 'pointer' : 'default';
                   })(),
                   position: 'relative',
                   backgroundColor: (() => {
-                    const grassKey = `${date}-${slot}-${pitchId}-grass`;
+                    const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
                     const allocation = allocations[grassKey];
                     return allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)';
                   })(),
                   borderColor: (() => {
-                    const grassKey = `${date}-${slot}-${pitchId}-grass`;
+                    const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
                     const allocation = allocations[grassKey];
                     return allocation ? (allocation.colour || allocation.color) : 'rgba(255,255,255,0.5)';
                   })(),
                   color: (() => {
-                    const grassKey = `${date}-${slot}-${pitchId}-grass`;
+                    const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
                     const allocation = allocations[grassKey];
                     return allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151';
                   })()
                 }}
                 onClick={() => {
-                  const grassKey = `${date}-${slot}-${pitchId}-grass`;
+                  const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
                   const allocation = allocations[grassKey];
                   if (allocation && isAdmin) clearAllocation(grassKey);
                 }}
                 title={(() => {
-                  const grassKey = `${date}-${slot}-${pitchId}-grass`;
+                  const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
                   const allocation = allocations[grassKey];
                   return allocation ? `${allocation.team} (${allocation.duration}min) ${isAdmin ? '- Click to remove' : ''}` : 'Grass Area - Available';
                 })()}
@@ -1089,7 +1098,7 @@ const UnifiedPitchAllocator = () => {
                   </div>
                   
                   {(() => {
-                    const grassKey = `${date}-${slot}-${pitchId}-grass`;
+                    const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
                     const allocation = allocations[grassKey];
                     return allocation ? (
                       <div style={{
