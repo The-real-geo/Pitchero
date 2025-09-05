@@ -1413,95 +1413,11 @@ const UnifiedPitchAllocator = () => {
                 {expandedSlots[timeSlot] && (
                   <div style={{
                     padding: '16px',
-                    borderTop: '1px solid #e5e7eb'
+                    borderTop: '1px solid #e5e7eb',
+                    display: 'flex',
+                    justifyContent: 'center'
                   }}>
-                    <div style={{
-                      display: 'flex',
-                      gap: '16px',
-                      alignItems: 'center'
-                    }}>
-                      {renderPitchSection(timeSlot)}
-                      
-                      {showGrassArea[normalizedPitchId] && (
-                        <div style={{
-                          width: '140px',
-                          height: '60px',
-                          backgroundColor: '#bbf7d0',
-                          border: '2px solid white',
-                          borderRadius: '4px',
-                          padding: '4px'
-                        }}>
-                          <div style={{
-                            height: '100%',
-                            border: '1px solid rgba(255,255,255,0.5)',
-                            borderRadius: '2px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: (() => {
-                              const grassKey = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
-                              const allocation = allocations[grassKey];
-                              return allocation && isAdmin ? 'pointer' : 'default';
-                            })(),
-                            position: 'relative',
-                            backgroundColor: (() => {
-                              const grassKey = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
-                              const allocation = allocations[grassKey];
-                              return allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)';
-                            })(),
-                            color: (() => {
-                              const grassKey = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
-                              const allocation = allocations[grassKey];
-                              return allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151';
-                            })()
-                          }}
-                          onClick={() => {
-                            const grassKey = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
-                            const allocation = allocations[grassKey];
-                            if (allocation && isAdmin) clearAllocation(grassKey);
-                          }}
-                          title={(() => {
-                            const grassKey = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
-                            const allocation = allocations[grassKey];
-                            return allocation ? `${allocation.team} - Click to remove` : 'Grass Area';
-                          })()}
-                          >
-                            <div style={{
-                              position: 'absolute',
-                              top: '2px',
-                              left: '2px',
-                              fontSize: '8px',
-                              fontWeight: 'bold',
-                              opacity: 0.5
-                            }}>
-                              GRASS
-                            </div>
-                            
-                            {(() => {
-                              const grassKey = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
-                              const allocation = allocations[grassKey];
-                              return allocation ? (
-                                <div style={{
-                                  fontSize: '10px',
-                                  fontWeight: '500',
-                                  textAlign: 'center'
-                                }}>
-                                  {allocation.team.replace(/Under\s*/, 'U')}
-                                </div>
-                              ) : (
-                                <div style={{ 
-                                  color: '#9ca3af', 
-                                  fontSize: '10px' 
-                                }}>
-                                  Available
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    {renderPitchSection(timeSlot)}
                   </div>
                 )}
               </div>
