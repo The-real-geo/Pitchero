@@ -26,6 +26,7 @@ const UnifiedPitchAllocator = () => {
   
   // User and club data
   const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
   const [clubInfo, setClubInfo] = useState(null);
   const [teams, setTeams] = useState([]);
   const [pitchNames, setPitchNames] = useState({});
@@ -34,6 +35,7 @@ const UnifiedPitchAllocator = () => {
   // Allocation state
   const [allocations, setAllocations] = useState({});
   const [loading, setLoading] = useState(true);
+  const [savingAllocation, setSavingAllocation] = useState(false);
   
   // Form state - following existing allocator patterns
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -182,6 +184,7 @@ const UnifiedPitchAllocator = () => {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
+            setUserRole(userData.role);
             if (userData.clubId) {
               setClubInfo({
                 clubId: userData.clubId,
@@ -210,7 +213,13 @@ const UnifiedPitchAllocator = () => {
         
         if (settingsDoc.exists()) {
           const data = settingsDoc.data();
-          if (data.teams) setTeams(data.teams);
+          if (data.teams) {
+            setTeams(data.teams);
+            // Set initial team if teams are loaded
+            if (data.teams.length > 0 && !team) {
+              setTeam(data.teams[0].name);
+            }
+          }
           if (data.pitchNames) setPitchNames(data.pitchNames);
           if (data.showGrassArea) setShowGrassArea(data.showGrassArea);
         }
@@ -220,41 +229,61 @@ const UnifiedPitchAllocator = () => {
     };
 
     loadSettings();
-  }, [clubInfo?.clubId]);
+  }, [clubInfo?.clubId, team]);
 
-  // Add debug info to see user role
+  // FIXED: Load allocations from Firebase when date, pitch or club changes
   useEffect(() => {
-    if (user && clubInfo?.clubId) {
-      console.log('Current user:', user.email);
-      console.log('Club ID:', clubInfo.clubId);
-      
-      // Check user role from Firestore
-      const checkUserRole = async () => {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            console.log('User role:', userData.role);
-            console.log('User club ID:', userData.clubId);
-            
-            if (userData.role !== 'admin') {
-              console.warn('⚠️ User is not an admin. Only admins can add allocations.');
+    if (!clubInfo?.clubId || !date || !pitchId) return;
+
+    const loadAllocations = async () => {
+      try {
+        console.log('Loading allocations for:', { date, pitchId, clubId: clubInfo.clubId });
+        
+        // Load both training and match allocations
+        const trainingDocRef = doc(db, 'trainingAllocations', `${clubInfo.clubId}-${date}`);
+        const matchDocRef = doc(db, 'matchAllocations', `${clubInfo.clubId}-${date}`);
+        
+        const [trainingDoc, matchDoc] = await Promise.all([
+          getDoc(trainingDocRef),
+          getDoc(matchDocRef)
+        ]);
+        
+        let combinedAllocations = {};
+        
+        // Process training allocations
+        if (trainingDoc.exists()) {
+          const trainingData = trainingDoc.data();
+          // Filter for current pitch only
+          Object.entries(trainingData).forEach(([key, value]) => {
+            if (key.includes(`-${pitchId}-`) && typeof value === 'object') {
+              combinedAllocations[key] = { ...value, type: 'training' };
             }
-          }
-        } catch (error) {
-          console.error('Error checking user role:', error);
+          });
+          console.log('Loaded training allocations:', Object.keys(combinedAllocations).length);
         }
-      };
-      
-      checkUserRole();
-    }
-  }, [user, clubInfo]);
+        
+        // Process match allocations
+        if (matchDoc.exists()) {
+          const matchData = matchDoc.data();
+          // Filter for current pitch only
+          Object.entries(matchData).forEach(([key, value]) => {
+            if (key.includes(`-${pitchId}-`) && typeof value === 'object') {
+              combinedAllocations[key] = { ...value, type: 'game' };
+            }
+          });
+          console.log('Loaded match allocations:', Object.keys(combinedAllocations).length);
+        }
+        
+        console.log('Total allocations loaded:', Object.keys(combinedAllocations).length);
+        setAllocations(combinedAllocations);
+      } catch (error) {
+        console.error('Error loading allocations:', error);
+        setAllocations({});
+      }
+    };
 
-  // Load allocations for current date and pitch - simplified for local state
-  useEffect(() => {
-    // Reset allocations when date or pitch changes
-    setAllocations({});
-  }, [date, pitchId]);
+    loadAllocations();
+  }, [date, pitchId, clubInfo?.clubId]);
 
   // Conflict checking - following existing allocator pattern
   const hasConflict = useMemo(() => {
@@ -284,81 +313,159 @@ const UnifiedPitchAllocator = () => {
 
   // Add allocation - following existing allocator pattern
   const addAllocation = async () => {
-    const selectedTeam = teams.find(t => t.name === team);
-    if (!selectedTeam || hasConflict || !clubInfo?.clubId) return;
-
-    const slotsNeeded = duration / 15;
-    const startSlotIndex = slots.indexOf(slot);
-    const actualDuration = allocationType === 'game' ? getMatchDayDuration(team) : duration;
-    
-    const sectionsToAllocate = allocationType === 'training' 
-      ? [section] 
-      : getSectionsToAllocate(team, sectionGroup);
-
-    const updated = { ...allocations };
-    
-    for (let i = 0; i < slotsNeeded; i++) {
-      const currentSlot = slots[startSlotIndex + i];
-      
-      for (const sectionToAllocate of sectionsToAllocate) {
-        const key = `${date}-${currentSlot}-${pitchId}-${sectionToAllocate}`;
-        updated[key] = {
-          team: selectedTeam.name,
-          teamName: selectedTeam.name,
-          colour: selectedTeam.color,
-          color: selectedTeam.color,
-          duration: actualDuration,
-          isMultiSlot: slotsNeeded > 1,
-          slotIndex: i,
-          totalSlots: slotsNeeded,
-          startTime: slot,
-          endTime: slots[startSlotIndex + slotsNeeded - 1],
-          pitch: pitchId,
-          section: sectionToAllocate,
-          date: date,
-          type: allocationType,
-          clubId: clubInfo.clubId,
-          created: Date.now(),
-          createdBy: user.email
-        };
-      }
+    // Check if user is admin
+    if (userRole !== 'admin') {
+      alert('Only administrators can add allocations');
+      return;
     }
 
+    const selectedTeam = teams.find(t => t.name === team);
+    if (!selectedTeam || hasConflict || !clubInfo?.clubId) {
+      console.log('Cannot add allocation:', { selectedTeam, hasConflict, clubId: clubInfo?.clubId });
+      return;
+    }
+
+    setSavingAllocation(true);
+    
     try {
+      const slotsNeeded = duration / 15;
+      const startSlotIndex = slots.indexOf(slot);
+      const actualDuration = allocationType === 'game' ? getMatchDayDuration(team) : duration;
+      
+      const sectionsToAllocate = allocationType === 'training' 
+        ? [section] 
+        : getSectionsToAllocate(team, sectionGroup);
+
+      // Build the allocation objects
+      const newAllocations = {};
+      
+      for (let i = 0; i < slotsNeeded; i++) {
+        const currentSlot = slots[startSlotIndex + i];
+        
+        for (const sectionToAllocate of sectionsToAllocate) {
+          const key = `${date}-${currentSlot}-${pitchId}-${sectionToAllocate}`;
+          newAllocations[key] = {
+            team: selectedTeam.name,
+            teamName: selectedTeam.name,
+            colour: selectedTeam.color,
+            color: selectedTeam.color,
+            duration: actualDuration,
+            isMultiSlot: slotsNeeded > 1,
+            slotIndex: i,
+            totalSlots: slotsNeeded,
+            startTime: slot,
+            endTime: slots[startSlotIndex + slotsNeeded - 1],
+            pitch: pitchId,
+            section: sectionToAllocate,
+            date: date,
+            type: allocationType,
+            clubId: clubInfo.clubId,
+            created: Date.now(),
+            createdBy: user.email
+          };
+        }
+      }
+
+      console.log('Adding allocations:', newAllocations);
+
+      // Save to Firebase
       const collectionName = allocationType === 'training' ? 'trainingAllocations' : 'matchAllocations';
       const docRef = doc(db, collectionName, `${clubInfo.clubId}-${date}`);
-      await setDoc(docRef, updated, { merge: true });
-      setAllocations(updated);
+      
+      // Get existing document to merge with
+      const existingDoc = await getDoc(docRef);
+      const existingData = existingDoc.exists() ? existingDoc.data() : {};
+      
+      // Merge new allocations with existing
+      const updatedData = {
+        ...existingData,
+        ...newAllocations
+      };
+      
+      await setDoc(docRef, updatedData);
+      
+      // Update local state
+      setAllocations(prev => ({
+        ...prev,
+        ...newAllocations
+      }));
+      
+      console.log('Allocations saved successfully');
     } catch (error) {
       console.error('Error saving allocation:', error);
+      alert(`Failed to save allocation: ${error.message}`);
+    } finally {
+      setSavingAllocation(false);
     }
   };
 
   // Clear allocation - following existing allocator pattern
   const clearAllocation = async (key) => {
-    const allocation = allocations[key];
-    if (!allocation) return;
-
-    const updated = { ...allocations };
-
-    if (allocation.isMultiSlot) {
-      const startSlotIndex = slots.indexOf(allocation.startTime);
-      for (let i = 0; i < allocation.totalSlots; i++) {
-        const slotToRemove = slots[startSlotIndex + i];
-        const keyToRemove = `${allocation.date}-${slotToRemove}-${allocation.pitch}-${allocation.section}`;
-        delete updated[keyToRemove];
-      }
-    } else {
-      delete updated[key];
+    // Check if user is admin
+    if (userRole !== 'admin') {
+      alert('Only administrators can remove allocations');
+      return;
     }
 
+    const allocation = allocations[key];
+    if (!allocation || !clubInfo?.clubId) return;
+
     try {
+      // Determine which slots to remove
+      const keysToRemove = [];
+      
+      if (allocation.isMultiSlot) {
+        // Remove all slots for multi-slot allocation
+        const startSlotIndex = slots.indexOf(allocation.startTime);
+        for (let i = 0; i < allocation.totalSlots; i++) {
+          const slotToRemove = slots[startSlotIndex + i];
+          
+          // If it's a game, might need to remove multiple sections
+          if (allocation.type === 'game') {
+            const sectionsToRemove = getSectionsToAllocate(allocation.team, allocation.sectionGroup);
+            sectionsToRemove.forEach(sec => {
+              keysToRemove.push(`${allocation.date}-${slotToRemove}-${allocation.pitch}-${sec}`);
+            });
+          } else {
+            keysToRemove.push(`${allocation.date}-${slotToRemove}-${allocation.pitch}-${allocation.section}`);
+          }
+        }
+      } else {
+        keysToRemove.push(key);
+      }
+
+      console.log('Removing keys:', keysToRemove);
+
+      // Get the Firebase document
       const collectionName = allocation.type === 'training' ? 'trainingAllocations' : 'matchAllocations';
       const docRef = doc(db, collectionName, `${clubInfo.clubId}-${allocation.date}`);
-      await setDoc(docRef, updated, { merge: true });
-      setAllocations(updated);
+      const existingDoc = await getDoc(docRef);
+      
+      if (existingDoc.exists()) {
+        const existingData = existingDoc.data();
+        
+        // Remove the keys
+        keysToRemove.forEach(keyToRemove => {
+          delete existingData[keyToRemove];
+        });
+        
+        // Save back to Firebase
+        await setDoc(docRef, existingData);
+        
+        // Update local state
+        setAllocations(prev => {
+          const updated = { ...prev };
+          keysToRemove.forEach(keyToRemove => {
+            delete updated[keyToRemove];
+          });
+          return updated;
+        });
+        
+        console.log('Allocation removed successfully');
+      }
     } catch (error) {
       console.error('Error deleting allocation:', error);
+      alert(`Failed to remove allocation: ${error.message}`);
     }
   };
 
@@ -400,6 +507,7 @@ const UnifiedPitchAllocator = () => {
   }
 
   const currentPitchName = pitchNames[pitchId] || `Pitch ${pitchId}`;
+  const isAdmin = userRole === 'admin';
 
   return (
     <div style={{
@@ -430,7 +538,7 @@ const UnifiedPitchAllocator = () => {
               color: '#6b7280',
               marginTop: '4px'
             }}>
-              Training & Match Day Scheduling
+              {isAdmin ? 'Training & Match Day Scheduling' : 'View Only - Admin access required to make changes'}
             </p>
           </div>
           <button
@@ -450,247 +558,250 @@ const UnifiedPitchAllocator = () => {
           </button>
         </div>
 
-        {/* Add New Allocation Form */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          marginBottom: '24px'
-        }}>
-          <h2 style={{
-            fontSize: '20px',
-            fontWeight: '600',
-            color: '#1f2937',
-            marginBottom: '20px'
-          }}>
-            Add New Allocation
-          </h2>
-
+        {/* Add New Allocation Form - Only show for admins */}
+        {isAdmin && (
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '16px',
-            marginBottom: '20px'
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+            marginBottom: '24px'
           }}>
-            {/* Date */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#374151',
-                marginBottom: '8px'
-              }}>
-                Date
-              </label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '14px'
-                }}
-              />
-            </div>
-
-            {/* Time */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#374151',
-                marginBottom: '8px'
-              }}>
-                Start Time
-              </label>
-              <select
-                value={slot}
-                onChange={(e) => setSlot(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '14px'
-                }}
-              >
-                {slots.map(timeSlot => (
-                  <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Type */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#374151',
-                marginBottom: '8px'
-              }}>
-                Type
-              </label>
-              <select
-                value={allocationType}
-                onChange={(e) => handleAllocationTypeChange(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '14px'
-                }}
-              >
-                <option value="training">Training</option>
-                <option value="game">Game</option>
-              </select>
-            </div>
-
-            {/* Team */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#374151',
-                marginBottom: '8px'
-              }}>
-                Team
-              </label>
-              <select
-                value={team}
-                onChange={(e) => handleTeamChange(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '14px'
-                }}
-              >
-                {teams.map(t => (
-                  <option key={t.name} value={t.name}>{t.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Duration */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#374151',
-                marginBottom: '8px'
-              }}>
-                Duration (minutes)
-              </label>
-              <input
-                type="number"
-                min="15"
-                max="180"
-                step="15"
-                value={duration}
-                onChange={(e) => setDuration(parseInt(e.target.value))}
-                disabled={allocationType === 'game'}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  backgroundColor: allocationType === 'game' ? '#f9fafb' : 'white'
-                }}
-              />
-            </div>
-
-            {/* Section Selection */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#374151',
-                marginBottom: '8px'
-              }}>
-                {allocationType === 'training' ? 'Section' : 'Layout'}
-              </label>
-              {allocationType === 'training' ? (
-                <select
-                  value={section}
-                  onChange={(e) => setSection(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
-                >
-                  {sections.map(sec => (
-                    <option key={sec} value={sec}>Section {sec}</option>
-                  ))}
-                  {showGrassArea[pitchId] && (
-                    <option value="grass">Grass Area</option>
-                  )}
-                </select>
-              ) : (
-                <select
-                  value={sectionGroup}
-                  onChange={(e) => setSectionGroup(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
-                >
-                  {team && getSectionOptions(team).map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          </div>
-
-          {/* Add Button */}
-          <button
-            onClick={addAllocation}
-            disabled={hasConflict || !team}
-            style={{
-              padding: '12px 24px',
-              backgroundColor: hasConflict || !team ? '#9ca3af' : '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: hasConflict || !team ? 'not-allowed' : 'pointer',
-              fontSize: '16px',
-              fontWeight: '600'
-            }}
-          >
-            {hasConflict ? 'Time Conflict' : `Add ${allocationType === 'training' ? 'Training' : 'Game'}`}
-          </button>
-
-          {hasConflict && (
-            <p style={{
-              color: '#ef4444',
-              fontSize: '14px',
-              marginTop: '8px'
+            <h2 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#1f2937',
+              marginBottom: '20px'
             }}>
-              This time slot conflicts with an existing allocation
-            </p>
-          )}
-        </div>
+              Add New Allocation
+            </h2>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '16px',
+              marginBottom: '20px'
+            }}>
+              {/* Date */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* Time */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>
+                  Start Time
+                </label>
+                <select
+                  value={slot}
+                  onChange={(e) => setSlot(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
+                >
+                  {slots.map(timeSlot => (
+                    <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Type */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>
+                  Type
+                </label>
+                <select
+                  value={allocationType}
+                  onChange={(e) => handleAllocationTypeChange(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="training">Training</option>
+                  <option value="game">Game</option>
+                </select>
+              </div>
+
+              {/* Team */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>
+                  Team
+                </label>
+                <select
+                  value={team}
+                  onChange={(e) => handleTeamChange(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">Select a team</option>
+                  {teams.map(t => (
+                    <option key={t.name} value={t.name}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Duration */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>
+                  Duration (minutes)
+                </label>
+                <input
+                  type="number"
+                  min="15"
+                  max="180"
+                  step="15"
+                  value={duration}
+                  onChange={(e) => setDuration(parseInt(e.target.value))}
+                  disabled={allocationType === 'game'}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    backgroundColor: allocationType === 'game' ? '#f9fafb' : 'white'
+                  }}
+                />
+              </div>
+
+              {/* Section Selection */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>
+                  {allocationType === 'training' ? 'Section' : 'Layout'}
+                </label>
+                {allocationType === 'training' ? (
+                  <select
+                    value={section}
+                    onChange={(e) => setSection(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  >
+                    {sections.map(sec => (
+                      <option key={sec} value={sec}>Section {sec}</option>
+                    ))}
+                    {showGrassArea[pitchId] && (
+                      <option value="grass">Grass Area</option>
+                    )}
+                  </select>
+                ) : (
+                  <select
+                    value={sectionGroup}
+                    onChange={(e) => setSectionGroup(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  >
+                    {team && getSectionOptions(team).map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            {/* Add Button */}
+            <button
+              onClick={addAllocation}
+              disabled={hasConflict || !team || savingAllocation}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: hasConflict || !team ? '#9ca3af' : '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: hasConflict || !team || savingAllocation ? 'not-allowed' : 'pointer',
+                fontSize: '16px',
+                fontWeight: '600'
+              }}
+            >
+              {savingAllocation ? 'Saving...' : hasConflict ? 'Time Conflict' : `Add ${allocationType === 'training' ? 'Training' : 'Game'}`}
+            </button>
+
+            {hasConflict && (
+              <p style={{
+                color: '#ef4444',
+                fontSize: '14px',
+                marginTop: '8px'
+              }}>
+                This time slot conflicts with an existing allocation
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Pitch Visual with Allocations */}
         <div style={{
@@ -738,7 +849,10 @@ const UnifiedPitchAllocator = () => {
             marginBottom: '20px'
           }}>
             <p style={{ color: '#6b7280', margin: '0', fontSize: '14px' }}>
-              Click on any allocation to delete it instantly. Training sessions show in blue, games show in red. Currently viewing: <strong>{slot}</strong>
+              {isAdmin 
+                ? 'Click on any allocation to delete it instantly. Training sessions show in team colors.'
+                : 'Viewing allocations for this time slot. Contact an admin to make changes.'}
+              <br />Currently viewing: <strong>{slot}</strong>
             </p>
           </div>
 
@@ -862,13 +976,13 @@ const UnifiedPitchAllocator = () => {
                         position: 'relative',
                         padding: '2px',
                         textAlign: 'center',
-                        cursor: 'pointer',
-                        backgroundColor: allocation ? allocation.colour + '90' : 'rgba(255,255,255,0.1)',
-                        borderColor: allocation ? allocation.colour : 'rgba(255,255,255,0.5)',
-                        color: allocation ? (isLightColor(allocation.colour) ? '#000' : '#fff') : '#374151'
+                        cursor: allocation && isAdmin ? 'pointer' : 'default',
+                        backgroundColor: allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)',
+                        borderColor: allocation ? (allocation.colour || allocation.color) : 'rgba(255,255,255,0.5)',
+                        color: allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151'
                       }}
-                      onClick={() => allocation && clearAllocation(key)}
-                      title={allocation ? `${allocation.team} (${allocation.duration}min) - Click to remove` : `Section ${sec} - Available`}
+                      onClick={() => allocation && isAdmin && clearAllocation(key)}
+                      title={allocation ? `${allocation.team} (${allocation.duration}min) ${isAdmin ? '- Click to remove' : ''}` : `Section ${sec} - Available`}
                     >
                       <div style={{
                         position: 'absolute',
@@ -930,33 +1044,37 @@ const UnifiedPitchAllocator = () => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
+                  cursor: (() => {
+                    const grassKey = `${date}-${slot}-${pitchId}-grass`;
+                    const allocation = allocations[grassKey];
+                    return allocation && isAdmin ? 'pointer' : 'default';
+                  })(),
                   position: 'relative',
                   backgroundColor: (() => {
                     const grassKey = `${date}-${slot}-${pitchId}-grass`;
                     const allocation = allocations[grassKey];
-                    return allocation ? allocation.colour + '90' : 'rgba(255,255,255,0.1)';
+                    return allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)';
                   })(),
                   borderColor: (() => {
                     const grassKey = `${date}-${slot}-${pitchId}-grass`;
                     const allocation = allocations[grassKey];
-                    return allocation ? allocation.colour : 'rgba(255,255,255,0.5)';
+                    return allocation ? (allocation.colour || allocation.color) : 'rgba(255,255,255,0.5)';
                   })(),
                   color: (() => {
                     const grassKey = `${date}-${slot}-${pitchId}-grass`;
                     const allocation = allocations[grassKey];
-                    return allocation ? (isLightColor(allocation.colour) ? '#000' : '#fff') : '#374151';
+                    return allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151';
                   })()
                 }}
                 onClick={() => {
                   const grassKey = `${date}-${slot}-${pitchId}-grass`;
                   const allocation = allocations[grassKey];
-                  if (allocation) clearAllocation(grassKey);
+                  if (allocation && isAdmin) clearAllocation(grassKey);
                 }}
                 title={(() => {
                   const grassKey = `${date}-${slot}-${pitchId}-grass`;
                   const allocation = allocations[grassKey];
-                  return allocation ? `${allocation.team} (${allocation.duration}min) - Click to remove` : 'Grass Area - Available';
+                  return allocation ? `${allocation.team} (${allocation.duration}min) ${isAdmin ? '- Click to remove' : ''}` : 'Grass Area - Available';
                 })()}
                 >
                   <div style={{
