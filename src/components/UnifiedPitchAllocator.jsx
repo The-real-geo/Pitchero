@@ -29,8 +29,7 @@ const UnifiedPitchAllocator = () => {
   const [slot, setSlot] = useState('09:00');
   const [duration, setDuration] = useState(30);
   
-  // UI state
-  const [showExpandedSettings, setShowExpandedSettings] = useState(false);
+  // UI state - removed showExpandedSettings as it's no longer needed with visual layout
 
   // Time slots in 15-minute intervals
   const timeSlots = () => {
