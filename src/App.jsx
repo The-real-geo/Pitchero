@@ -95,7 +95,10 @@ function App() {
           path="/share/:shareId" 
           element={<ShareView />} 
         />
-
+        
+ {/* route to unified allocator */}
+        <Route path="/allocator/:pitchId" element={<UnifiedPitchAllocator />} />
+        
         {/* Protected menu - this is your main dashboard */}
         <Route
           path="/menu"
