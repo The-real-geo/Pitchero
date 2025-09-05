@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { auth, db } from '../utils/firebase';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 // Reusing constants from existing allocators
 const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -216,7 +216,7 @@ const UnifiedPitchAllocator = () => {
             if (userData.clubId) {
               setClubInfo({
                 clubId: userData.clubId,
-                name: userData.clubName || 'Unknown Club'
+                name: userData.clubName || 'My Club'
               });
             }
           }
@@ -321,6 +321,17 @@ const UnifiedPitchAllocator = () => {
     });
     setExpandedSlots(initialExpanded);
   }, [slots]);
+
+  // Logout handler
+  const handleLogout = async () => {
+    try {
+      setMenuOpen(false); // Close menu before logout
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   // Conflict checking - following existing allocator pattern
   const hasConflict = useMemo(() => {
@@ -878,9 +889,14 @@ const UnifiedPitchAllocator = () => {
               padding: '8px',
               borderBottom: '1px solid #e5e7eb'
             }}>
-              <div style={{ fontWeight: '600', fontSize: '14px' }}>{user?.email}</div>
+              <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px' }}>
+                🏢 {clubInfo?.name || 'Loading Club...'}
+              </div>
+              <div style={{ fontSize: '13px', color: '#374151', marginBottom: '2px' }}>
+                👤 {user?.email}
+              </div>
               <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                Access: {userRole === 'admin' ? 'Administrator' : 'Member'}
+                Role: {userRole === 'admin' ? 'Administrator' : 'Member'}
               </div>
             </div>
             
@@ -923,6 +939,33 @@ const UnifiedPitchAllocator = () => {
                 </button>
               </>
             )}
+            
+            {/* Logout button */}
+            <div style={{
+              borderTop: '1px solid #e5e7eb',
+              marginTop: '8px',
+              paddingTop: '8px'
+            }}>
+              <button
+                onClick={handleLogout}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  backgroundColor: 'white',
+                  color: '#dc2626',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                🚪 Logout
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -955,7 +998,20 @@ const UnifiedPitchAllocator = () => {
                 color: '#6b7280',
                 margin: '4px 0 0 0'
               }}>
-                {totalAllocations} allocation{totalAllocations !== 1 ? 's' : ''} on {currentPitchName}
+                <span style={{
+                  padding: '2px 8px',
+                  backgroundColor: totalAllocations > 0 ? '#10b981' : '#6b7280',
+                  color: 'white',
+                  borderRadius: '12px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  📊 {totalAllocations} allocation{totalAllocations !== 1 ? 's' : ''}
+                </span>
+                <span style={{ marginLeft: '8px' }}>on {currentPitchName}</span>
               </p>
             </div>
             
@@ -1000,12 +1056,13 @@ const UnifiedPitchAllocator = () => {
               <button
                 onClick={() => changeDate(-1)}
                 style={{
-                  padding: '8px 16px',
+                  padding: '10px 16px',
                   backgroundColor: '#f3f4f6',
                   border: '1px solid #d1d5db',
                   borderRadius: '6px',
                   cursor: 'pointer',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  height: '42px'
                 }}
               >
                 ← Previous Day
@@ -1039,12 +1096,13 @@ const UnifiedPitchAllocator = () => {
               <button
                 onClick={() => changeDate(1)}
                 style={{
-                  padding: '8px 16px',
+                  padding: '10px 16px',
                   backgroundColor: '#f3f4f6',
                   border: '1px solid #d1d5db',
                   borderRadius: '6px',
                   cursor: 'pointer',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  height: '42px'
                 }}
               >
                 Next Day →
@@ -1058,13 +1116,14 @@ const UnifiedPitchAllocator = () => {
               <button
                 onClick={() => setAllSlotsExpanded(true)}
                 style={{
-                  padding: '8px 16px',
+                  padding: '10px 16px',
                   backgroundColor: '#e0f2fe',
                   color: '#0369a1',
                   border: 'none',
                   borderRadius: '6px',
                   cursor: 'pointer',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  height: '42px'
                 }}
               >
                 Expand All
@@ -1073,13 +1132,14 @@ const UnifiedPitchAllocator = () => {
               <button
                 onClick={() => setAllSlotsExpanded(false)}
                 style={{
-                  padding: '8px 16px',
+                  padding: '10px 16px',
                   backgroundColor: '#fef3c7',
                   color: '#92400e',
                   border: 'none',
                   borderRadius: '6px',
                   cursor: 'pointer',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  height: '42px'
                 }}
               >
                 Collapse All
@@ -1089,17 +1149,18 @@ const UnifiedPitchAllocator = () => {
                 <button
                   onClick={clearAllAllocations}
                   style={{
-                    padding: '8px 16px',
+                    padding: '10px 16px',
                     backgroundColor: '#fee2e2',
                     color: '#dc2626',
                     border: 'none',
                     borderRadius: '6px',
                     cursor: 'pointer',
                     fontSize: '14px',
-                    fontWeight: '500'
+                    fontWeight: '500',
+                    height: '42px'
                   }}
                 >
-                  Clear All Allocations
+                  Clear All
                 </button>
               )}
             </div>
@@ -1347,81 +1408,88 @@ const UnifiedPitchAllocator = () => {
             flexDirection: 'column',
             gap: '12px'
           }}>
-            {slots.map(timeSlot => (
-              <div key={timeSlot} style={{
-                borderRadius: '8px',
-                border: '1px solid #e5e7eb',
-                overflow: 'hidden'
-              }}>
-                <div
-                  onClick={() => toggleSlotExpanded(timeSlot)}
-                  style={{
-                    padding: '12px 16px',
-                    backgroundColor: '#f9fafb',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
-                    <span style={{
-                      fontSize: '16px',
-                      fontWeight: '600',
-                      color: '#1f2937'
+            {slots.map(timeSlot => {
+              const slotAllocations = Object.entries(allocations).filter(([key]) =>
+                key.includes(`-${timeSlot}-`)
+              );
+              const hasAllocations = slotAllocations.length > 0;
+              
+              return (
+                <div key={timeSlot} style={{
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb',
+                  overflow: 'hidden'
+                }}>
+                  <div
+                    onClick={() => toggleSlotExpanded(timeSlot)}
+                    style={{
+                      padding: '12px 16px',
+                      backgroundColor: '#f9fafb',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
                     }}>
-                      {timeSlot}
-                    </span>
-                    {(() => {
-                      const slotAllocations = Object.entries(allocations).filter(([key]) =>
-                        key.includes(`-${timeSlot}-`)
-                      );
-                      if (slotAllocations.length > 0) {
-                        const uniqueTeams = [...new Set(slotAllocations.map(([, a]) => a.team))];
-                        return (
-                          <span style={{
-                            fontSize: '14px',
-                            color: '#6b7280'
-                          }}>
-                            {uniqueTeams.length} team{uniqueTeams.length !== 1 ? 's' : ''}: {uniqueTeams.join(', ')}
-                          </span>
-                        );
-                      }
-                      return (
+                      <span style={{
+                        backgroundColor: hasAllocations ? '#dbeafe' : '#f3f4f6',
+                        color: hasAllocations ? '#1e40af' : '#6b7280',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        border: '1px solid',
+                        borderColor: hasAllocations ? '#93c5fd' : '#e5e7eb',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        minWidth: '80px'
+                      }}>
+                        {timeSlot}
+                      </span>
+                      {hasAllocations ? (
+                        <span style={{
+                          fontSize: '14px',
+                          color: '#6b7280'
+                        }}>
+                          {[...new Set(slotAllocations.map(([, a]) => a.team))].join(', ')}
+                        </span>
+                      ) : (
                         <span style={{
                           fontSize: '14px',
                           color: '#9ca3af'
                         }}>
                           Available
                         </span>
-                      );
-                    })()}
+                      )}
+                    </div>
+                    
+                    <div style={{
+                      transform: expandedSlots[timeSlot] ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s'
+                    }}>
+                      ▼
+                    </div>
                   </div>
                   
-                  <div style={{
-                    transform: expandedSlots[timeSlot] ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s'
-                  }}>
-                    ▼
-                  </div>
+                  {expandedSlots[timeSlot] && (
+                    <div style={{
+                      padding: '16px',
+                      borderTop: '1px solid #e5e7eb',
+                      display: 'flex',
+                      justifyContent: 'center'
+                    }}>
+                      {renderPitchSection(timeSlot)}
+                    </div>
+                  )}
                 </div>
-                
-                {expandedSlots[timeSlot] && (
-                  <div style={{
-                    padding: '16px',
-                    borderTop: '1px solid #e5e7eb',
-                    display: 'flex',
-                    justifyContent: 'center'
-                  }}>
-                    {renderPitchSection(timeSlot)}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
