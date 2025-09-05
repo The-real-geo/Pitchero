@@ -696,7 +696,7 @@ const UnifiedPitchAllocator = () => {
           )}
         </div>
 
-        {/* Allocations Grid */}
+        {/* Pitch Visual with Allocations */}
         <div style={{
           backgroundColor: 'white',
           borderRadius: '12px',
@@ -715,198 +715,551 @@ const UnifiedPitchAllocator = () => {
               color: '#1f2937',
               margin: '0'
             }}>
-              Current Allocations - {new Date(date).toLocaleDateString()}
+              {currentPitchName} - {new Date(date).toLocaleDateString()}
             </h2>
-            <button
-              onClick={() => setShowExpandedSettings(!showExpandedSettings)}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              {showExpandedSettings ? 'Collapse' : 'Expand'} Settings
-            </button>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <select
+                value={slot}
+                onChange={(e) => setSlot(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '14px'
+                }}
+              >
+                {slots.map(timeSlot => (
+                  <option key={timeSlot} value={timeSlot}>View {timeSlot}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {showExpandedSettings && (
-            <div style={{
-              backgroundColor: '#f9fafb',
-              padding: '16px',
-              borderRadius: '8px',
-              marginBottom: '20px'
-            }}>
-              <p style={{ color: '#6b7280', margin: '0', fontSize: '14px' }}>
-                Click on any allocation to delete it instantly. Training sessions show in blue, games show in red.
-              </p>
-            </div>
-          )}
+          <div style={{
+            backgroundColor: '#f9fafb',
+            padding: '16px',
+            borderRadius: '8px',
+            marginBottom: '20px'
+          }}>
+            <p style={{ color: '#6b7280', margin: '0', fontSize: '14px' }}>
+              Click on any allocation to delete it instantly. Training sessions show in blue, games show in red. Currently viewing: <strong>{slot}</strong>
+            </p>
+          </div>
 
-          {/* Time Grid */}
-          <div style={{ overflowX: 'auto' }}>
+          {/* Pitch Layout */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px'
+          }}>
+            {/* Main Pitch Sections */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: `100px repeat(${sections.length}, 120px)`,
-              gap: '1px',
-              backgroundColor: '#e5e7eb',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              minWidth: '1000px'
+              gridTemplateColumns: '1fr 1fr',
+              gridTemplateRows: 'repeat(4, 1fr)',
+              gap: '8px',
+              width: '100%',
+              maxWidth: '800px',
+              aspectRatio: '2/2.5',
+              padding: '20px',
+              backgroundColor: '#22c55e',
+              borderRadius: '12px',
+              border: '4px solid #ffffff'
             }}>
-              {/* Header Row */}
+              {/* Row 1 */}
               <div style={{
-                backgroundColor: '#f9fafb',
-                padding: '12px',
-                fontWeight: '600',
-                color: '#374151',
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                padding: '16px',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                Time
-              </div>
-              {sections.map(sec => (
-                <div key={sec} style={{
-                  backgroundColor: '#f9fafb',
-                  padding: '12px',
-                  fontWeight: '600',
-                  color: '#374151',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                justifyContent: 'center',
+                minHeight: '120px',
+                border: '2px solid #e5e7eb',
+                cursor: 'pointer',
+                position: 'relative'
+              }}
+              onClick={() => {
+                const key = `${date}-${slot}-${pitchId}-A`;
+                const allocation = allocations[key];
+                if (allocation) clearAllocation(key);
+              }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#6b7280'
                 }}>
-                  Section {sec}
+                  A
                 </div>
-              ))}
-
-              {/* Time Rows */}
-              {slots.map(timeSlot => (
-                <React.Fragment key={timeSlot}>
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    padding: '12px',
-                    fontWeight: '500',
-                    color: '#6b7280',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {timeSlot}
-                  </div>
-                  {sections.map(sec => {
-                    const key = `${date}-${timeSlot}-${pitchId}-${sec}`;
-                    const allocation = allocations[key];
-                    
-                    return (
-                      <div key={sec} style={{
-                        backgroundColor: 'white',
-                        minHeight: '60px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        position: 'relative',
-                        cursor: allocation ? 'pointer' : 'default'
-                      }}
-                      onClick={() => allocation && clearAllocation(key)}
-                      >
-                        {allocation && (
-                          <div style={{
-                            backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
-                            color: 'white',
-                            padding: '8px',
-                            borderRadius: '4px',
-                            textAlign: 'center',
-                            width: '100%',
-                            fontSize: '12px',
-                            fontWeight: '500'
-                          }}>
-                            <div>{allocation.team}</div>
-                            <div style={{ fontSize: '10px', opacity: 0.9 }}>
-                              {allocation.type === 'training' ? 'Training' : 'Game'}
-                            </div>
-                          </div>
-                        )}
+                {(() => {
+                  const key = `${date}-${slot}-${pitchId}-A`;
+                  const allocation = allocations[key];
+                  return allocation ? (
+                    <div style={{
+                      backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      textAlign: 'center',
+                      fontSize: '12px',
+                      fontWeight: '500'
+                    }}>
+                      <div>{allocation.team}</div>
+                      <div style={{ fontSize: '10px', opacity: 0.9 }}>
+                        {allocation.type === 'training' ? 'Training' : 'Game'}
                       </div>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
+                    </div>
+                  ) : (
+                    <div style={{ color: '#9ca3af', fontSize: '14px' }}>Available</div>
+                  );
+                })()}
+              </div>
 
-              {/* Grass Area Row (if enabled) */}
-              {showGrassArea[pitchId] && (
-                <React.Fragment>
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '120px',
+                border: '2px solid #e5e7eb',
+                cursor: 'pointer',
+                position: 'relative'
+              }}
+              onClick={() => {
+                const key = `${date}-${slot}-${pitchId}-B`;
+                const allocation = allocations[key];
+                if (allocation) clearAllocation(key);
+              }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#6b7280'
+                }}>
+                  B
+                </div>
+                {(() => {
+                  const key = `${date}-${slot}-${pitchId}-B`;
+                  const allocation = allocations[key];
+                  return allocation ? (
+                    <div style={{
+                      backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      textAlign: 'center',
+                      fontSize: '12px',
+                      fontWeight: '500'
+                    }}>
+                      <div>{allocation.team}</div>
+                      <div style={{ fontSize: '10px', opacity: 0.9 }}>
+                        {allocation.type === 'training' ? 'Training' : 'Game'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#9ca3af', fontSize: '14px' }}>Available</div>
+                  );
+                })()}
+              </div>
+
+              {/* Row 2 */}
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '120px',
+                border: '2px solid #e5e7eb',
+                cursor: 'pointer',
+                position: 'relative'
+              }}
+              onClick={() => {
+                const key = `${date}-${slot}-${pitchId}-C`;
+                const allocation = allocations[key];
+                if (allocation) clearAllocation(key);
+              }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#6b7280'
+                }}>
+                  C
+                </div>
+                {(() => {
+                  const key = `${date}-${slot}-${pitchId}-C`;
+                  const allocation = allocations[key];
+                  return allocation ? (
+                    <div style={{
+                      backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      textAlign: 'center',
+                      fontSize: '12px',
+                      fontWeight: '500'
+                    }}>
+                      <div>{allocation.team}</div>
+                      <div style={{ fontSize: '10px', opacity: 0.9 }}>
+                        {allocation.type === 'training' ? 'Training' : 'Game'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#9ca3af', fontSize: '14px' }}>Available</div>
+                  );
+                })()}
+              </div>
+
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '120px',
+                border: '2px solid #e5e7eb',
+                cursor: 'pointer',
+                position: 'relative'
+              }}
+              onClick={() => {
+                const key = `${date}-${slot}-${pitchId}-D`;
+                const allocation = allocations[key];
+                if (allocation) clearAllocation(key);
+              }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#6b7280'
+                }}>
+                  D
+                </div>
+                {(() => {
+                  const key = `${date}-${slot}-${pitchId}-D`;
+                  const allocation = allocations[key];
+                  return allocation ? (
+                    <div style={{
+                      backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      textAlign: 'center',
+                      fontSize: '12px',
+                      fontWeight: '500'
+                    }}>
+                      <div>{allocation.team}</div>
+                      <div style={{ fontSize: '10px', opacity: 0.9 }}>
+                        {allocation.type === 'training' ? 'Training' : 'Game'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#9ca3af', fontSize: '14px' }}>Available</div>
+                  );
+                })()}
+              </div>
+
+              {/* Row 3 */}
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '120px',
+                border: '2px solid #e5e7eb',
+                cursor: 'pointer',
+                position: 'relative'
+              }}
+              onClick={() => {
+                const key = `${date}-${slot}-${pitchId}-E`;
+                const allocation = allocations[key];
+                if (allocation) clearAllocation(key);
+              }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#6b7280'
+                }}>
+                  E
+                </div>
+                {(() => {
+                  const key = `${date}-${slot}-${pitchId}-E`;
+                  const allocation = allocations[key];
+                  return allocation ? (
+                    <div style={{
+                      backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      textAlign: 'center',
+                      fontSize: '12px',
+                      fontWeight: '500'
+                    }}>
+                      <div>{allocation.team}</div>
+                      <div style={{ fontSize: '10px', opacity: 0.9 }}>
+                        {allocation.type === 'training' ? 'Training' : 'Game'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#9ca3af', fontSize: '14px' }}>Available</div>
+                  );
+                })()}
+              </div>
+
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '120px',
+                border: '2px solid #e5e7eb',
+                cursor: 'pointer',
+                position: 'relative'
+              }}
+              onClick={() => {
+                const key = `${date}-${slot}-${pitchId}-F`;
+                const allocation = allocations[key];
+                if (allocation) clearAllocation(key);
+              }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#6b7280'
+                }}>
+                  F
+                </div>
+                {(() => {
+                  const key = `${date}-${slot}-${pitchId}-F`;
+                  const allocation = allocations[key];
+                  return allocation ? (
+                    <div style={{
+                      backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      textAlign: 'center',
+                      fontSize: '12px',
+                      fontWeight: '500'
+                    }}>
+                      <div>{allocation.team}</div>
+                      <div style={{ fontSize: '10px', opacity: 0.9 }}>
+                        {allocation.type === 'training' ? 'Training' : 'Game'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#9ca3af', fontSize: '14px' }}>Available</div>
+                  );
+                })()}
+              </div>
+
+              {/* Row 4 */}
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '120px',
+                border: '2px solid #e5e7eb',
+                cursor: 'pointer',
+                position: 'relative'
+              }}
+              onClick={() => {
+                const key = `${date}-${slot}-${pitchId}-G`;
+                const allocation = allocations[key];
+                if (allocation) clearAllocation(key);
+              }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#6b7280'
+                }}>
+                  G
+                </div>
+                {(() => {
+                  const key = `${date}-${slot}-${pitchId}-G`;
+                  const allocation = allocations[key];
+                  return allocation ? (
+                    <div style={{
+                      backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      textAlign: 'center',
+                      fontSize: '12px',
+                      fontWeight: '500'
+                    }}>
+                      <div>{allocation.team}</div>
+                      <div style={{ fontSize: '10px', opacity: 0.9 }}>
+                        {allocation.type === 'training' ? 'Training' : 'Game'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#9ca3af', fontSize: '14px' }}>Available</div>
+                  );
+                })()}
+              </div>
+
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '120px',
+                border: '2px solid #e5e7eb',
+                cursor: 'pointer',
+                position: 'relative'
+              }}
+              onClick={() => {
+                const key = `${date}-${slot}-${pitchId}-H`;
+                const allocation = allocations[key];
+                if (allocation) clearAllocation(key);
+              }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#6b7280'
+                }}>
+                  H
+                </div>
+                {(() => {
+                  const key = `${date}-${slot}-${pitchId}-H`;
+                  const allocation = allocations[key];
+                  return allocation ? (
+                    <div style={{
+                      backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      textAlign: 'center',
+                      fontSize: '12px',
+                      fontWeight: '500'
+                    }}>
+                      <div>{allocation.team}</div>
+                      <div style={{ fontSize: '10px', opacity: 0.9 }}>
+                        {allocation.type === 'training' ? 'Training' : 'Game'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#9ca3af', fontSize: '14px' }}>Available</div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Grass Area (if enabled) */}
+            {showGrassArea[pitchId] && (
+              <div style={{
+                backgroundColor: '#22c55e',
+                borderRadius: '12px',
+                border: '4px solid #ffffff',
+                padding: '20px',
+                width: '100%',
+                maxWidth: '800px'
+              }}>
+                <div style={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '100px',
+                  border: '2px solid #e5e7eb',
+                  cursor: 'pointer',
+                  position: 'relative'
+                }}
+                onClick={() => {
+                  const grassKey = `${date}-${slot}-${pitchId}-grass`;
+                  const allocation = allocations[grassKey];
+                  if (allocation) clearAllocation(grassKey);
+                }}
+                >
                   <div style={{
-                    backgroundColor: '#f9fafb',
-                    padding: '12px',
-                    fontWeight: '600',
-                    color: '#374151',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gridColumn: `1 / ${sections.length + 2}`
+                    position: 'absolute',
+                    top: '8px',
+                    left: '8px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    color: '#6b7280'
                   }}>
                     Grass Area
                   </div>
-                  {slots.map(timeSlot => (
-                    <React.Fragment key={`grass-${timeSlot}`}>
+                  {(() => {
+                    const grassKey = `${date}-${slot}-${pitchId}-grass`;
+                    const allocation = allocations[grassKey];
+                    return allocation ? (
                       <div style={{
-                        backgroundColor: '#f9fafb',
-                        padding: '12px',
-                        fontWeight: '500',
-                        color: '#6b7280',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
+                        backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
+                        color: 'white',
+                        padding: '12px 20px',
+                        borderRadius: '8px',
+                        textAlign: 'center',
+                        fontSize: '14px',
+                        fontWeight: '500'
                       }}>
-                        {timeSlot}
+                        <div>{allocation.team}</div>
+                        <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                          {allocation.type === 'training' ? 'Training' : 'Game'}
+                        </div>
                       </div>
-                      <div style={{
-                        backgroundColor: 'white',
-                        minHeight: '60px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gridColumn: `2 / ${sections.length + 2}`,
-                        cursor: allocations[`${date}-${timeSlot}-${pitchId}-grass`] ? 'pointer' : 'default'
-                      }}
-                      onClick={() => {
-                        const grassKey = `${date}-${timeSlot}-${pitchId}-grass`;
-                        const allocation = allocations[grassKey];
-                        if (allocation) clearAllocation(grassKey);
-                      }}
-                      >
-                        {(() => {
-                          const grassKey = `${date}-${timeSlot}-${pitchId}-grass`;
-                          const allocation = allocations[grassKey];
-                          return allocation && (
-                            <div style={{
-                              backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
-                              color: 'white',
-                              padding: '8px',
-                              borderRadius: '4px',
-                              textAlign: 'center',
-                              width: '100%',
-                              fontSize: '12px',
-                              fontWeight: '500'
-                            }}>
-                              <div>{allocation.team}</div>
-                              <div style={{ fontSize: '10px', opacity: 0.9 }}>
-                                {allocation.type === 'training' ? 'Training' : 'Game'}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </React.Fragment>
-                  ))}
-                </React.Fragment>
-              )}
-            </div>
+                    ) : (
+                      <div style={{ color: '#9ca3af', fontSize: '16px' }}>Available</div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
