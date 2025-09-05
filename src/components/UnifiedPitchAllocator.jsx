@@ -222,12 +222,33 @@ const UnifiedPitchAllocator = () => {
     loadSettings();
   }, [clubInfo?.clubId]);
 
-  // Set default team when teams load
+  // Add debug info to see user role
   useEffect(() => {
-    if (teams.length > 0 && !team) {
-      setTeam(teams[0].name);
+    if (user && clubInfo?.clubId) {
+      console.log('Current user:', user.email);
+      console.log('Club ID:', clubInfo.clubId);
+      
+      // Check user role from Firestore
+      const checkUserRole = async () => {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            console.log('User role:', userData.role);
+            console.log('User club ID:', userData.clubId);
+            
+            if (userData.role !== 'admin') {
+              console.warn('⚠️ User is not an admin. Only admins can add allocations.');
+            }
+          }
+        } catch (error) {
+          console.error('Error checking user role:', error);
+        }
+      };
+      
+      checkUserRole();
     }
-  }, [teams, team]);
+  }, [user, clubInfo]);
 
   // Load allocations for current date and pitch - simplified for local state
   useEffect(() => {
