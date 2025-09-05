@@ -8,7 +8,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 // Constants
 const SETTINGS_CONFIG = {
   MAX_TEAM_NAME_LENGTH: 50,
-  MAX_PITCHES: 30,
+  MAX_PITCHES: 20,
   DEBOUNCE_DELAY: 1000,
   DEFAULT_PITCH_ORIENTATION: 'portrait',
   DEFAULT_TEAM_COLOR: '#FF0000',
