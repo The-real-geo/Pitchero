@@ -78,9 +78,6 @@ const ClubPitchMap = ({
             const clubData = clubDoc.data();
             
             if (isMounted) {
-              // Set club ID
-              setClubId(userClubId);
-              
               // Set club name - directly use the name field
               // Based on your Firebase screenshot, the field is called "name"
               const foundName = clubData.name || `Club ${userClubId}`;
