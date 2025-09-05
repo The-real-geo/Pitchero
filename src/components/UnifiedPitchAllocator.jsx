@@ -1,5 +1,5 @@
 // src/components/UnifiedPitchAllocator.jsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { auth, db } from '../utils/firebase';
 import { doc, getDoc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
