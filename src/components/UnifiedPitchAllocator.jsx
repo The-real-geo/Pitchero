@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { auth, db } from '../utils/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 // Reusing constants from existing allocators
@@ -45,6 +45,10 @@ const UnifiedPitchAllocator = () => {
   const [sectionGroup, setSectionGroup] = useState('A');
   const [slot, setSlot] = useState('09:00');
   const [duration, setDuration] = useState(30);
+
+  // Menu and UI state
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [expandedSlots, setExpandedSlots] = useState({});
 
   // Time slots - reusing existing pattern
   const slots = useMemo(() => timeSlots(), []);
@@ -184,6 +188,21 @@ const UnifiedPitchAllocator = () => {
     }
   }, [matchDayPitchAreaRequired, getDefaultPitchAreaForTeam]);
 
+  // Count total allocations
+  const totalAllocations = useMemo(() => {
+    const uniqueAllocations = new Set();
+    Object.entries(allocations).forEach(([key, allocation]) => {
+      if (allocation.isMultiSlot) {
+        // For multi-slot allocations, only count once using startTime
+        const uniqueKey = `${allocation.team}-${allocation.startTime}-${allocation.section}`;
+        uniqueAllocations.add(uniqueKey);
+      } else {
+        uniqueAllocations.add(key);
+      }
+    });
+    return uniqueAllocations.size;
+  }, [allocations]);
+
   // Load user and club data
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -293,6 +312,15 @@ const UnifiedPitchAllocator = () => {
 
     loadAllocations();
   }, [date, normalizedPitchId, clubInfo?.clubId]);
+
+  // Initialize expanded slots on mount
+  useEffect(() => {
+    const initialExpanded = {};
+    slots.forEach(slot => {
+      initialExpanded[slot] = true; // Start with all slots expanded
+    });
+    setExpandedSlots(initialExpanded);
+  }, [slots]);
 
   // Conflict checking - following existing allocator pattern
   const hasConflict = useMemo(() => {
@@ -478,6 +506,160 @@ const UnifiedPitchAllocator = () => {
     }
   };
 
+  // Clear all allocations for the day
+  const clearAllAllocations = async () => {
+    if (userRole !== 'admin') {
+      alert('Only administrators can clear allocations');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to clear ALL allocations for ${new Date(date).toLocaleDateString()}? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      // Clear both training and match allocations
+      const trainingDocRef = doc(db, 'trainingAllocations', `${clubInfo.clubId}-${date}`);
+      const matchDocRef = doc(db, 'matchAllocations', `${clubInfo.clubId}-${date}`);
+      
+      // Get existing documents
+      const [trainingDoc, matchDoc] = await Promise.all([
+        getDoc(trainingDocRef),
+        getDoc(matchDocRef)
+      ]);
+      
+      // Filter out allocations for this pitch and update
+      if (trainingDoc.exists()) {
+        const trainingData = trainingDoc.data();
+        const filteredData = {};
+        Object.entries(trainingData).forEach(([key, value]) => {
+          if (!key.includes(`-${normalizedPitchId}-`)) {
+            filteredData[key] = value;
+          }
+        });
+        
+        if (Object.keys(filteredData).length > 0) {
+          await setDoc(trainingDocRef, filteredData);
+        } else {
+          await deleteDoc(trainingDocRef);
+        }
+      }
+      
+      if (matchDoc.exists()) {
+        const matchData = matchDoc.data();
+        const filteredData = {};
+        Object.entries(matchData).forEach(([key, value]) => {
+          if (!key.includes(`-${normalizedPitchId}-`)) {
+            filteredData[key] = value;
+          }
+        });
+        
+        if (Object.keys(filteredData).length > 0) {
+          await setDoc(matchDocRef, filteredData);
+        } else {
+          await deleteDoc(matchDocRef);
+        }
+      }
+      
+      // Clear local state
+      setAllocations({});
+      
+      alert('All allocations cleared successfully');
+    } catch (error) {
+      console.error('Error clearing allocations:', error);
+      alert(`Failed to clear allocations: ${error.message}`);
+    }
+  };
+
+  // Export allocations
+  const exportAllocations = () => {
+    const exportData = {
+      club: clubInfo.name,
+      date: date,
+      pitch: pitchNames[normalizedPitchId] || `Pitch ${pitchId}`,
+      allocations: allocations,
+      exported: new Date().toISOString()
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `allocations_${date}_pitch${pitchId}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  // Import allocations
+  const importAllocations = async () => {
+    if (userRole !== 'admin') {
+      alert('Only administrators can import allocations');
+      return;
+    }
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        
+        if (!data.allocations) {
+          alert('Invalid import file format');
+          return;
+        }
+        
+        if (!window.confirm(`Import allocations from ${data.date}? This will merge with existing allocations.`)) {
+          return;
+        }
+        
+        // Save imported allocations
+        const trainingAllocations = {};
+        const matchAllocations = {};
+        
+        Object.entries(data.allocations).forEach(([key, allocation]) => {
+          if (allocation.type === 'training') {
+            trainingAllocations[key] = allocation;
+          } else {
+            matchAllocations[key] = allocation;
+          }
+        });
+        
+        // Save to Firebase
+        if (Object.keys(trainingAllocations).length > 0) {
+          const trainingDocRef = doc(db, 'trainingAllocations', `${clubInfo.clubId}-${date}`);
+          const existingDoc = await getDoc(trainingDocRef);
+          const existingData = existingDoc.exists() ? existingDoc.data() : {};
+          await setDoc(trainingDocRef, { ...existingData, ...trainingAllocations });
+        }
+        
+        if (Object.keys(matchAllocations).length > 0) {
+          const matchDocRef = doc(db, 'matchAllocations', `${clubInfo.clubId}-${date}`);
+          const existingDoc = await getDoc(matchDocRef);
+          const existingData = existingDoc.exists() ? existingDoc.data() : {};
+          await setDoc(matchDocRef, { ...existingData, ...matchAllocations });
+        }
+        
+        // Update local state
+        setAllocations(prev => ({ ...prev, ...data.allocations }));
+        
+        alert('Allocations imported successfully');
+      } catch (error) {
+        console.error('Error importing allocations:', error);
+        alert('Failed to import allocations. Please check the file format.');
+      }
+    };
+    
+    input.click();
+  };
+
   // Handle team change for match day
   const handleTeamChange = (newTeam) => {
     setTeam(newTeam);
@@ -499,6 +681,135 @@ const UnifiedPitchAllocator = () => {
       setDuration(30);
       setSection('A');
     }
+  };
+
+  // Navigate to next/previous day
+  const changeDate = (days) => {
+    const currentDate = new Date(date);
+    currentDate.setDate(currentDate.getDate() + days);
+    setDate(currentDate.toISOString().split('T')[0]);
+  };
+
+  // Toggle slot expansion
+  const toggleSlotExpanded = (slot) => {
+    setExpandedSlots(prev => ({
+      ...prev,
+      [slot]: !prev[slot]
+    }));
+  };
+
+  // Expand/Collapse all slots
+  const setAllSlotsExpanded = (expanded) => {
+    const newExpanded = {};
+    slots.forEach(slot => {
+      newExpanded[slot] = expanded;
+    });
+    setExpandedSlots(newExpanded);
+  };
+
+  // Render pitch section
+  const renderPitchSection = (timeSlot) => {
+    return (
+      <div style={{
+        position: 'relative',
+        width: '140px',
+        height: '200px',
+        backgroundColor: '#bbf7d0',
+        border: '2px solid white',
+        borderRadius: '4px',
+        overflow: 'hidden'
+      }}>
+        {/* Mini soccer field markings */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          opacity: 0.3
+        }}>
+          <div style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            width: '40px',
+            height: '40px',
+            border: '1px solid white',
+            borderRadius: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}></div>
+          <div style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: '50%',
+            height: '1px',
+            background: 'white'
+          }}></div>
+        </div>
+
+        {/* Section grid */}
+        <div style={{
+          position: 'relative',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gridTemplateRows: 'repeat(4, 1fr)',
+          gap: '1px',
+          height: '100%',
+          padding: '2px',
+          zIndex: 10
+        }}>
+          {sections.map(sec => {
+            const key = `${date}-${timeSlot}-${normalizedPitchId}-${sec}`;
+            const allocation = allocations[key];
+            
+            return (
+              <div 
+                key={sec}
+                style={{
+                  border: '1px solid rgba(255,255,255,0.5)',
+                  borderRadius: '2px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '8px',
+                  fontWeight: '500',
+                  cursor: allocation && isAdmin ? 'pointer' : 'default',
+                  backgroundColor: allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)',
+                  borderColor: allocation ? (allocation.colour || allocation.color) : 'rgba(255,255,255,0.5)',
+                  color: allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+                onClick={() => allocation && isAdmin && clearAllocation(key)}
+                title={allocation ? `${allocation.team} - Click to remove` : `Section ${sec}`}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '1px',
+                  left: '1px',
+                  fontSize: '6px',
+                  fontWeight: 'bold',
+                  opacity: 0.5
+                }}>
+                  {sec}
+                </div>
+                
+                {allocation && (
+                  <div style={{
+                    fontSize: '7px',
+                    lineHeight: '1.1',
+                    textAlign: 'center',
+                    padding: '0 1px'
+                  }}>
+                    {allocation.team.replace(/Under\s*/, 'U')}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -525,46 +836,274 @@ const UnifiedPitchAllocator = () => {
       minHeight: '100vh',
       fontFamily: 'system-ui, sans-serif'
     }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '32px'
-        }}>
-          <div>
-            <h1 style={{
-              fontSize: '32px',
-              fontWeight: 'bold',
-              color: '#1f2937',
-              margin: '0'
+      {/* Hamburger Menu */}
+      <div style={{
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        zIndex: 1000
+      }}>
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          style={{
+            padding: '10px',
+            backgroundColor: 'white',
+            border: '1px solid #d1d5db',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}
+        >
+          <div style={{ width: '20px', height: '2px', backgroundColor: '#374151', marginBottom: '4px' }}></div>
+          <div style={{ width: '20px', height: '2px', backgroundColor: '#374151', marginBottom: '4px' }}></div>
+          <div style={{ width: '20px', height: '2px', backgroundColor: '#374151' }}></div>
+        </button>
+        
+        {menuOpen && (
+          <div style={{
+            position: 'absolute',
+            top: '50px',
+            right: '0',
+            backgroundColor: 'white',
+            border: '1px solid #d1d5db',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            minWidth: '200px',
+            padding: '12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <div style={{
+              padding: '8px',
+              borderBottom: '1px solid #e5e7eb'
             }}>
-              {currentPitchName} Allocator
-            </h1>
-            <p style={{
-              fontSize: '14px',
-              color: '#6b7280',
-              marginTop: '4px'
-            }}>
-              {isAdmin ? 'Training & Match Day Scheduling' : 'View Only - Admin access required to make changes'}
-            </p>
+              <div style={{ fontWeight: '600', fontSize: '14px' }}>{user?.email}</div>
+              <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                Access: {userRole === 'admin' ? 'Administrator' : 'Member'}
+              </div>
+            </div>
+            
+            {isAdmin && (
+              <>
+                <button
+                  onClick={() => {
+                    importAllocations();
+                    setMenuOpen(false);
+                  }}
+                  style={{
+                    padding: '8px',
+                    backgroundColor: '#f3f4f6',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontSize: '14px'
+                  }}
+                >
+                  📥 Import Allocations
+                </button>
+                
+                <button
+                  onClick={() => {
+                    exportAllocations();
+                    setMenuOpen(false);
+                  }}
+                  style={{
+                    padding: '8px',
+                    backgroundColor: '#f3f4f6',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontSize: '14px'
+                  }}
+                >
+                  📤 Export Allocations
+                </button>
+              </>
+            )}
           </div>
-          <button
-            onClick={() => navigate('/club-pitch-map')}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-          >
-            ← Back to Overview
-          </button>
+        )}
+      </div>
+
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        {/* Header with club info and allocation count */}
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          padding: '16px 24px',
+          marginBottom: '24px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div>
+              <h2 style={{
+                fontSize: '24px',
+                fontWeight: 'bold',
+                color: '#1f2937',
+                margin: '0'
+              }}>
+                {clubInfo?.name || 'Loading...'}
+              </h2>
+              <p style={{
+                fontSize: '14px',
+                color: '#6b7280',
+                margin: '4px 0 0 0'
+              }}>
+                {totalAllocations} allocation{totalAllocations !== 1 ? 's' : ''} on {currentPitchName}
+              </p>
+            </div>
+            
+            <button
+              onClick={() => navigate('/club-pitch-map')}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#6b7280',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              ← Back to Overview
+            </button>
+          </div>
+        </div>
+
+        {/* Date navigation and controls */}
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          padding: '16px 24px',
+          marginBottom: '24px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px'
+            }}>
+              <button
+                onClick={() => changeDate(-1)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#f3f4f6',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                ← Previous Day
+              </button>
+              
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center'
+              }}>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  style={{
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
+                />
+                <span style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  marginTop: '4px'
+                }}>
+                  {new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}
+                </span>
+              </div>
+              
+              <button
+                onClick={() => changeDate(1)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#f3f4f6',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Next Day →
+              </button>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              gap: '12px'
+            }}>
+              <button
+                onClick={() => setAllSlotsExpanded(true)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#e0f2fe',
+                  color: '#0369a1',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Expand All
+              </button>
+              
+              <button
+                onClick={() => setAllSlotsExpanded(false)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#fef3c7',
+                  color: '#92400e',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Collapse All
+              </button>
+              
+              {isAdmin && (
+                <button
+                  onClick={clearAllAllocations}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#fee2e2',
+                    color: '#dc2626',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  Clear All Allocations
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Add New Allocation Form - Only show for admins */}
@@ -591,31 +1130,6 @@ const UnifiedPitchAllocator = () => {
               gap: '16px',
               marginBottom: '20px'
             }}>
-              {/* Date */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#374151',
-                  marginBottom: '8px'
-                }}>
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
-                />
-              </div>
-
               {/* Time */}
               <div>
                 <label style={{
@@ -812,323 +1326,186 @@ const UnifiedPitchAllocator = () => {
           </div>
         )}
 
-        {/* Pitch Visual with Allocations */}
+        {/* Time Slots with Pitch Visuals */}
         <div style={{
           backgroundColor: 'white',
           borderRadius: '12px',
           padding: '24px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
         }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
+          <h2 style={{
+            fontSize: '20px',
+            fontWeight: '600',
+            color: '#1f2937',
             marginBottom: '20px'
           }}>
-            <h2 style={{
-              fontSize: '20px',
-              fontWeight: '600',
-              color: '#1f2937',
-              margin: '0'
-            }}>
-              {currentPitchName} - {new Date(date).toLocaleDateString()}
-            </h2>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <select
-                value={slot}
-                onChange={(e) => setSlot(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '14px'
-                }}
-              >
-                {slots.map(timeSlot => (
-                  <option key={timeSlot} value={timeSlot}>View {timeSlot}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+            {currentPitchName} - {new Date(date).toLocaleDateString()}
+          </h2>
 
-          <div style={{
-            backgroundColor: '#f9fafb',
-            padding: '16px',
-            borderRadius: '8px',
-            marginBottom: '20px'
-          }}>
-            <p style={{ color: '#6b7280', margin: '0', fontSize: '14px' }}>
-              {isAdmin 
-                ? 'Click on any allocation to delete it instantly. Training sessions show in team colors.'
-                : 'Viewing allocations for this time slot. Contact an admin to make changes.'}
-              <br />Currently viewing: <strong>{slot}</strong>
-            </p>
-          </div>
-
-          {/* Pitch Layout */}
           <div style={{
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
-            gap: '20px'
+            gap: '12px'
           }}>
-            {/* Main Pitch Sections */}
-            <div style={{
-              position: 'relative',
-              width: '280px',
-              height: '400px',
-              margin: '0 auto',
-              backgroundColor: '#bbf7d0',
-              border: '4px solid white',
-              borderRadius: '8px',
-              overflow: 'hidden'
-            }}>
-              {/* Soccer field markings */}
-              <div style={{
-                position: 'absolute',
-                inset: 0,
-                pointerEvents: 'none'
-              }}>
-                {/* Center circle */}
-                <div style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: '50%',
-                  width: '80px',
-                  height: '80px',
-                  border: '2px solid white',
-                  borderRadius: '50%',
-                  transform: 'translate(-50%, -50%)'
-                }}></div>
-                {/* Center line */}
-                <div style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: '50%',
-                  height: '2px',
-                  background: 'white',
-                  transform: 'translateY(-50%)'
-                }}></div>
-                {/* Goal areas */}
-                <div style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: '16px',
-                  width: '96px',
-                  height: '56px',
-                  border: '2px solid white',
-                  borderTop: 'none',
-                  transform: 'translateX(-50%)'
-                }}></div>
-                <div style={{
-                  position: 'absolute',
-                  left: '50%',
-                  bottom: '16px',
-                  width: '96px',
-                  height: '56px',
-                  border: '2px solid white',
-                  borderBottom: 'none',
-                  transform: 'translateX(-50%)'
-                }}></div>
-                {/* Penalty areas */}
-                <div style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: '16px',
-                  width: '144px',
-                  height: '96px',
-                  border: '2px solid white',
-                  borderTop: 'none',
-                  transform: 'translateX(-50%)'
-                }}></div>
-                <div style={{
-                  position: 'absolute',
-                  left: '50%',
-                  bottom: '16px',
-                  width: '144px',
-                  height: '96px',
-                  border: '2px solid white',
-                  borderBottom: 'none',
-                  transform: 'translateX(-50%)'
-                }}></div>
-              </div>
-
-              {/* Section grid overlay */}
-              <div style={{
-                position: 'relative',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gridTemplateRows: 'repeat(4, 1fr)',
-                gap: '4px',
-                height: '100%',
-                padding: '4px',
-                zIndex: 10
-              }}>
-                {sections.map(sec => {
-                  const key = `${date}-${slot}-${normalizedPitchId}-${sec}`;
-                  const allocation = allocations[key];
-                  
-                  return (
-                    <div 
-                      key={sec}
-                      style={{
-                        border: '2px solid rgba(255,255,255,0.5)',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '12px',
-                        fontWeight: '500',
-                        transition: 'all 0.2s',
-                        position: 'relative',
-                        padding: '2px',
-                        textAlign: 'center',
-                        cursor: allocation && isAdmin ? 'pointer' : 'default',
-                        backgroundColor: allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)',
-                        borderColor: allocation ? (allocation.colour || allocation.color) : 'rgba(255,255,255,0.5)',
-                        color: allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151'
-                      }}
-                      onClick={() => allocation && isAdmin && clearAllocation(key)}
-                      title={allocation ? `${allocation.team} (${allocation.duration}min) ${isAdmin ? '- Click to remove' : ''}` : `Section ${sec} - Available`}
-                    >
-                      <div style={{
-                        position: 'absolute',
-                        top: '2px',
-                        left: '2px',
-                        fontSize: '10px',
-                        fontWeight: 'bold',
-                        opacity: 0.7
-                      }}>
-                        {sec}
-                      </div>
-                      
-                      {allocation ? (
-                        <div style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          height: '100%',
-                          padding: '0 4px'
-                        }}>
-                          <div style={{ fontSize: '10px', lineHeight: '1.2' }}>
-                            {allocation.team}
-                          </div>
-                          <div style={{ fontSize: '9px', opacity: 0.7, marginTop: '2px' }}>
-                            {allocation.type === 'training' ? 'Training' : 'Game'}
-                          </div>
-                          {allocation.isMultiSlot && (
-                            <div style={{ fontSize: '8px', opacity: 0.6, marginTop: '1px' }}>
-                              {allocation.duration}min
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div style={{ color: '#9ca3af', fontSize: '10px' }}>Available</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Grass Area (if enabled) */}
-            {showGrassArea[normalizedPitchId] && (
-              <div style={{
-                width: '280px',
-                height: '80px',
-                margin: '0 auto',
-                backgroundColor: '#bbf7d0',
-                border: '4px solid white',
+            {slots.map(timeSlot => (
+              <div key={timeSlot} style={{
                 borderRadius: '8px',
-                padding: '8px'
+                border: '1px solid #e5e7eb',
+                overflow: 'hidden'
               }}>
-                <div style={{
-                  height: '100%',
-                  border: '2px solid rgba(255,255,255,0.5)',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: (() => {
-                    const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
-                    const allocation = allocations[grassKey];
-                    return allocation && isAdmin ? 'pointer' : 'default';
-                  })(),
-                  position: 'relative',
-                  backgroundColor: (() => {
-                    const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
-                    const allocation = allocations[grassKey];
-                    return allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)';
-                  })(),
-                  borderColor: (() => {
-                    const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
-                    const allocation = allocations[grassKey];
-                    return allocation ? (allocation.colour || allocation.color) : 'rgba(255,255,255,0.5)';
-                  })(),
-                  color: (() => {
-                    const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
-                    const allocation = allocations[grassKey];
-                    return allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151';
-                  })()
-                }}
-                onClick={() => {
-                  const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
-                  const allocation = allocations[grassKey];
-                  if (allocation && isAdmin) clearAllocation(grassKey);
-                }}
-                title={(() => {
-                  const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
-                  const allocation = allocations[grassKey];
-                  return allocation ? `${allocation.team} (${allocation.duration}min) ${isAdmin ? '- Click to remove' : ''}` : 'Grass Area - Available';
-                })()}
+                <div
+                  onClick={() => toggleSlotExpanded(timeSlot)}
+                  style={{
+                    padding: '12px 16px',
+                    backgroundColor: '#f9fafb',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer'
+                  }}
                 >
                   <div style={{
-                    position: 'absolute',
-                    top: '4px',
-                    left: '4px',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    opacity: 0.75
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
                   }}>
-                    GRASS
+                    <span style={{
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: '#1f2937'
+                    }}>
+                      {timeSlot}
+                    </span>
+                    {(() => {
+                      const slotAllocations = Object.entries(allocations).filter(([key]) =>
+                        key.includes(`-${timeSlot}-`)
+                      );
+                      if (slotAllocations.length > 0) {
+                        const uniqueTeams = [...new Set(slotAllocations.map(([, a]) => a.team))];
+                        return (
+                          <span style={{
+                            fontSize: '14px',
+                            color: '#6b7280'
+                          }}>
+                            {uniqueTeams.length} team{uniqueTeams.length !== 1 ? 's' : ''}: {uniqueTeams.join(', ')}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span style={{
+                          fontSize: '14px',
+                          color: '#9ca3af'
+                        }}>
+                          Available
+                        </span>
+                      );
+                    })()}
                   </div>
                   
-                  {(() => {
-                    const grassKey = `${date}-${slot}-${normalizedPitchId}-grass`;
-                    const allocation = allocations[grassKey];
-                    return allocation ? (
-                      <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '100%',
-                        textAlign: 'center',
-                        padding: '0 4px'
-                      }}>
-                        <div style={{ fontSize: '12px', fontWeight: '500', lineHeight: 1.2 }}>
-                          {allocation.team}
-                        </div>
-                        <div style={{ fontSize: '10px', opacity: 0.9, marginTop: '2px' }}>
-                          {allocation.type === 'training' ? 'Training' : 'Game'}
-                        </div>
-                        {allocation.isMultiSlot && (
-                          <div style={{ fontSize: '9px', opacity: 0.6, marginTop: '1px' }}>
-                            {allocation.duration}min
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div style={{ color: '#9ca3af', fontSize: '12px' }}>Available</div>
-                    );
-                  })()}
+                  <div style={{
+                    transform: expandedSlots[timeSlot] ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s'
+                  }}>
+                    ▼
+                  </div>
                 </div>
+                
+                {expandedSlots[timeSlot] && (
+                  <div style={{
+                    padding: '16px',
+                    borderTop: '1px solid #e5e7eb'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      gap: '16px',
+                      alignItems: 'center'
+                    }}>
+                      {renderPitchSection(timeSlot)}
+                      
+                      {showGrassArea[normalizedPitchId] && (
+                        <div style={{
+                          width: '140px',
+                          height: '60px',
+                          backgroundColor: '#bbf7d0',
+                          border: '2px solid white',
+                          borderRadius: '4px',
+                          padding: '4px'
+                        }}>
+                          <div style={{
+                            height: '100%',
+                            border: '1px solid rgba(255,255,255,0.5)',
+                            borderRadius: '2px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: (() => {
+                              const grassKey = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
+                              const allocation = allocations[grassKey];
+                              return allocation && isAdmin ? 'pointer' : 'default';
+                            })(),
+                            position: 'relative',
+                            backgroundColor: (() => {
+                              const grassKey = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
+                              const allocation = allocations[grassKey];
+                              return allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)';
+                            })(),
+                            color: (() => {
+                              const grassKey = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
+                              const allocation = allocations[grassKey];
+                              return allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151';
+                            })()
+                          }}
+                          onClick={() => {
+                            const grassKey = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
+                            const allocation = allocations[grassKey];
+                            if (allocation && isAdmin) clearAllocation(grassKey);
+                          }}
+                          title={(() => {
+                            const grassKey = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
+                            const allocation = allocations[grassKey];
+                            return allocation ? `${allocation.team} - Click to remove` : 'Grass Area';
+                          })()}
+                          >
+                            <div style={{
+                              position: 'absolute',
+                              top: '2px',
+                              left: '2px',
+                              fontSize: '8px',
+                              fontWeight: 'bold',
+                              opacity: 0.5
+                            }}>
+                              GRASS
+                            </div>
+                            
+                            {(() => {
+                              const grassKey = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
+                              const allocation = allocations[grassKey];
+                              return allocation ? (
+                                <div style={{
+                                  fontSize: '10px',
+                                  fontWeight: '500',
+                                  textAlign: 'center'
+                                }}>
+                                  {allocation.team.replace(/Under\s*/, 'U')}
+                                </div>
+                              ) : (
+                                <div style={{ 
+                                  color: '#9ca3af', 
+                                  fontSize: '10px' 
+                                }}>
+                                  Available
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
