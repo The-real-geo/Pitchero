@@ -1600,17 +1600,16 @@ const renderPitchSection = (timeSlot) => {
                       ▼
                     </div>
                   </div>
-                  
                   {expandedSlots[timeSlot] && (
-                    <div style={{
-                      padding: '16px',
-                      borderTop: '1px solid #e5e7eb',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      {renderPitchSection(timeSlot)}
+  <div style={{
+    padding: '16px',
+    borderTop: '1px solid #e5e7eb',
+    display: 'flex',
+    justifyContent: 'center'
+  }}>
+    {renderPitchSection(timeSlot)}
+  </div>
+)}
                       
                       {/* Grass area for pitches that have it enabled */}
                       {showGrassArea[normalizedPitchId] && (
