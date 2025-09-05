@@ -901,7 +901,7 @@ const UnifiedPitchAllocator = () => {
                     fontSize: '14px'
                   }}
                 >
-                  📥 Import Allocations
+                  📥 Import Allocation
                 </button>
                 
                 <button
