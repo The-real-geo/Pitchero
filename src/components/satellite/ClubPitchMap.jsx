@@ -19,7 +19,7 @@ const ClubPitchMap = ({
   // States for data loading
   const [satelliteConfig, setSatelliteConfig] = useState(null);
   const [clubId, setClubId] = useState(null);
-  const [clubInfo, setClubInfo] = useState(null); // Added clubInfo state
+  const [clubName, setClubName] = useState(''); // Start with empty string
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -28,86 +28,96 @@ const ClubPitchMap = ({
     navigate('/menu');
   };
 
-  // Load user and club data
+  // Load everything in one go
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            if (userData.clubId) {
-              setClubId(userData.clubId);
-            } else {
-              setError('No club associated with this user');
+    let isMounted = true;
+    
+    const loadData = async () => {
+      try {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+          if (!currentUser) {
+            if (isMounted) {
+              setError('User not authenticated');
               setLoading(false);
             }
-          } else {
-            setError('User data not found');
-            setLoading(false);
+            return;
           }
-        } catch (err) {
-          console.error('Error fetching user data:', err);
-          setError('Failed to load user data');
+
+          try {
+            // Get user data
+            const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+            if (!userDoc.exists()) {
+              if (isMounted) {
+                setError('User data not found');
+                setLoading(false);
+              }
+              return;
+            }
+
+            const userData = userDoc.data();
+            const userClubId = userData.clubId;
+            
+            if (!userClubId) {
+              if (isMounted) {
+                setError('No club associated with this user');
+                setLoading(false);
+              }
+              return;
+            }
+
+            // Get club data
+            const clubDoc = await getDoc(doc(db, 'clubs', userClubId));
+            if (!clubDoc.exists()) {
+              if (isMounted) {
+                setError('Club not found');
+                setLoading(false);
+              }
+              return;
+            }
+
+            const clubData = clubDoc.data();
+            
+            if (isMounted) {
+              // Set club ID
+              setClubId(userClubId);
+              
+              // Set club name - directly use the name field
+              // Based on your Firebase screenshot, the field is called "name"
+              const foundName = clubData.name || `Club ${userClubId}`;
+              console.log('Setting club name to:', foundName);
+              setClubName(foundName);
+              
+              // Set satellite config
+              if (clubData.satelliteConfig) {
+                setSatelliteConfig(clubData.satelliteConfig);
+              }
+              
+              setLoading(false);
+            }
+          } catch (err) {
+            console.error('Error loading data:', err);
+            if (isMounted) {
+              setError('Failed to load club data');
+              setLoading(false);
+            }
+          }
+        });
+
+        return () => {
+          isMounted = false;
+          unsubscribe();
+        };
+      } catch (err) {
+        console.error('Auth error:', err);
+        if (isMounted) {
+          setError('Authentication error');
           setLoading(false);
         }
-      } else {
-        setError('User not authenticated');
-        setLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Load satellite configuration and club info when clubId is available
-  useEffect(() => {
-    const loadClubData = async () => {
-      if (!clubId) return;
-
-      try {
-        setLoading(true);
-        // Load from club document directly, not subcollection
-        const clubRef = doc(db, 'clubs', clubId);
-        const clubDoc = await getDoc(clubRef);
-        
-        if (clubDoc.exists()) {
-          const clubData = clubDoc.data();
-          
-          // Extract and set club info with name
-          const extractedClubName = clubData.name || 
-                                  clubData.Name || 
-                                  clubData.clubName || 
-                                  clubData.ClubName || 
-                                  `Club ${clubId}`;
-          
-          console.log('Club data loaded:', clubData);
-          console.log('Extracted club name:', extractedClubName);
-          
-          setClubInfo({
-            clubId: clubId,
-            name: extractedClubName
-          });
-          
-          // Access satelliteConfig field from club document
-          if (clubData.satelliteConfig) {
-            setSatelliteConfig(clubData.satelliteConfig);
-          } else {
-            setSatelliteConfig(null); // No satellite config yet
-          }
-        } else {
-          setError('Club not found');
-        }
-      } catch (err) {
-        console.error('Error loading club data:', err);
-        setError('Failed to load club configuration');
-      } finally {
-        setLoading(false);
       }
     };
 
-    loadClubData();
-  }, [clubId]);
+    loadData();
+  }, []);
 
   // Calculate canvas size maintaining aspect ratio
   const calculateCanvasSize = (imgWidth, imgHeight) => {
@@ -332,7 +342,7 @@ const ClubPitchMap = ({
           color: '#1f2937', 
           margin: 0 
         }}>
-          {clubInfo?.name || 'Loading...'} Facility Overview
+          {clubName || 'Loading...'} Facility Overview
         </h2>
         
         {/* Empty div for spacing */}
@@ -357,23 +367,25 @@ const ClubPitchMap = ({
           style={{ 
             maxWidth: '100%', 
             height: 'auto',
-            cursor: satelliteConfig.pitchBoundaries?.length > 0 ? 'pointer' : 'default'
+            cursor: satelliteConfig?.pitchBoundaries?.length > 0 ? 'pointer' : 'default'
           }}
           onClick={handleCanvasClick}
         />
         
         {/* Hidden image element for loading */}
-        <img
-          ref={imageRef}
-          src={satelliteConfig.imageUrl}
-          onLoad={handleImageLoad}
-          style={{ display: 'none' }}
-          alt="Satellite view"
-        />
+        {satelliteConfig?.imageUrl && (
+          <img
+            ref={imageRef}
+            src={satelliteConfig.imageUrl}
+            onLoad={handleImageLoad}
+            style={{ display: 'none' }}
+            alt="Satellite view"
+          />
+        )}
       </div>
 
       {/* Navigation Instructions */}
-      {satelliteConfig.pitchBoundaries?.length > 0 && (
+      {satelliteConfig?.pitchBoundaries?.length > 0 && (
         <div style={{
           backgroundColor: '#f0f9ff',
           border: '1px solid #0ea5e9',
