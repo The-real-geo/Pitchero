@@ -8,7 +8,8 @@ const SatelliteOverviewMap = ({
   onPitchClick, 
   isSetupMode = false,
   onEnterSetupMode,
-  onSaveConfiguration
+  onSaveConfiguration,
+  clubInfo={clubInfo}
 }) => {
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
