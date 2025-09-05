@@ -284,7 +284,7 @@ const UnifiedPitchAllocator = () => {
     }
     
     return false;
-  }, [allocations, date, slot, pitchId, section, sectionGroup, duration, slots, allocationType, team]);
+  }, [allocations, date, slot, pitchId, section, sectionGroup, duration, slots, allocationType, team, getSectionsToAllocate]);
 
   // Add allocation
   const addAllocation = async () => {
