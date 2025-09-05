@@ -719,109 +719,233 @@ const UnifiedPitchAllocator = () => {
   };
 
   // Render pitch section
-  const renderPitchSection = (timeSlot) => {
-    return (
+const renderPitchSection = (timeSlot) => {
+  return (
+    <div style={{
+      position: 'relative',
+      backgroundColor: '#dcfce7',
+      border: '4px solid white',
+      borderRadius: '8px',
+      padding: '16px',
+      width: '280px',
+      height: '400px'
+    }}>
       <div style={{
-        position: 'relative',
-        width: '140px',
-        height: '200px',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         backgroundColor: '#bbf7d0',
-        border: '2px solid white',
-        borderRadius: '4px',
+        borderRadius: '8px',
         overflow: 'hidden'
       }}>
-        {/* Mini soccer field markings */}
+        {/* Pitch boundary lines */}
         <div style={{
           position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          opacity: 0.3
-        }}>
-          <div style={{
-            position: 'absolute',
-            left: '50%',
-            top: '50%',
-            width: '40px',
-            height: '40px',
-            border: '1px solid white',
-            borderRadius: '50%',
-            transform: 'translate(-50%, -50%)'
-          }}></div>
-          <div style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: '50%',
-            height: '1px',
-            background: 'white'
-          }}></div>
-        </div>
-
-        {/* Section grid */}
+          top: '2px',
+          left: '2px',
+          right: '2px',
+          bottom: '2px',
+          border: '2px solid white',
+          borderRadius: '4px'
+        }}></div>
+        
+        {/* Center line */}
         <div style={{
-          position: 'relative',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gridTemplateRows: 'repeat(4, 1fr)',
-          gap: '1px',
-          height: '100%',
-          padding: '2px',
-          zIndex: 10
-        }}>
-          {sections.map(sec => {
-            const key = `${date}-${timeSlot}-${normalizedPitchId}-${sec}`;
-            const allocation = allocations[key];
-            
-            return (
-              <div 
-                key={sec}
-                style={{
-                  border: '1px solid rgba(255,255,255,0.5)',
-                  borderRadius: '2px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '8px',
-                  fontWeight: '500',
-                  cursor: allocation && isAdmin ? 'pointer' : 'default',
-                  backgroundColor: allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)',
-                  borderColor: allocation ? (allocation.colour || allocation.color) : 'rgba(255,255,255,0.5)',
-                  color: allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
-                onClick={() => allocation && isAdmin && clearAllocation(key)}
-                title={allocation ? `${allocation.team} - Click to remove` : `Section ${sec}`}
-              >
-                <div style={{
-                  position: 'absolute',
-                  top: '1px',
-                  left: '1px',
-                  fontSize: '6px',
-                  fontWeight: 'bold',
-                  opacity: 0.5
-                }}>
-                  {sec}
-                </div>
-                
-                {allocation && (
-                  <div style={{
-                    fontSize: '7px',
-                    lineHeight: '1.1',
-                    textAlign: 'center',
-                    padding: '0 1px'
-                  }}>
-                    {allocation.team.replace(/Under\s*/, 'U')}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+          position: 'absolute',
+          left: '2px',
+          right: '2px',
+          top: '50%',
+          height: '2px',
+          transform: 'translateY(-50%)',
+          backgroundColor: 'white'
+        }}></div>
+        
+        {/* Center circle */}
+        <div style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          width: '80px',
+          height: '80px',
+          border: '2px solid white',
+          borderRadius: '50%',
+          transform: 'translate(-50%, -50%)'
+        }}></div>
+        
+        {/* Center spot */}
+        <div style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          width: '4px',
+          height: '4px',
+          backgroundColor: 'white',
+          borderRadius: '50%',
+          transform: 'translate(-50%, -50%)'
+        }}></div>
+        
+        {/* Top penalty area */}
+        <div style={{
+          position: 'absolute',
+          top: '2px',
+          left: '25%',
+          right: '25%',
+          height: '60px',
+          border: '2px solid white',
+          borderTop: 'none'
+        }}></div>
+        
+        {/* Bottom penalty area */}
+        <div style={{
+          position: 'absolute',
+          bottom: '2px',
+          left: '25%',
+          right: '25%',
+          height: '60px',
+          border: '2px solid white',
+          borderBottom: 'none'
+        }}></div>
+        
+        {/* Top goal area */}
+        <div style={{
+          position: 'absolute',
+          top: '2px',
+          left: '37.5%',
+          right: '37.5%',
+          height: '25px',
+          border: '2px solid white',
+          borderTop: 'none'
+        }}></div>
+        
+        {/* Bottom goal area */}
+        <div style={{
+          position: 'absolute',
+          bottom: '2px',
+          left: '37.5%',
+          right: '37.5%',
+          height: '25px',
+          border: '2px solid white',
+          borderBottom: 'none'
+        }}></div>
+        
+        {/* Corner arcs */}
+        <div style={{
+          position: 'absolute',
+          top: '0px',
+          left: '0px',
+          width: '20px',
+          height: '20px',
+          border: '2px solid white',
+          borderRadius: '0 0 20px 0',
+          borderTop: 'none',
+          borderLeft: 'none'
+        }}></div>
+        <div style={{
+          position: 'absolute',
+          top: '0px',
+          right: '0px',
+          width: '20px',
+          height: '20px',
+          border: '2px solid white',
+          borderRadius: '0 0 0 20px',
+          borderTop: 'none',
+          borderRight: 'none'
+        }}></div>
+        <div style={{
+          position: 'absolute',
+          bottom: '0px',
+          left: '0px',
+          width: '20px',
+          height: '20px',
+          border: '2px solid white',
+          borderRadius: '0 20px 0 0',
+          borderBottom: 'none',
+          borderLeft: 'none'
+        }}></div>
+        <div style={{
+          position: 'absolute',
+          bottom: '0px',
+          right: '0px',
+          width: '20px',
+          height: '20px',
+          border: '2px solid white',
+          borderRadius: '20px 0 0 0',
+          borderBottom: 'none',
+          borderRight: 'none'
+        }}></div>
       </div>
-    );
-  };
+      
+      <div style={{
+        position: 'relative',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gridTemplateRows: 'repeat(4, 1fr)',
+        gap: '4px',
+        height: '100%',
+        zIndex: 10
+      }}>
+        {sections.map(sec => {
+          const key = `${date}-${timeSlot}-${normalizedPitchId}-${sec}`;
+          const allocation = allocations[key];
+          
+          return (
+            <div 
+              key={sec}
+              style={{
+                border: '2px solid rgba(255,255,255,0.5)',
+                borderRadius: '4px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                position: 'relative',
+                padding: '2px',
+                textAlign: 'center',
+                cursor: allocation && isAdmin ? 'pointer' : 'default',
+                backgroundColor: allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)',
+                borderColor: allocation ? (allocation.colour || allocation.color) : 'rgba(255,255,255,0.5)',
+                color: allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151'
+              }}
+              onClick={() => allocation && isAdmin && clearAllocation(key)}
+              title={allocation ? `${allocation.team} (${allocation.duration}min) - Click to remove` : `Section ${sec} - Available`}
+            >
+              <div style={{
+                fontSize: '12px',
+                opacity: 0.75,
+                marginBottom: '4px',
+                fontWeight: 'bold'
+              }}>
+                {sec}
+              </div>
+              <div style={{
+                textAlign: 'center',
+                padding: '0 4px',
+                fontSize: '12px',
+                lineHeight: 1.2
+              }}>
+                {allocation ? allocation.team : ''}
+              </div>
+              {allocation && allocation.isMultiSlot && (
+                <div style={{
+                  fontSize: '12px',
+                  opacity: 0.6,
+                  marginTop: '4px'
+                }}>
+                  {allocation.duration}min
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
   if (loading) {
     return (
