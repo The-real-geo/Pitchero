@@ -1482,9 +1482,104 @@ const UnifiedPitchAllocator = () => {
                       padding: '16px',
                       borderTop: '1px solid #e5e7eb',
                       display: 'flex',
-                      justifyContent: 'center'
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '8px'
                     }}>
                       {renderPitchSection(timeSlot)}
+                      
+                      {/* Grass area for pitches that have it enabled */}
+                      {showGrassArea[normalizedPitchId] && (
+                        <div style={{
+                          width: '280px',
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '4px',
+                          height: '104px'
+                        }}>
+                          <div style={{
+                            position: 'relative',
+                            backgroundColor: '#dcfce7',
+                            border: '4px solid white',
+                            borderRadius: '8px',
+                            padding: '8px'
+                          }}>
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundColor: '#bbf7d0',
+                              borderRadius: '8px'
+                            }}></div>
+                            
+                            <div style={{ position: 'relative', zIndex: 10, height: '100%' }}>
+                              {(() => {
+                                const key = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
+                                const allocation = allocations[key];
+                                return (
+                                  <div 
+                                    style={{
+                                      height: '100%',
+                                      border: '2px solid white',
+                                      borderRadius: '4px',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '12px',
+                                      fontWeight: '500',
+                                      transition: 'all 0.2s',
+                                      cursor: allocation && isAdmin ? 'pointer' : 'default',
+                                      backgroundColor: allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)',
+                                      borderColor: allocation ? (allocation.colour || allocation.color) : 'rgba(255,255,255,0.5)',
+                                      color: allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151'
+                                    }}
+                                    onClick={() => allocation && isAdmin && clearAllocation(key)}
+                                    title={allocation ? `${allocation.team} (${allocation.duration}min) - Click to remove` : `Grass Area - Available`}
+                                  >
+                                    <div style={{
+                                      fontSize: '12px',
+                                      opacity: 0.75,
+                                      marginBottom: '4px',
+                                      fontWeight: 'bold'
+                                    }}>
+                                      GRASS
+                                    </div>
+                                    <div style={{
+                                      textAlign: 'center',
+                                      padding: '0 4px',
+                                      fontSize: '12px',
+                                      lineHeight: 1.2
+                                    }}>
+                                      {allocation ? allocation.team : ''}
+                                    </div>
+                                    {allocation && allocation.isMultiSlot && (
+                                      <div style={{
+                                        fontSize: '12px',
+                                        opacity: 0.6,
+                                        marginTop: '4px'
+                                      }}>
+                                        {allocation.duration}min
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                          <div></div>
+                        </div>
+                      )}
+                      
+                      {/* Spacer for pitches without grass area */}
+                      {!showGrassArea[normalizedPitchId] && (
+                        <div style={{ 
+                          height: '104px',
+                          width: '280px'
+                        }}></div>
+                      )}
                     </div>
                   )}
                 </div>
