@@ -64,7 +64,7 @@ const UnifiedPitchAllocator = () => {
   };
 
   // Get default pitch area for team
-  const getDefaultPitchAreaForTeam = (teamName) => {
+  const getDefaultPitchAreaForTeam = useCallback((teamName) => {
     const ageMatch = teamName.match(/Under (\d+)/);
     if (ageMatch) {
       const age = parseInt(ageMatch[1]);
@@ -74,10 +74,10 @@ const UnifiedPitchAllocator = () => {
       return 'Under 14+';
     }
     return 'Under 6 & 7';
-  };
+  }, []);
 
   // Get match day duration based on team
-  const getMatchDayDuration = (teamName) => {
+  const getMatchDayDuration = useCallback((teamName) => {
     const ageMatch = teamName.match(/Under (\d+)/);
     if (ageMatch) {
       const age = parseInt(ageMatch[1]);
@@ -88,10 +88,10 @@ const UnifiedPitchAllocator = () => {
       return 90;
     }
     return 60;
-  };
+  }, []);
 
   // Get section options for match day based on team
-  const getSectionOptions = (teamName) => {
+  const getSectionOptions = useCallback((teamName) => {
     const isUnder6or7 = teamName.includes('Under 6') || teamName.includes('Under 7');
     const isUnder8or9 = teamName.includes('Under 8') || teamName.includes('Under 9');
     const isUnder10to13 = teamName.includes('Under 10') || teamName.includes('Under 11') || 
@@ -129,10 +129,10 @@ const UnifiedPitchAllocator = () => {
     }
     
     return sections.map(sec => ({ value: sec, label: `Section ${sec}` }));
-  };
+  }, [sections, showGrassArea, pitchId]);
 
   // Get sections that will be allocated for match day
-  const getSectionsToAllocate = (teamName, selectedLayout) => {
+  const getSectionsToAllocate = useCallback((teamName, selectedLayout) => {
     const pitchAreaReq = matchDayPitchAreaRequired[teamName] || getDefaultPitchAreaForTeam(teamName);
     
     switch (pitchAreaReq) {
@@ -162,7 +162,7 @@ const UnifiedPitchAllocator = () => {
       default:
         return [selectedLayout];
     }
-  };
+  }, [getDefaultPitchAreaForTeam]);
 
   // Load user and club data
   useEffect(() => {
