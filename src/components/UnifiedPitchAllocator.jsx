@@ -46,11 +46,11 @@ const UnifiedPitchAllocator = () => {
 
   const slots = useMemo(() => timeSlots(), []);
 
-  // Sections for pitch layout
-  const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  // Sections for pitch layout - wrapped in useMemo to prevent recreating on every render
+  const sections = useMemo(() => ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], []);
 
   // Match day pitch area requirements
-  const matchDayPitchAreaRequired = {
+  const matchDayPitchAreaRequired = useMemo(() => ({
     'Under 6': 'Under 6 & 7',
     'Under 8': 'Under 8 & 9',
     'Under 9': 'Under 8 & 9', 
@@ -61,7 +61,7 @@ const UnifiedPitchAllocator = () => {
     'Under 14': 'Under 14+',
     'Under 15': 'Under 14+',
     'Under 16': 'Under 14+'
-  };
+  }), []);
 
   // Get default pitch area for team
   const getDefaultPitchAreaForTeam = useCallback((teamName) => {
