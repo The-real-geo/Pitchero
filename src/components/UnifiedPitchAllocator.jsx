@@ -229,45 +229,11 @@ const UnifiedPitchAllocator = () => {
     }
   }, [teams, team]);
 
-  // Load allocations for current date and pitch
+  // Load allocations for current date and pitch - simplified for local state
   useEffect(() => {
-    if (!clubInfo?.clubId || !date || !pitchId) return;
-
-    const loadAllocations = () => {
-      try {
-        // Load from both training and match allocations
-        const trainingRef = doc(db, 'trainingAllocations', `${clubInfo.clubId}-${date}`);
-        const matchRef = doc(db, 'matchAllocations', `${clubInfo.clubId}-${date}`);
-
-        const unsubscribeTraining = onSnapshot(trainingRef, (doc) => {
-          const trainingData = doc.exists() ? doc.data() : {};
-          
-          onSnapshot(matchRef, (matchDoc) => {
-            const matchData = matchDoc.exists() ? matchDoc.data() : {};
-            
-            // Combine allocations and filter by pitch
-            const combined = { ...trainingData, ...matchData };
-            const filtered = {};
-            
-            Object.entries(combined).forEach(([key, value]) => {
-              if (key.includes(pitchId) && typeof value === 'object' && value.pitch === pitchId) {
-                filtered[key] = value;
-              }
-            });
-            
-            setAllocations(filtered);
-          });
-        });
-
-        return unsubscribeTraining;
-      } catch (error) {
-        console.error('Error loading allocations:', error);
-      }
-    };
-
-    const unsubscribe = loadAllocations();
-    return () => unsubscribe && unsubscribe();
-  }, [clubInfo?.clubId, date, pitchId]);
+    // Reset allocations when date or pitch changes
+    setAllocations({});
+  }, [date, pitchId]);
 
   // Conflict checking - following existing allocator pattern
   const hasConflict = useMemo(() => {
