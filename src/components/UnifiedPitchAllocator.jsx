@@ -218,12 +218,25 @@ const UnifiedPitchAllocator = () => {
               // Fetch the actual club document to get the club name
               const clubDoc = await getDoc(doc(db, 'clubs', userData.clubId));
               console.log('Club document exists:', clubDoc.exists());
+              console.log('Club document ID:', userData.clubId);
+              
               if (clubDoc.exists()) {
                 const clubData = clubDoc.data();
-                console.log('Club data loaded:', clubData);
+                console.log('Full club data:', clubData);
+                console.log('Club name field:', clubData.name);
+                
+                // Extract the name with comprehensive fallbacks
+                const clubName = clubData.name || 
+                               clubData.Name || 
+                               clubData.clubName || 
+                               clubData.ClubName || 
+                               `Club ${userData.clubId}`;
+                
+                console.log('Extracted club name:', clubName);
+                
                 setClubInfo({
                   clubId: userData.clubId,
-                  name: clubData.name || clubData.clubName || clubData.Name || `Club ${userData.clubId}`
+                  name: clubName
                 });
               } else {
                 console.log('Club document not found for ID:', userData.clubId);
@@ -237,6 +250,7 @@ const UnifiedPitchAllocator = () => {
           }
         } catch (error) {
           console.error('Error fetching user/club data:', error);
+          console.error('Error details:', error.message);
         }
       }
       setLoading(false);
@@ -256,6 +270,13 @@ const UnifiedPitchAllocator = () => {
         
         if (settingsDoc.exists()) {
           const data = settingsDoc.data();
+          // Update club name if it exists in settings
+          if (data.clubName) {
+            setClubInfo(prev => ({
+              ...prev,
+              name: data.clubName
+            }));
+          }
           if (data.teams) {
             setTeams(data.teams);
             // Set initial team if teams are loaded
@@ -1697,7 +1718,7 @@ const UnifiedPitchAllocator = () => {
                                     {allocation && allocation.isMultiSlot && (
                                       <div style={{
                                         fontSize: '12px',
-                                        opacity: 0.6,
+                                        opacity: 0.6',
                                         marginTop: '4px'
                                       }}>
                                         {allocation.duration}min
