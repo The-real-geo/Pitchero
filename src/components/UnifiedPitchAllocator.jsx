@@ -214,10 +214,21 @@ const UnifiedPitchAllocator = () => {
             const userData = userDoc.data();
             setUserRole(userData.role);
             if (userData.clubId) {
-              setClubInfo({
-                clubId: userData.clubId,
-                name: userData.clubName || 'My Club'
-              });
+              // Fetch the actual club document to get the club name
+              const clubDoc = await getDoc(doc(db, 'clubs', userData.clubId));
+              if (clubDoc.exists()) {
+                const clubData = clubDoc.data();
+                setClubInfo({
+                  clubId: userData.clubId,
+                  name: clubData.name || clubData.clubName || 'Club Name Not Found'
+                });
+              } else {
+                // Fallback if club document doesn't exist
+                setClubInfo({
+                  clubId: userData.clubId,
+                  name: userData.clubName || 'Club Not Found'
+                });
+              }
             }
           }
         } catch (error) {
