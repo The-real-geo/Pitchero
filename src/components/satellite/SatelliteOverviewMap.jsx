@@ -237,7 +237,7 @@ const drawCanvas = useCallback(() => {
           color: '#1f2937', 
           margin: 0 
         }}>
-          {isSetupMode ? 'Setup Pitch Boundaries' : 'BeansFC Facility Overview'}
+          {isSetupMode ? 'Setup Pitch Boundaries' : `${clubInfo?.name || 'Club'} Facility Overview`}
         </h2>
         
         <div style={{ display: 'flex', gap: '12px' }}>
