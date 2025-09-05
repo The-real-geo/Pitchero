@@ -22,23 +22,6 @@ const defaultTeams = [
   { name: "Under 16 YCC", color: "#696969" }
 ];
 
-// Default pitch configurations
-const defaultPitchOrientations = {
-  'pitch1': 'portrait',
-  'pitch2': 'portrait'
-};
-
-const defaultShowGrassArea = {
-  'pitch1': false,
-  'pitch2': true
-};
-
-// Default pitch names
-const defaultPitchNames = {
-  'pitch1': 'Pitch 1 - Astro',
-  'pitch2': 'Pitch 2 - Grass'
-};
-
 function Settings() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -49,10 +32,13 @@ function Settings() {
   const [teams, setTeams] = useState(defaultTeams);
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamColor, setNewTeamColor] = useState('#FF0000');
-  const [pitchOrientations, setPitchOrientations] = useState(defaultPitchOrientations);
-  const [showGrassArea, setShowGrassArea] = useState(defaultShowGrassArea);
-  const [pitchNames, setPitchNames] = useState(defaultPitchNames);
-  const [localPitchNames, setLocalPitchNames] = useState(defaultPitchNames);
+  
+  // Dynamic pitch states
+  const [configuredPitches, setConfiguredPitches] = useState([]); // Pitches from satellite config
+  const [pitchOrientations, setPitchOrientations] = useState({});
+  const [showGrassArea, setShowGrassArea] = useState({});
+  const [pitchNames, setPitchNames] = useState({});
+  const [localPitchNames, setLocalPitchNames] = useState({});
   
   // Import/Export state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -87,13 +73,25 @@ function Settings() {
                 const clubData = clubDoc.data();
                 setClubInfo({
                   clubId: userData.clubId,
-                  name: clubData.name || userData.clubName || 'Unknown Club'
+                  name: clubData.name || userData.clubName || 'Unknown Club',
+                  satelliteConfig: clubData.satelliteConfig || null
                 });
+                
+                // Extract configured pitches from satellite config
+                if (clubData.satelliteConfig?.pitchBoundaries) {
+                  const pitches = clubData.satelliteConfig.pitchBoundaries.map(p => ({
+                    id: p.pitchId || p.pitchNumber || `pitch-${p.pitchNumber}`,
+                    number: p.pitchNumber || 'Unknown'
+                  }));
+                  setConfiguredPitches(pitches);
+                  console.log('Configured pitches from satellite:', pitches);
+                }
               } else {
                 // Fallback if club document doesn't exist
                 setClubInfo({
                   clubId: userData.clubId,
-                  name: userData.clubName || 'Unknown Club'
+                  name: userData.clubName || 'Unknown Club',
+                  satelliteConfig: null
                 });
               }
             }
@@ -106,6 +104,29 @@ function Settings() {
 
     return () => unsubscribe();
   }, []);
+
+  // Initialize default settings for configured pitches
+  useEffect(() => {
+    if (configuredPitches.length > 0) {
+      // Initialize default pitch settings for all configured pitches
+      const defaultOrientations = {};
+      const defaultGrassAreas = {};
+      const defaultNames = {};
+      
+      configuredPitches.forEach(pitch => {
+        const pitchId = pitch.id;
+        defaultOrientations[pitchId] = 'portrait';
+        defaultGrassAreas[pitchId] = false;
+        defaultNames[pitchId] = `Pitch ${pitch.number}`;
+      });
+      
+      // Set as initial values (will be overwritten by loaded settings if they exist)
+      setPitchOrientations(prev => ({...defaultOrientations, ...prev}));
+      setShowGrassArea(prev => ({...defaultGrassAreas, ...prev}));
+      setPitchNames(prev => ({...defaultNames, ...prev}));
+      setLocalPitchNames(prev => ({...defaultNames, ...prev}));
+    }
+  }, [configuredPitches]);
 
   // Firestore functions
   const saveSettingsToFirestore = async (customSettings = null) => {
@@ -297,19 +318,33 @@ function Settings() {
   };
 
   const resetToDefaults = async () => {
+    // Reset teams to defaults
     setTeams(defaultTeams);
-    setPitchOrientations(defaultPitchOrientations);
-    setShowGrassArea(defaultShowGrassArea);
-    setPitchNames(defaultPitchNames);
-    setLocalPitchNames(defaultPitchNames);
+    
+    // Reset pitch settings to defaults for all configured pitches
+    const defaultOrientations = {};
+    const defaultGrassAreas = {};
+    const defaultNames = {};
+    
+    configuredPitches.forEach(pitch => {
+      const pitchId = pitch.id;
+      defaultOrientations[pitchId] = 'portrait';
+      defaultGrassAreas[pitchId] = false;
+      defaultNames[pitchId] = `Pitch ${pitch.number}`;
+    });
+    
+    setPitchOrientations(defaultOrientations);
+    setShowGrassArea(defaultGrassAreas);
+    setPitchNames(defaultNames);
+    setLocalPitchNames(defaultNames);
     setErrors({});
     
     // Save defaults to Firestore
     await saveSettingsToFirestore({
       teams: defaultTeams,
-      pitchOrientations: defaultPitchOrientations,
-      showGrassArea: defaultShowGrassArea,
-      pitchNames: defaultPitchNames
+      pitchOrientations: defaultOrientations,
+      showGrassArea: defaultGrassAreas,
+      pitchNames: defaultNames
     });
   };
 
@@ -320,8 +355,9 @@ function Settings() {
       pitchOrientations,
       showGrassArea,
       pitchNames,
+      configuredPitches, // Include configured pitches info for reference
       exportDate: new Date().toISOString(),
-      version: '1.0'
+      version: '2.0' // Updated version for dynamic pitches
     };
     setExportData(JSON.stringify(settings, null, 2));
     setShowExportModal(true);
@@ -371,7 +407,7 @@ function Settings() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `settings-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `settings-${clubInfo?.name || 'club'}-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -776,7 +812,7 @@ function Settings() {
               color: '#1f2937',
               margin: '0'
             }}>
-              Pitch Configuration
+              Pitch Configuration {configuredPitches.length > 0 && `(${configuredPitches.length} pitch${configuredPitches.length !== 1 ? 'es' : ''})`}
             </h2>
             <button
               onClick={() => navigate('/satellite')}
@@ -804,146 +840,202 @@ function Settings() {
             </button>
           </div>
 
-          {['pitch1', 'pitch2'].map((pitchId) => (
-            <div
-              key={pitchId}
-              style={{
-                marginBottom: '24px',
-                padding: '16px',
-                backgroundColor: '#f9fafb',
-                borderRadius: '8px',
-                border: '1px solid #e5e7eb'
-              }}
-            >
-              {/* Pitch Name - only editable by admin */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#374151',
-                  marginBottom: '8px'
-                }}>
-                  Pitch Name
-                </label>
-                {isAdmin ? (
-                  <input
-                    type="text"
-                    value={localPitchNames[pitchId]}
-                    onChange={(e) => handlePitchNameChange(pitchId, e.target.value)}
-                    onBlur={() => handlePitchNameBlur(pitchId)}
-                    disabled={isSavingSettings}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      opacity: isSavingSettings ? 0.6 : 1
-                    }}
-                    placeholder="Enter pitch name..."
-                  />
-                ) : (
-                  <div style={{
-                    padding: '8px 12px',
-                    backgroundColor: '#f3f4f6',
-                    borderRadius: '6px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    color: '#374151'
-                  }}>
-                    {pitchNames[pitchId]}
-                  </div>
-                )}
-                {isAdmin && (
-                  <p style={{
-                    fontSize: '12px',
-                    color: '#6b7280',
-                    marginTop: '4px',
-                    fontStyle: 'italic'
-                  }}>
-                    Admin only: You can customize this pitch name
-                  </p>
-                )}
-              </div>
-
-              {/* Orientation */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#374151',
-                  marginBottom: '8px'
-                }}>
-                  Orientation
-                </label>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button
-                    onClick={() => updatePitchOrientation(pitchId, 'portrait')}
-                    disabled={isSavingSettings}
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: pitchOrientations[pitchId] === 'portrait' ? '#3b82f6' : '#e5e7eb',
-                      color: pitchOrientations[pitchId] === 'portrait' ? 'white' : '#374151',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      opacity: isSavingSettings ? 0.6 : 1
-                    }}
-                  >
-                    Portrait
-                  </button>
-                  <button
-                    onClick={() => updatePitchOrientation(pitchId, 'landscape')}
-                    disabled={isSavingSettings}
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: pitchOrientations[pitchId] === 'landscape' ? '#3b82f6' : '#e5e7eb',
-                      color: pitchOrientations[pitchId] === 'landscape' ? 'white' : '#374151',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      opacity: isSavingSettings ? 0.6 : 1
-                    }}
-                  >
-                    Landscape
-                  </button>
-                </div>
-              </div>
-
-              {/* Grass Area - only for pitch2 */}
-              {pitchId === 'pitch2' && (
-                <div>
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#374151',
-                    cursor: isSavingSettings ? 'not-allowed' : 'pointer'
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={showGrassArea[pitchId]}
-                      onChange={(e) => updateGrassAreaVisibility(pitchId, e.target.checked)}
-                      disabled={isSavingSettings}
-                      style={{ cursor: isSavingSettings ? 'not-allowed' : 'pointer' }}
-                    />
-                    Show grass area for training
-                  </label>
-                </div>
-              )}
+          {/* Check if there are configured pitches */}
+          {configuredPitches.length === 0 ? (
+            <div style={{
+              padding: '32px',
+              backgroundColor: '#fef3c7',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <p style={{
+                fontSize: '16px',
+                color: '#92400e',
+                marginBottom: '16px'
+              }}>
+                No pitches have been configured yet.
+              </p>
+              <p style={{
+                fontSize: '14px',
+                color: '#92400e',
+                marginBottom: '24px'
+              }}>
+                Click the "Satellite Overview" button above to set up your facility's pitches.
+              </p>
             </div>
-          ))}
+          ) : (
+            <>
+              {/* Scrollable container for many pitches */}
+              <div style={{
+                maxHeight: '600px',
+                overflowY: 'auto',
+                paddingRight: '8px'
+              }}>
+                {configuredPitches.map((pitch) => {
+                  const pitchId = pitch.id;
+                  return (
+                    <div
+                      key={pitchId}
+                      style={{
+                        marginBottom: '24px',
+                        padding: '16px',
+                        backgroundColor: '#f9fafb',
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb'
+                      }}
+                    >
+                      {/* Pitch Name - only editable by admin */}
+                      <div style={{ marginBottom: '16px' }}>
+                        <label style={{
+                          display: 'block',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          color: '#374151',
+                          marginBottom: '8px'
+                        }}>
+                          Pitch Name
+                        </label>
+                        {isAdmin ? (
+                          <input
+                            type="text"
+                            value={localPitchNames[pitchId] || ''}
+                            onChange={(e) => handlePitchNameChange(pitchId, e.target.value)}
+                            onBlur={() => handlePitchNameBlur(pitchId)}
+                            disabled={isSavingSettings}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '6px',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              opacity: isSavingSettings ? 0.6 : 1
+                            }}
+                            placeholder={`Pitch ${pitch.number}`}
+                          />
+                        ) : (
+                          <div style={{
+                            padding: '8px 12px',
+                            backgroundColor: '#f3f4f6',
+                            borderRadius: '6px',
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            color: '#374151'
+                          }}>
+                            {pitchNames[pitchId] || `Pitch ${pitch.number}`}
+                          </div>
+                        )}
+                        {isAdmin && (
+                          <p style={{
+                            fontSize: '12px',
+                            color: '#6b7280',
+                            marginTop: '4px',
+                            fontStyle: 'italic'
+                          }}>
+                            Admin only: You can customize this pitch name
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Orientation */}
+                      <div style={{ marginBottom: '16px' }}>
+                        <label style={{
+                          display: 'block',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          color: '#374151',
+                          marginBottom: '8px'
+                        }}>
+                          Orientation
+                        </label>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          <button
+                            onClick={() => updatePitchOrientation(pitchId, 'portrait')}
+                            disabled={isSavingSettings}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: pitchOrientations[pitchId] === 'portrait' ? '#3b82f6' : '#e5e7eb',
+                              color: pitchOrientations[pitchId] === 'portrait' ? 'white' : '#374151',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: isSavingSettings ? 'not-allowed' : 'pointer',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              opacity: isSavingSettings ? 0.6 : 1
+                            }}
+                          >
+                            Portrait
+                          </button>
+                          <button
+                            onClick={() => updatePitchOrientation(pitchId, 'landscape')}
+                            disabled={isSavingSettings}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: pitchOrientations[pitchId] === 'landscape' ? '#3b82f6' : '#e5e7eb',
+                              color: pitchOrientations[pitchId] === 'landscape' ? 'white' : '#374151',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: isSavingSettings ? 'not-allowed' : 'pointer',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              opacity: isSavingSettings ? 0.6 : 1
+                            }}
+                          >
+                            Landscape
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Grass Area Option */}
+                      <div>
+                        <label style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          color: '#374151',
+                          cursor: isSavingSettings ? 'not-allowed' : 'pointer'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={showGrassArea[pitchId] || false}
+                            onChange={(e) => updateGrassAreaVisibility(pitchId, e.target.checked)}
+                            disabled={isSavingSettings}
+                            style={{ cursor: isSavingSettings ? 'not-allowed' : 'pointer' }}
+                          />
+                          Show grass area for training
+                        </label>
+                        <p style={{
+                          fontSize: '12px',
+                          color: '#6b7280',
+                          marginTop: '4px',
+                          marginLeft: '24px'
+                        }}>
+                          Enable an additional grass training area for this pitch
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Info about configured pitches */}
+              <div style={{
+                marginTop: '16px',
+                padding: '12px',
+                backgroundColor: '#f0f9ff',
+                borderRadius: '6px',
+                fontSize: '13px',
+                color: '#0369a1'
+              }}>
+                💡 {configuredPitches.length} pitch{configuredPitches.length !== 1 ? 'es' : ''} configured. 
+                {configuredPitches.length < 30 && ` You can configure up to 30 pitches total.`}
+              </div>
+            </>
+          )}
           
-          {!isAdmin && (
+          {!isAdmin && configuredPitches.length > 0 && (
             <div style={{
               marginTop: '16px',
               padding: '12px',
