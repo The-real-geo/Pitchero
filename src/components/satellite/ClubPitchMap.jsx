@@ -19,6 +19,7 @@ const ClubPitchMap = ({
   // States for data loading
   const [satelliteConfig, setSatelliteConfig] = useState(null);
   const [clubId, setClubId] = useState(null);
+  const [clubInfo, setClubInfo] = useState(null); // Added clubInfo state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -59,9 +60,9 @@ const ClubPitchMap = ({
     return () => unsubscribe();
   }, []);
 
-  // Load satellite configuration when clubId is available
+  // Load satellite configuration and club info when clubId is available
   useEffect(() => {
-    const loadSatelliteConfig = async () => {
+    const loadClubData = async () => {
       if (!clubId) return;
 
       try {
@@ -72,6 +73,22 @@ const ClubPitchMap = ({
         
         if (clubDoc.exists()) {
           const clubData = clubDoc.data();
+          
+          // Extract and set club info with name
+          const extractedClubName = clubData.name || 
+                                  clubData.Name || 
+                                  clubData.clubName || 
+                                  clubData.ClubName || 
+                                  `Club ${clubId}`;
+          
+          console.log('Club data loaded:', clubData);
+          console.log('Extracted club name:', extractedClubName);
+          
+          setClubInfo({
+            clubId: clubId,
+            name: extractedClubName
+          });
+          
           // Access satelliteConfig field from club document
           if (clubData.satelliteConfig) {
             setSatelliteConfig(clubData.satelliteConfig);
@@ -82,14 +99,14 @@ const ClubPitchMap = ({
           setError('Club not found');
         }
       } catch (err) {
-        console.error('Error loading satellite config:', err);
-        setError('Failed to load satellite configuration');
+        console.error('Error loading club data:', err);
+        setError('Failed to load club configuration');
       } finally {
         setLoading(false);
       }
     };
 
-    loadSatelliteConfig();
+    loadClubData();
   }, [clubId]);
 
   // Calculate canvas size maintaining aspect ratio
@@ -315,7 +332,7 @@ const ClubPitchMap = ({
           color: '#1f2937', 
           margin: 0 
         }}>
-          BeansFC Facility Overview
+          {clubInfo?.name || 'Loading...'} Facility Overview
         </h2>
         
         {/* Empty div for spacing */}
