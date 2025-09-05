@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { auth, db } from '../utils/firebase';
-import { doc, getDoc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 // Reusing constants from existing allocators
@@ -52,9 +52,6 @@ const UnifiedPitchAllocator = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [expandedSlots, setExpandedSlots] = useState({});
   
-  // Refs for cleanup
-  const reloadTimeoutRef = useRef(null);
-
   // Time slots - reusing existing pattern
   const slots = useMemo(() => timeSlots(), []);
 
@@ -365,15 +362,6 @@ const UnifiedPitchAllocator = () => {
     });
     setExpandedSlots(initialExpanded);
   }, [slots]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (reloadTimeoutRef.current) {
-        clearTimeout(reloadTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // Logout handler
   const handleLogout = async () => {
