@@ -1,8 +1,8 @@
 // src/components/UnifiedPitchAllocator.jsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { auth, db } from '../utils/firebase';
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 // Reusing constants from existing allocators
@@ -36,6 +36,8 @@ const UnifiedPitchAllocator = () => {
   const [allocations, setAllocations] = useState({});
   const [loading, setLoading] = useState(true);
   const [savingAllocation, setSavingAllocation] = useState(false);
+  const [deletingAllocation, setDeletingAllocation] = useState(false);
+  const [deletingKeys, setDeletingKeys] = useState(new Set());
   
   // Form state - following existing allocator patterns
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -49,17 +51,23 @@ const UnifiedPitchAllocator = () => {
   // Menu and UI state
   const [menuOpen, setMenuOpen] = useState(false);
   const [expandedSlots, setExpandedSlots] = useState({});
+  
+  // Refs for cleanup
+  const reloadTimeoutRef = useRef(null);
 
   // Time slots - reusing existing pattern
   const slots = useMemo(() => timeSlots(), []);
 
   // Normalize pitch ID to ensure consistency - MUST BE DEFINED EARLY
   const normalizedPitchId = useMemo(() => {
-    // If pitchId is just a number like '1' or '2', convert to 'pitch1' or 'pitch2'
-    if (pitchId && !pitchId.startsWith('pitch')) {
-      return `pitch${pitchId}`;
+    if (!pitchId) return '';
+    // Ensure consistent format - always 'pitch' + number
+    const id = String(pitchId);
+    if (!id.startsWith('pitch')) {
+      return `pitch${id}`;
     }
-    return pitchId;
+    // Also handle cases like 'pitch-10' -> 'pitch10'
+    return id.replace('pitch-', 'pitch');
   }, [pitchId]);
 
   // Helper function from existing allocators
@@ -295,59 +303,59 @@ const UnifiedPitchAllocator = () => {
     loadSettings();
   }, [clubInfo?.clubId, team]);
 
-  // FIXED: Load allocations from Firebase when date, pitch or club changes
-  useEffect(() => {
+  // Load allocations function
+  const loadAllocations = useCallback(async () => {
     if (!clubInfo?.clubId || !date || !normalizedPitchId) return;
 
-    const loadAllocations = async () => {
-      try {
-        console.log('Loading allocations for:', { date, pitchId: normalizedPitchId, clubId: clubInfo.clubId });
-        
-        // Load both training and match allocations
-        const trainingDocRef = doc(db, 'trainingAllocations', `${clubInfo.clubId}-${date}`);
-        const matchDocRef = doc(db, 'matchAllocations', `${clubInfo.clubId}-${date}`);
-        
-        const [trainingDoc, matchDoc] = await Promise.all([
-          getDoc(trainingDocRef),
-          getDoc(matchDocRef)
-        ]);
-        
-        let combinedAllocations = {};
-        
-        // Process training allocations
-        if (trainingDoc.exists()) {
-          const trainingData = trainingDoc.data();
-          // Filter for current pitch only
-          Object.entries(trainingData).forEach(([key, value]) => {
-            if (key.includes(`-${normalizedPitchId}-`) && typeof value === 'object') {
-              combinedAllocations[key] = { ...value, type: 'training' };
-            }
-          });
-          console.log('Loaded training allocations:', Object.keys(combinedAllocations).length);
-        }
-        
-        // Process match allocations
-        if (matchDoc.exists()) {
-          const matchData = matchDoc.data();
-          // Filter for current pitch only
-          Object.entries(matchData).forEach(([key, value]) => {
-            if (key.includes(`-${normalizedPitchId}-`) && typeof value === 'object') {
-              combinedAllocations[key] = { ...value, type: 'game' };
-            }
-          });
-          console.log('Loaded match allocations:', Object.keys(combinedAllocations).length);
-        }
-        
-        console.log('Total allocations loaded:', Object.keys(combinedAllocations).length);
-        setAllocations(combinedAllocations);
-      } catch (error) {
-        console.error('Error loading allocations:', error);
-        setAllocations({});
+    try {
+      console.log('Loading allocations for:', { date, pitchId: normalizedPitchId, clubId: clubInfo.clubId });
+      
+      // Load both training and match allocations
+      const trainingDocRef = doc(db, 'trainingAllocations', `${clubInfo.clubId}-${date}`);
+      const matchDocRef = doc(db, 'matchAllocations', `${clubInfo.clubId}-${date}`);
+      
+      const [trainingDoc, matchDoc] = await Promise.all([
+        getDoc(trainingDocRef),
+        getDoc(matchDocRef)
+      ]);
+      
+      let combinedAllocations = {};
+      
+      // Process training allocations
+      if (trainingDoc.exists()) {
+        const trainingData = trainingDoc.data();
+        // Filter for current pitch only
+        Object.entries(trainingData).forEach(([key, value]) => {
+          if (key.includes(`-${normalizedPitchId}-`) && typeof value === 'object') {
+            combinedAllocations[key] = { ...value, type: 'training' };
+          }
+        });
+        console.log('Loaded training allocations:', Object.keys(combinedAllocations).length);
       }
-    };
-
-    loadAllocations();
+      
+      // Process match allocations
+      if (matchDoc.exists()) {
+        const matchData = matchDoc.data();
+        // Filter for current pitch only
+        Object.entries(matchData).forEach(([key, value]) => {
+          if (key.includes(`-${normalizedPitchId}-`) && typeof value === 'object') {
+            combinedAllocations[key] = { ...value, type: 'game' };
+          }
+        });
+      }
+      
+      console.log('Total allocations loaded:', Object.keys(combinedAllocations).length);
+      setAllocations(combinedAllocations);
+    } catch (error) {
+      console.error('Error loading allocations:', error);
+      setAllocations({});
+    }
   }, [date, normalizedPitchId, clubInfo?.clubId]);
+
+  // Load allocations when date, pitch or club changes
+  useEffect(() => {
+    loadAllocations();
+  }, [loadAllocations]);
 
   // Initialize expanded slots on mount
   useEffect(() => {
@@ -357,6 +365,15 @@ const UnifiedPitchAllocator = () => {
     });
     setExpandedSlots(initialExpanded);
   }, [slots]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (reloadTimeoutRef.current) {
+        clearTimeout(reloadTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Logout handler
   const handleLogout = async () => {
@@ -395,7 +412,7 @@ const UnifiedPitchAllocator = () => {
     return false;
   }, [allocations, date, slot, normalizedPitchId, section, sectionGroup, duration, slots, allocationType, team, getSectionsToAllocate]);
 
-  // Add allocation - following existing allocator pattern
+  // Add allocation with optimistic updates
   const addAllocation = async () => {
     // Check if user is admin
     if (userRole !== 'admin') {
@@ -452,6 +469,12 @@ const UnifiedPitchAllocator = () => {
 
       console.log('Adding allocations:', newAllocations);
 
+      // OPTIMISTIC UPDATE - Update local state immediately
+      setAllocations(prev => ({
+        ...prev,
+        ...newAllocations
+      }));
+
       // Save to Firebase
       const collectionName = allocationType === 'training' ? 'trainingAllocations' : 'matchAllocations';
       const docRef = doc(db, collectionName, `${clubInfo.clubId}-${date}`);
@@ -468,22 +491,18 @@ const UnifiedPitchAllocator = () => {
       
       await setDoc(docRef, updatedData);
       
-      // Update local state
-      setAllocations(prev => ({
-        ...prev,
-        ...newAllocations
-      }));
-      
       console.log('Allocations saved successfully');
     } catch (error) {
       console.error('Error saving allocation:', error);
       alert(`Failed to save allocation: ${error.message}`);
+      // On error, reload to restore correct state
+      loadAllocations();
     } finally {
       setSavingAllocation(false);
     }
   };
 
-  // Clear allocation - following existing allocator pattern
+  // FIXED: Clear allocation with optimistic updates
   const clearAllocation = async (key) => {
     // Check if user is admin
     if (userRole !== 'admin') {
@@ -493,6 +512,12 @@ const UnifiedPitchAllocator = () => {
 
     const allocation = allocations[key];
     if (!allocation || !clubInfo?.clubId) return;
+
+    // Prevent duplicate deletion attempts
+    if (deletingKeys.has(key)) {
+      console.log('Already deleting this allocation, skipping duplicate request');
+      return;
+    }
 
     try {
       // Determine which slots to remove
@@ -520,6 +545,22 @@ const UnifiedPitchAllocator = () => {
 
       console.log('Removing keys:', keysToRemove);
 
+      // Mark keys as being deleted to prevent duplicate attempts
+      setDeletingKeys(prev => {
+        const newSet = new Set(prev);
+        keysToRemove.forEach(k => newSet.add(k));
+        return newSet;
+      });
+
+      // OPTIMISTIC UPDATE - IMMEDIATELY update local state
+      setAllocations(prev => {
+        const updated = { ...prev };
+        keysToRemove.forEach(keyToRemove => {
+          delete updated[keyToRemove];
+        });
+        return updated;
+      });
+
       // Get the Firebase document
       const collectionName = allocation.type === 'training' ? 'trainingAllocations' : 'matchAllocations';
       const docRef = doc(db, collectionName, `${clubInfo.clubId}-${allocation.date}`);
@@ -534,26 +575,36 @@ const UnifiedPitchAllocator = () => {
         });
         
         // Save back to Firebase
-        await setDoc(docRef, existingData);
-        
-        // Update local state
-        setAllocations(prev => {
-          const updated = { ...prev };
-          keysToRemove.forEach(keyToRemove => {
-            delete updated[keyToRemove];
-          });
-          return updated;
-        });
+        if (Object.keys(existingData).length > 0) {
+          await setDoc(docRef, existingData);
+        } else {
+          // If no data left, delete the document
+          await deleteDoc(docRef);
+        }
         
         console.log('Allocation removed successfully');
       }
+
+      // Clear deleting keys after successful deletion
+      setDeletingKeys(prev => {
+        const newSet = new Set(prev);
+        keysToRemove.forEach(k => newSet.delete(k));
+        return newSet;
+      });
+
     } catch (error) {
       console.error('Error deleting allocation:', error);
       alert(`Failed to remove allocation: ${error.message}`);
+      
+      // On error, reload to restore correct state
+      await loadAllocations();
+      
+      // Clear deleting keys on error
+      setDeletingKeys(new Set());
     }
   };
 
-  // Clear all allocations for the day
+  // Clear all allocations for the day with optimistic updates
   const clearAllAllocations = async () => {
     if (userRole !== 'admin') {
       alert('Only administrators can clear allocations');
@@ -564,7 +615,12 @@ const UnifiedPitchAllocator = () => {
       return;
     }
 
+    setDeletingAllocation(true);
+
     try {
+      // OPTIMISTIC UPDATE - Clear local state immediately
+      setAllocations({});
+
       // Clear both training and match allocations
       const trainingDocRef = doc(db, 'trainingAllocations', `${clubInfo.clubId}-${date}`);
       const matchDocRef = doc(db, 'matchAllocations', `${clubInfo.clubId}-${date}`);
@@ -608,13 +664,14 @@ const UnifiedPitchAllocator = () => {
         }
       }
       
-      // Clear local state
-      setAllocations({});
-      
       alert('All allocations cleared successfully');
     } catch (error) {
       console.error('Error clearing allocations:', error);
       alert(`Failed to clear allocations: ${error.message}`);
+      // On error, reload to restore correct state
+      await loadAllocations();
+    } finally {
+      setDeletingAllocation(false);
     }
   };
 
@@ -925,6 +982,7 @@ const UnifiedPitchAllocator = () => {
           {sections.map(sec => {
             const key = `${date}-${timeSlot}-${normalizedPitchId}-${sec}`;
             const allocation = allocations[key];
+            const isDeleting = deletingKeys.has(key);
             
             return (
               <div 
@@ -942,12 +1000,14 @@ const UnifiedPitchAllocator = () => {
                   position: 'relative',
                   padding: '2px',
                   textAlign: 'center',
-                  cursor: allocation && isAdmin ? 'pointer' : 'default',
+                  cursor: allocation && isAdmin && !isDeleting ? 'pointer' : 'default',
                   backgroundColor: allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)',
                   borderColor: allocation ? (allocation.colour || allocation.color) : 'rgba(255,255,255,0.5)',
-                  color: allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151'
+                  color: allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151',
+                  opacity: isDeleting ? 0.5 : 1,
+                  pointerEvents: isDeleting ? 'none' : 'auto'
                 }}
-                onClick={() => allocation && isAdmin && clearAllocation(key)}
+                onClick={() => allocation && isAdmin && !isDeleting && clearAllocation(key)}
                 title={allocation ? `${allocation.team} (${allocation.duration}min) - Click to remove` : `Section ${sec} - Available`}
               >
                 <div style={{
@@ -964,7 +1024,7 @@ const UnifiedPitchAllocator = () => {
                   fontSize: '12px',
                   lineHeight: 1.2
                 }}>
-                  {allocation ? allocation.team : ''}
+                  {allocation ? (isDeleting ? 'Removing...' : allocation.team) : ''}
                 </div>
                 {allocation && allocation.isMultiSlot && (
                   <div style={{
@@ -1308,19 +1368,21 @@ const UnifiedPitchAllocator = () => {
               {isAdmin && (
                 <button
                   onClick={clearAllAllocations}
+                  disabled={deletingAllocation}
                   style={{
                     padding: '10px 16px',
-                    backgroundColor: '#fee2e2',
-                    color: '#dc2626',
+                    backgroundColor: deletingAllocation ? '#9ca3af' : '#fee2e2',
+                    color: deletingAllocation ? 'white' : '#dc2626',
                     border: 'none',
                     borderRadius: '6px',
-                    cursor: 'pointer',
+                    cursor: deletingAllocation ? 'not-allowed' : 'pointer',
                     fontSize: '14px',
                     fontWeight: '500',
-                    height: '42px'
+                    height: '42px',
+                    opacity: deletingAllocation ? 0.6 : 1
                   }}
                 >
-                  Clear All
+                  {deletingAllocation ? 'Clearing...' : 'Clear All'}
                 </button>
               )}
             </div>
@@ -1678,6 +1740,7 @@ const UnifiedPitchAllocator = () => {
                               {(() => {
                                 const key = `${date}-${timeSlot}-${normalizedPitchId}-grass`;
                                 const allocation = allocations[key];
+                                const isDeleting = deletingKeys.has(key);
                                 return (
                                   <div 
                                     style={{
@@ -1691,12 +1754,14 @@ const UnifiedPitchAllocator = () => {
                                       fontSize: '12px',
                                       fontWeight: '500',
                                       transition: 'all 0.2s',
-                                      cursor: allocation && isAdmin ? 'pointer' : 'default',
+                                      cursor: allocation && isAdmin && !isDeleting ? 'pointer' : 'default',
                                       backgroundColor: allocation ? (allocation.colour || allocation.color) + '90' : 'rgba(255,255,255,0.1)',
                                       borderColor: allocation ? (allocation.colour || allocation.color) : 'rgba(255,255,255,0.5)',
-                                      color: allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151'
+                                      color: allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151',
+                                      opacity: isDeleting ? 0.5 : 1,
+                                      pointerEvents: isDeleting ? 'none' : 'auto'
                                     }}
-                                    onClick={() => allocation && isAdmin && clearAllocation(key)}
+                                    onClick={() => allocation && isAdmin && !isDeleting && clearAllocation(key)}
                                     title={allocation ? `${allocation.team} (${allocation.duration}min) - Click to remove` : `Grass Area - Available`}
                                   >
                                     <div style={{
@@ -1713,7 +1778,7 @@ const UnifiedPitchAllocator = () => {
                                       fontSize: '12px',
                                       lineHeight: 1.2
                                     }}>
-                                      {allocation ? allocation.team : ''}
+                                      {allocation ? (isDeleting ? 'Removing...' : allocation.team) : ''}
                                     </div>
                                     {allocation && allocation.isMultiSlot && (
                                       <div style={{
