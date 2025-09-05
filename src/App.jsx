@@ -12,6 +12,7 @@ import ShareView from "./components/ShareView";
 // NEW: Import SatelliteManager
 import SatelliteManager from "./components/satellite/SatelliteManager";
 import ClubPitchMap from './components/satellite/ClubPitchMap';
+import UnifiedPitchAllocator from './components/UnifiedPitchAllocator';
 
 // Protected Route Component
 const PrivateRoute = ({ children }) => {
