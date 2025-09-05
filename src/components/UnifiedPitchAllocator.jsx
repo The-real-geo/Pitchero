@@ -506,7 +506,7 @@ const UnifiedPitchAllocator = () => {
     );
   }
 
-  const currentPitchName = pitchNames[pitchId] || `Pitch ${pitchId}`;
+  const currentPitchName = pitchNames[normalizedPitchId] || `Pitch ${pitchId}`;
   const isAdmin = userRole === 'admin';
 
   return (
