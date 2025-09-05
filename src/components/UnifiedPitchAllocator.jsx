@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { auth, db } from '../utils/firebase';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 // Reusing constants from existing allocators
