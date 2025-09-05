@@ -1,7 +1,9 @@
-
 // src/components/satellite/SatelliteOverviewMap.jsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Edit3, Eye, Settings } from 'lucide-react';
+import { auth, db } from '../../utils/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const SatelliteOverviewMap = ({ 
   clubId, 
@@ -9,18 +11,92 @@ const SatelliteOverviewMap = ({
   onPitchClick, 
   isSetupMode = false,
   onEnterSetupMode,
-  onSaveConfiguration,
-  clubInfo = null // Fixed: Added default value to resolve ESLint error
+  onSaveConfiguration
 }) => {
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [clubName, setClubName] = useState('Loading...'); // Add club name state
 
   // Drawing states for setup mode
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentDrawing, setCurrentDrawing] = useState(null);
   const [tempBoundaries, setTempBoundaries] = useState([]);
+
+  // Fetch club name from Firebase
+  useEffect(() => {
+    let isMounted = true;
+    
+    const loadClubName = async () => {
+      try {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+          if (!currentUser) {
+            if (isMounted) {
+              setClubName('Club');
+            }
+            return;
+          }
+
+          try {
+            // Get user data to find club ID
+            const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+            if (!userDoc.exists()) {
+              if (isMounted) {
+                setClubName('Club');
+              }
+              return;
+            }
+
+            const userData = userDoc.data();
+            const userClubId = userData.clubId;
+            
+            if (!userClubId) {
+              if (isMounted) {
+                setClubName('Club');
+              }
+              return;
+            }
+
+            // Get club data
+            const clubDoc = await getDoc(doc(db, 'clubs', userClubId));
+            if (!clubDoc.exists()) {
+              if (isMounted) {
+                setClubName(`Club ${userClubId}`);
+              }
+              return;
+            }
+
+            const clubData = clubDoc.data();
+            
+            if (isMounted) {
+              // Set club name - directly use the name field
+              const foundName = clubData.name || `Club ${userClubId}`;
+              console.log('SatelliteOverviewMap - Setting club name to:', foundName);
+              setClubName(foundName);
+            }
+          } catch (err) {
+            console.error('Error loading club name:', err);
+            if (isMounted) {
+              setClubName('Club');
+            }
+          }
+        });
+
+        return () => {
+          isMounted = false;
+          unsubscribe();
+        };
+      } catch (err) {
+        console.error('Auth error:', err);
+        if (isMounted) {
+          setClubName('Club');
+        }
+      }
+    };
+
+    loadClubName();
+  }, []);
 
   // Calculate canvas size maintaining aspect ratio
   const calculateCanvasSize = (imgWidth, imgHeight) => {
@@ -239,7 +315,7 @@ const SatelliteOverviewMap = ({
           color: '#1f2937', 
           margin: 0 
         }}>
-          {isSetupMode ? 'Setup Pitch Boundaries' : `${clubInfo?.name || 'Club'} Facility Overview`}
+          {isSetupMode ? 'Setup Pitch Boundaries' : `${clubName} Facility Overview`}
         </h2>
         
         <div style={{ display: 'flex', gap: '12px' }}>
