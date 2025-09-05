@@ -1,7 +1,7 @@
-// src/components/allocator/UnifiedPitchAllocator.jsx
+// src/components/UnifiedPitchAllocator.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { auth, db } from '../../utils/firebase';
+import { auth, db } from '../utils/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
