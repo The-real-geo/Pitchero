@@ -18,7 +18,6 @@ const ClubPitchMap = ({
   
   // States for data loading
   const [satelliteConfig, setSatelliteConfig] = useState(null);
-  const [clubId, setClubId] = useState(null);
   const [clubName, setClubName] = useState(''); // Start with empty string
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
