@@ -196,10 +196,10 @@ const ClubPitchMap = ({
       if (onPitchClick) {
         onPitchClick(clickedPitch);
       } else {
-        // Default navigation to training allocator with pitch info
+        // Navigate to unified allocator with pitch info
         console.log('Clicked pitch:', clickedPitch);
-        // Navigate to training allocator for the specific pitch
-        navigate(`/training?pitch=${clickedPitch.pitchNumber || 'pitch1'}`);
+        const pitchId = clickedPitch.pitchNumber || 'pitch1';
+        navigate(`/allocator/${pitchId}`);
       }
     }
   };
