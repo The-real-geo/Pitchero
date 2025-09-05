@@ -212,27 +212,31 @@ const UnifiedPitchAllocator = () => {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
+            console.log('User data loaded:', userData);
             setUserRole(userData.role);
             if (userData.clubId) {
               // Fetch the actual club document to get the club name
               const clubDoc = await getDoc(doc(db, 'clubs', userData.clubId));
+              console.log('Club document exists:', clubDoc.exists());
               if (clubDoc.exists()) {
                 const clubData = clubDoc.data();
+                console.log('Club data loaded:', clubData);
                 setClubInfo({
                   clubId: userData.clubId,
-                  name: clubData.name || clubData.clubName || 'Club Name Not Found'
+                  name: clubData.name || clubData.clubName || clubData.Name || `Club ${userData.clubId}`
                 });
               } else {
+                console.log('Club document not found for ID:', userData.clubId);
                 // Fallback if club document doesn't exist
                 setClubInfo({
                   clubId: userData.clubId,
-                  name: userData.clubName || 'Club Not Found'
+                  name: `Club ${userData.clubId}`
                 });
               }
             }
           }
         } catch (error) {
-          console.error('Error fetching user data:', error);
+          console.error('Error fetching user/club data:', error);
         }
       }
       setLoading(false);
