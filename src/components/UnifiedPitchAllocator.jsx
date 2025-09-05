@@ -28,8 +28,17 @@ const UnifiedPitchAllocator = () => {
   const [sectionGroup, setSectionGroup] = useState('A');
   const [slot, setSlot] = useState('09:00');
   const [duration, setDuration] = useState(30);
-  
-  // UI state - removed showExpandedSettings as it's no longer needed with visual layout
+
+  // Helper function to determine if a color is light or dark
+  const isLightColor = (color) => {
+    if (!color) return true;
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return brightness > 155;
+  };
 
   // Time slots in 15-minute intervals
   const timeSlots = () => {
