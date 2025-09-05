@@ -162,7 +162,7 @@ const UnifiedPitchAllocator = () => {
       default:
         return [selectedLayout];
     }
-  }, [getDefaultPitchAreaForTeam]);
+  }, [matchDayPitchAreaRequired, getDefaultPitchAreaForTeam]);
 
   // Load user and club data
   useEffect(() => {
