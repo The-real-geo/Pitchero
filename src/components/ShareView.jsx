@@ -38,14 +38,50 @@ function ShareView() {
     const loadSharedData = async () => {
       try {
         const data = await getSharedAllocation(shareId);
+        
+        // Debug logging
+        console.log('Loaded share data:', data);
+        console.log('Allocations:', data?.allocations);
+        console.log('Pitches from data:', data?.pitches);
+        
         setSharedData(data);
         
-        // Set initial selected pitch to the first one with allocations
-        if (data?.pitches && data.pitches.length > 0) {
-          setSelectedPitch(data.pitches[0]);
+        // Extract pitches from allocations if not provided
+        let availablePitches = data?.pitches || [];
+        
+        if (availablePitches.length === 0 && data?.allocations) {
+          // Extract unique pitch IDs from allocation keys
+          const pitchSet = new Set();
+          Object.keys(data.allocations).forEach(key => {
+            // Key format: date-time-pitch-section
+            const parts = key.split('-');
+            if (parts.length >= 4) {
+              // The pitch ID is typically the third part
+              const pitchId = parts[2];
+              if (pitchId && pitchId !== 'undefined') {
+                pitchSet.add(pitchId);
+              }
+            }
+          });
+          availablePitches = Array.from(pitchSet).sort();
+          
+          console.log('Extracted pitches from allocations:', availablePitches);
+        }
+        
+        // Update the shared data with extracted pitches
+        const updatedData = {
+          ...data,
+          pitches: availablePitches
+        };
+        setSharedData(updatedData);
+        
+        // Set initial selected pitch
+        if (availablePitches.length > 0) {
+          setSelectedPitch(availablePitches[0]);
         }
       } catch (err) {
-        setError(err.message);
+        console.error('Error loading shared data:', err);
+        setError(err.message || 'Failed to load shared allocation');
       } finally {
         setLoading(false);
       }
@@ -116,19 +152,48 @@ function ShareView() {
 
   const allocations = sharedData?.allocations || {};
   const date = sharedData?.date || new Date().toISOString().split('T')[0];
-  const clubName = sharedData?.clubName || 'Unknown Club';
-  const allocationType = sharedData?.type === 'match' ? 'Match Day' : sharedData?.type === 'training' ? 'Training' : 'Mixed';
+  const clubName = sharedData?.clubName || 'Soccer Club';
+  const allocationType = sharedData?.type === 'match' ? 'Match Day' : sharedData?.type === 'training' ? 'Training' : 'Pitch';
   
-  // Get pitches from shared data or extract from allocations
+  // Get pitches - now properly extracted
   const pitches = sharedData?.pitches || [];
   const pitchNames = sharedData?.pitchNames || {};
   const showGrassArea = sharedData?.showGrassArea || {};
   
-  // Generate time slots using the time range from share data
-  const timeSlots = [];
-  const start = sharedData?.timeRange?.start || 9;  // Default to 9am
-  const end = sharedData?.timeRange?.end || 18;     // Default to 6pm
+  // Extract time range from actual allocations if not provided
+  let start = sharedData?.timeRange?.start;
+  let end = sharedData?.timeRange?.end;
   
+  if ((!start || !end) && Object.keys(allocations).length > 0) {
+    // Extract times from allocation keys
+    const times = [];
+    Object.keys(allocations).forEach(key => {
+      const parts = key.split('-');
+      if (parts.length >= 2) {
+        const timeStr = parts[1]; // Second part is the time
+        if (timeStr && timeStr.includes(':')) {
+          times.push(timeStr);
+        }
+      }
+    });
+    
+    if (times.length > 0) {
+      times.sort();
+      const startTime = times[0];
+      const endTime = times[times.length - 1];
+      
+      // Parse hours from time strings
+      start = parseInt(startTime.split(':')[0]) || 9;
+      end = Math.min(parseInt(endTime.split(':')[0]) + 2, 21) || 18; // Add 2 hours buffer, max 21:00
+    }
+  }
+  
+  // Use defaults if still not set
+  start = start || 9;
+  end = end || 18;
+  
+  // Generate time slots based on actual range
+  const timeSlots = [];
   for (let h = start; h < end; h++) {
     for (let m = 0; m < 60; m += 15) {
       const timeString = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
@@ -142,10 +207,13 @@ function ShareView() {
     );
   };
 
-    // Count allocations per pitch for display
+  // Count allocations per pitch for display
   const getAllocationsCountForPitch = (pitchId) => {
     return Object.keys(allocations).filter(key => key.includes(`-${pitchId}-`)).length;
   };
+
+  // Calculate total allocations
+  const totalAllocations = Object.keys(allocations).length;
 
   // Responsive styles
   const containerStyle = {
@@ -325,9 +393,37 @@ function ShareView() {
     </div>
   );
 
+  // Debug info for development
+  const showDebugInfo = false; // Set to true for debugging
+
   return (
     <div style={containerStyle}>
       <div style={{ maxWidth: isMobile ? '100%' : '1400px', margin: '0 auto' }}>
+        {/* Debug Information */}
+        {showDebugInfo && (
+          <div style={{
+            backgroundColor: '#fef3c7',
+            border: '1px solid #f59e0b',
+            borderRadius: '4px',
+            padding: '12px',
+            marginBottom: '16px',
+            fontSize: '12px'
+          }}>
+            <strong>Debug Info:</strong>
+            <div>Share ID: {shareId}</div>
+            <div>Total Allocations: {totalAllocations}</div>
+            <div>Pitches: {pitches.join(', ') || 'None'}</div>
+            <div>Date: {date}</div>
+            <div>Time Range: {start}:00 - {end}:00</div>
+            <details>
+              <summary>Allocation Keys</summary>
+              <pre style={{ fontSize: '10px', overflow: 'auto' }}>
+                {JSON.stringify(Object.keys(allocations), null, 2)}
+              </pre>
+            </details>
+          </div>
+        )}
+
         {/* Header */}
         <div style={headerStyle}>
           <div style={{
@@ -381,14 +477,21 @@ function ShareView() {
               <strong>Time Range:</strong> {start}:00 - {end}:00
             </div>
             <div style={{ marginBottom: isMobile ? '8px' : 0 }}>
-              <strong>Total Pitches:</strong> {pitches.length}
+              <strong>Total Allocations:</strong> {totalAllocations}
             </div>
-            <div>
-              <strong>Expires:</strong> {new Date(sharedData.expiresAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric'
-              })}
-            </div>
+            {pitches.length > 0 && (
+              <div style={{ marginBottom: isMobile ? '8px' : 0 }}>
+                <strong>Pitches:</strong> {pitches.length}
+              </div>
+            )}
+            {sharedData?.expiresAt && (
+              <div>
+                <strong>Expires:</strong> {new Date(sharedData.expiresAt).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric'
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -410,6 +513,10 @@ function ShareView() {
             }}>
               {pitches.map((pitchId) => {
                 const allocCount = getAllocationsCountForPitch(pitchId);
+                const displayName = pitchNames[pitchId] || 
+                                  (pitchId.includes('pitch') ? 
+                                    `Pitch ${pitchId.replace(/[^0-9]/g, '')}` : 
+                                    pitchId);
                 return (
                   <button
                     key={pitchId}
@@ -429,7 +536,7 @@ function ShareView() {
                       minWidth: '80px'
                     }}
                   >
-                    <div>{pitchNames[pitchId] || pitchId.replace('pitch', 'Pitch ')}</div>
+                    <div>{displayName}</div>
                     <div style={{
                       fontSize: '10px',
                       opacity: 0.8,
@@ -468,7 +575,10 @@ function ShareView() {
                   color: '#1f2937',
                   margin: 0
                 }}>
-                  {pitchNames[selectedPitch] || selectedPitch.replace('pitch', 'Pitch ')}
+                  {pitchNames[selectedPitch] || 
+                   (selectedPitch.includes('pitch') ? 
+                     `Pitch ${selectedPitch.replace(/[^0-9]/g, '')}` : 
+                     selectedPitch)}
                 </h2>
                 <span style={{
                   fontSize: '12px',
@@ -485,51 +595,59 @@ function ShareView() {
           )
         ) : (
           // Desktop: Grid layout for multiple pitches
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: pitches.length <= 2 ? 'repeat(auto-fit, minmax(600px, 1fr))' : 
-                                pitches.length <= 4 ? 'repeat(2, 1fr)' : 
-                                'repeat(3, 1fr)',
-            gap: '16px'
-          }}>
-            {pitches.map((pitchId) => (
-              <div key={pitchId} style={{
-                backgroundColor: 'white',
-                borderRadius: '8px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  backgroundColor: '#f3f4f6',
-                  padding: '12px',
-                  borderBottom: '1px solid #e5e7eb',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <h2 style={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    color: '#1f2937',
-                    margin: 0
+          pitches.length > 0 ? (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: pitches.length <= 2 ? 'repeat(auto-fit, minmax(600px, 1fr))' : 
+                                  pitches.length <= 4 ? 'repeat(2, 1fr)' : 
+                                  'repeat(3, 1fr)',
+              gap: '16px'
+            }}>
+              {pitches.map((pitchId) => {
+                const displayName = pitchNames[pitchId] || 
+                                   (pitchId.includes('pitch') ? 
+                                     `Pitch ${pitchId.replace(/[^0-9]/g, '')}` : 
+                                     pitchId);
+                return (
+                  <div key={pitchId} style={{
+                    backgroundColor: 'white',
+                    borderRadius: '8px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                    overflow: 'hidden'
                   }}>
-                    {pitchNames[pitchId] || pitchId.replace('pitch', 'Pitch ')}
-                  </h2>
-                  <span style={{
-                    fontSize: '12px',
-                    color: '#6b7280'
-                  }}>
-                    {getAllocationsCountForPitch(pitchId)} allocations
-                  </span>
-                </div>
-                {renderPitchGrid(pitchId)}
-              </div>
-            ))}
-          </div>
+                    <div style={{
+                      backgroundColor: '#f3f4f6',
+                      padding: '12px',
+                      borderBottom: '1px solid #e5e7eb',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <h2 style={{
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        color: '#1f2937',
+                        margin: 0
+                      }}>
+                        {displayName}
+                      </h2>
+                      <span style={{
+                        fontSize: '12px',
+                        color: '#6b7280'
+                      }}>
+                        {getAllocationsCountForPitch(pitchId)} allocations
+                      </span>
+                    </div>
+                    {renderPitchGrid(pitchId)}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null
         )}
 
-        {/* No allocations message */}
-        {pitches.length === 0 && (
+        {/* No allocations message - only show if really no data */}
+        {totalAllocations === 0 && (
           <div style={{
             backgroundColor: 'white',
             borderRadius: '8px',
@@ -537,7 +655,36 @@ function ShareView() {
             textAlign: 'center',
             color: '#6b7280'
           }}>
-            <p>No allocations found for this date.</p>
+            <h3 style={{ fontSize: '18px', marginBottom: '12px' }}>
+              No allocations found
+            </h3>
+            <p style={{ marginBottom: '8px' }}>
+              This share link doesn't contain any pitch allocations.
+            </p>
+            <p style={{ fontSize: '14px' }}>
+              Share ID: {shareId}
+            </p>
+          </div>
+        )}
+
+        {/* Show message if allocations exist but no pitches could be extracted */}
+        {totalAllocations > 0 && pitches.length === 0 && (
+          <div style={{
+            backgroundColor: '#fef3c7',
+            border: '1px solid #f59e0b',
+            borderRadius: '8px',
+            padding: '24px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ color: '#92400e', marginBottom: '12px' }}>
+              Data Structure Issue
+            </h3>
+            <p style={{ color: '#78350f', marginBottom: '16px' }}>
+              We found {totalAllocations} allocations but couldn't determine the pitch layout.
+            </p>
+            <p style={{ fontSize: '12px', color: '#92400e' }}>
+              This might be due to an older share format. Please regenerate the share link from the main application.
+            </p>
           </div>
         )}
       </div>
