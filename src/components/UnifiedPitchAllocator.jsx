@@ -472,13 +472,36 @@ const UnifiedPitchAllocator = () => {
       const existingDoc = await getDoc(docRef);
       const existingData = existingDoc.exists() ? existingDoc.data() : {};
       
-      // Merge new allocations with existing
-      const updatedData = {
-        ...existingData,
-        ...newAllocations
-      };
+      // If we have many allocations (games), batch them to avoid Firebase limits
+      const allocationEntries = Object.entries(newAllocations);
       
-      await setDoc(docRef, updatedData);
+      if (allocationEntries.length > 10) {
+        // For large updates, batch them in chunks of 10
+        console.log(`Batching ${allocationEntries.length} allocations into smaller updates`);
+        
+        let currentData = { ...existingData };
+        const chunkSize = 10;
+        
+        for (let i = 0; i < allocationEntries.length; i += chunkSize) {
+          const chunk = allocationEntries.slice(i, i + chunkSize);
+          const chunkObject = Object.fromEntries(chunk);
+          
+          // Merge this chunk with current data
+          currentData = { ...currentData, ...chunkObject };
+          
+          // Save this batch
+          await setDoc(docRef, currentData);
+          console.log(`Saved batch ${Math.floor(i / chunkSize) + 1} of ${Math.ceil(allocationEntries.length / chunkSize)}`);
+        }
+      } else {
+        // For small updates, do it all at once
+        const updatedData = {
+          ...existingData,
+          ...newAllocations
+        };
+        
+        await setDoc(docRef, updatedData);
+      }
       
       console.log('Allocations saved successfully');
     } catch (error) {
@@ -1817,6 +1840,9 @@ const UnifiedPitchAllocator = () => {
           </div>
         </div>
       </div>
+      
+      {/* Share Dialog */}
+      <ShareDialog />
     </div>
   );
 };
