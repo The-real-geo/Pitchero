@@ -845,24 +845,72 @@ const UnifiedPitchAllocator = () => {
   // Share functionality
   const handleShare = async () => {
     try {
-      // Determine allocation type based on what's in the allocations
-      const hasTraining = Object.values(allocations).some(a => a.type === 'training');
-      const hasGame = Object.values(allocations).some(a => a.type === 'game');
+      // Load ALL allocations for this date across ALL pitches
+      const allPitchAllocations = {};
+      
+      // We need to load allocations for all possible pitches (pitch1 through pitch10+)
+      // First, determine which pitches have allocations
+      const trainingDocRef = doc(db, 'trainingAllocations', `${clubInfo.clubId}-${date}`);
+      const matchDocRef = doc(db, 'matchAllocations', `${clubInfo.clubId}-${date}`);
+      
+      const [trainingDoc, matchDoc] = await Promise.all([
+        getDoc(trainingDocRef),
+        getDoc(matchDocRef)
+      ]);
+      
+      // Combine all allocations from both documents
+      if (trainingDoc.exists()) {
+        const trainingData = trainingDoc.data();
+        Object.entries(trainingData).forEach(([key, value]) => {
+          if (typeof value === 'object' && value !== null) {
+            allPitchAllocations[key] = { ...value, type: 'training' };
+          }
+        });
+      }
+      
+      if (matchDoc.exists()) {
+        const matchData = matchDoc.data();
+        Object.entries(matchData).forEach(([key, value]) => {
+          if (typeof value === 'object' && value !== null) {
+            allPitchAllocations[key] = { ...value, type: 'game' };
+          }
+        });
+      }
+      
+      // Extract unique pitch IDs from allocations
+      const pitchIds = new Set();
+      Object.keys(allPitchAllocations).forEach(key => {
+        // Key format: "date-time-pitchX-section"
+        const parts = key.split('-');
+        if (parts.length >= 4) {
+          const pitchId = parts[2]; // This will be 'pitch1', 'pitch2', etc.
+          pitchIds.add(pitchId);
+        }
+      });
+      
+      // Determine allocation type
+      const hasTraining = Object.values(allPitchAllocations).some(a => a.type === 'training');
+      const hasGame = Object.values(allPitchAllocations).some(a => a.type === 'game');
       let allocationType = 'mixed';
       if (hasTraining && !hasGame) allocationType = 'training';
       if (hasGame && !hasTraining) allocationType = 'match';
       
-      // Create share data object
+      // Create share data object with ALL allocations
       const shareData = {
-        allocations: allocations,
+        allocations: allPitchAllocations,
         date: date,
         type: allocationType,
-        pitch: currentPitchName,
-        pitchId: normalizedPitchId,
+        pitches: Array.from(pitchIds), // List of all pitches with allocations
+        pitchNames: pitchNames, // Include pitch names for display
+        showGrassArea: showGrassArea, // Include grass area settings
         clubName: clubInfo?.name || 'Unknown Club',
         clubId: clubInfo?.clubId || '',
         createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days expiry
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days expiry
+        timeRange: {
+          start: 9, // Match the UnifiedPitchAllocator's default
+          end: 18   // 9am to 6pm
+        }
       };
       
       // Generate unique share ID
@@ -876,6 +924,8 @@ const UnifiedPitchAllocator = () => {
       const link = `${window.location.origin}/share/${shareId}`;
       setShareLink(link);
       setShowShareDialog(true);
+      
+      console.log(`Share link created with ${Object.keys(allPitchAllocations).length} allocations across ${pitchIds.size} pitch(es)`);
     } catch (error) {
       console.error('Error creating share link:', error);
       alert('Failed to create share link. Please try again.');
