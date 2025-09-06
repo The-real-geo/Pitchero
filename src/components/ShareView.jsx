@@ -88,7 +88,7 @@ function ShareView() {
                 
                 // Skip if this is actually a section letter
                 if (sections.includes(pitchId.toUpperCase())) {
-                  continue;
+                  return; // Use return instead of continue in forEach
                 }
                 
                 // Normalize pitch ID
@@ -595,7 +595,7 @@ function ShareView() {
     return pitchId;
   };
 
-  const showDebugInfo = true; // Keep this on to help debug
+  const showDebugInfo = false; // Set to true for debugging
 
   return (
     <div style={containerStyle}>
