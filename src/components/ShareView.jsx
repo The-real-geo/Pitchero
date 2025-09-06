@@ -142,11 +142,7 @@ function ShareView() {
     );
   };
 
-  const hasAnyAllocationsForTimeSlot = (timeSlot) => {
-    return Object.keys(allocations).some(key => key.includes(`-${timeSlot}-`));
-  };
-
-  // Count allocations per pitch for display
+    // Count allocations per pitch for display
   const getAllocationsCountForPitch = (pitchId) => {
     return Object.keys(allocations).filter(key => key.includes(`-${pitchId}-`)).length;
   };
