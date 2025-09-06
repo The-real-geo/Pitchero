@@ -842,6 +842,45 @@ const UnifiedPitchAllocator = () => {
     setExpandedSlots(newExpanded);
   };
 
+  // Share functionality
+  const handleShare = async () => {
+    try {
+      // Determine allocation type based on what's in the allocations
+      const hasTraining = Object.values(allocations).some(a => a.type === 'training');
+      const hasGame = Object.values(allocations).some(a => a.type === 'game');
+      let allocationType = 'mixed';
+      if (hasTraining && !hasGame) allocationType = 'training';
+      if (hasGame && !hasTraining) allocationType = 'match';
+      
+      // Create share data object
+      const shareData = {
+        allocations: allocations,
+        date: date,
+        type: allocationType,
+        pitch: currentPitchName,
+        pitchId: normalizedPitchId,
+        clubName: clubInfo?.name || 'Unknown Club',
+        clubId: clubInfo?.clubId || '',
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days expiry
+      };
+      
+      // Generate unique share ID
+      const shareId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Save to Firebase
+      await createSharedAllocation(shareId, shareData);
+      
+      // Generate the share link
+      const link = `${window.location.origin}/share/${shareId}`;
+      setShareLink(link);
+      setShowShareDialog(true);
+    } catch (error) {
+      console.error('Error creating share link:', error);
+      alert('Failed to create share link. Please try again.');
+    }
+  };
+
   // Share Dialog Component
   const ShareDialog = () => {
     if (!showShareDialog) return null;
