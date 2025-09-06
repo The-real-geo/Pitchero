@@ -868,8 +868,9 @@ const UnifiedPitchAllocator = () => {
       // Generate unique share ID
       const shareId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
-      // Save to Firebase
-      await createSharedAllocation(shareId, shareData);
+      // Save to Firebase using setDoc directly
+      const shareRef = doc(db, 'sharedAllocations', shareId);
+      await setDoc(shareRef, shareData);
       
       // Generate the share link
       const link = `${window.location.origin}/share/${shareId}`;
