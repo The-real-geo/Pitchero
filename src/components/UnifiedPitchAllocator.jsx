@@ -446,6 +446,7 @@ const UnifiedPitchAllocator = () => {
             endTime: slots[startSlotIndex + slotsNeeded - 1],
             pitch: normalizedPitchId,
             section: sectionToAllocate,
+            sectionGroup: allocationType === 'game' ? sectionGroup : null, // Store the section group for games
             date: date,
             type: allocationType,
             clubId: clubInfo.clubId,
@@ -519,7 +520,22 @@ const UnifiedPitchAllocator = () => {
           
           // If it's a game, might need to remove multiple sections
           if (allocation.type === 'game') {
-            const sectionsToRemove = getSectionsToAllocate(allocation.team, allocation.sectionGroup);
+            // Use sectionGroup if available, otherwise detect sections to remove
+            let sectionsToRemove;
+            if (allocation.sectionGroup) {
+              sectionsToRemove = getSectionsToAllocate(allocation.team, allocation.sectionGroup);
+            } else {
+              // Fallback: find all sections with the same team and start time
+              sectionsToRemove = [];
+              sections.forEach(sec => {
+                const checkKey = `${allocation.date}-${slotToRemove}-${normalizedPitchId}-${sec}`;
+                if (allocations[checkKey] && allocations[checkKey].team === allocation.team && 
+                    allocations[checkKey].startTime === allocation.startTime) {
+                  sectionsToRemove.push(sec);
+                }
+              });
+            }
+            
             sectionsToRemove.forEach(sec => {
               keysToRemove.push(`${allocation.date}-${slotToRemove}-${normalizedPitchId}-${sec}`);
             });
