@@ -77,8 +77,8 @@ function ShareView() {
                     // Just a number like "1", "2", "6"
                     pitchId = `pitch${pitchId}`;
                   } else if (pitchId.startsWith('pitch')) {
-                    // Already formatted
-                    pitchId = pitchId;
+                    // Already formatted - no need to reassign
+                    // pitchId = pitchId; // REMOVED - This was the self-assignment error
                   } else if (pitchId.match(/pitch\d+/)) {
                     // Contains pitch number
                     pitchId = pitchId.match(/pitch\d+/)[0];
