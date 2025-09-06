@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getSharedAllocation } from '../utils/firebase';
-import ClubPitchMap from './ClubPitchMap';
+import ClubPitchMap from './satellite/ClubPitchMap'; // Fix the import path
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
