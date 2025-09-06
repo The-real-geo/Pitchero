@@ -52,6 +52,10 @@ const UnifiedPitchAllocator = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [expandedSlots, setExpandedSlots] = useState({});
   
+  // Share functionality state
+  const [shareLink, setShareLink] = useState('');
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  
   // Time slots - reusing existing pattern
   const slots = useMemo(() => timeSlots(), []);
 
