@@ -1517,6 +1517,25 @@ const UnifiedPitchAllocator = () => {
               >
                 Collapse All
               </button>
+
+              <button 
+                onClick={handleShare}
+                disabled={Object.keys(allocations).length === 0 || savingAllocation}
+                style={{
+                  padding: '10px 16px',
+                  backgroundColor: (Object.keys(allocations).length === 0 || savingAllocation) ? '#9ca3af' : '#8b5cf6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: (Object.keys(allocations).length === 0 || savingAllocation) ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  height: '42px',
+                  fontWeight: '500'
+                }}
+                title="Create a shareable link for this allocation"
+              >
+                🔗 Share
+              </button>
               
               {isAdmin && (
                 <button
