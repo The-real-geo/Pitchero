@@ -1,14 +1,10 @@
-// Mobile-optimized ShareView.jsx with responsive design
+// Mobile-optimized ShareView.jsx with responsive design and multi-pitch support
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getSharedAllocation } from '../utils/firebase';
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
-const pitches = [
-  { id: "pitch2", name: "Pitch 2 - Grass", hasGrassArea: true },
-  { id: "pitch1", name: "Pitch 1 - Astro", hasGrassArea: false }
-];
 
 function isLightColor(color) {
   const hex = color.replace('#', '');
@@ -25,7 +21,7 @@ function ShareView() {
   const [sharedData, setSharedData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedPitch, setSelectedPitch] = useState('pitch2'); // For mobile tab view
+  const [selectedPitch, setSelectedPitch] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   // Handle window resize
@@ -43,6 +39,11 @@ function ShareView() {
       try {
         const data = await getSharedAllocation(shareId);
         setSharedData(data);
+        
+        // Set initial selected pitch to the first one with allocations
+        if (data?.pitches && data.pitches.length > 0) {
+          setSelectedPitch(data.pitches[0]);
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -116,35 +117,44 @@ function ShareView() {
   const allocations = sharedData?.allocations || {};
   const date = sharedData?.date || new Date().toISOString().split('T')[0];
   const clubName = sharedData?.clubName || 'Unknown Club';
-  const allocationType = sharedData?.type === 'match' ? 'Match Day' : 'Training';
+  const allocationType = sharedData?.type === 'match' ? 'Match Day' : sharedData?.type === 'training' ? 'Training' : 'Mixed';
   
-  // Generate time slots based on allocation type
+  // Get pitches from shared data or extract from allocations
+  const pitches = sharedData?.pitches || [];
+  const pitchNames = sharedData?.pitchNames || {};
+  const showGrassArea = sharedData?.showGrassArea || {};
+  
+  // Generate time slots using the time range from share data
   const timeSlots = [];
-  const start = sharedData?.type === 'match' ? 8 : 17;
-  const end = 21;
+  const start = sharedData?.timeRange?.start || 9;  // Default to 9am
+  const end = sharedData?.timeRange?.end || 18;     // Default to 6pm
   
-  if (sharedData?.type === 'match') {
-    for (let h = start; h < end; h++) {
-      for (let m = 0; m < 60; m += 15) {
-        const minutes = m.toString().padStart(2, '0');
-        timeSlots.push(`${h}:${minutes}`);
-      }
-    }
-    timeSlots.push(`${end}:00`);
-  } else {
-    for (let h = start; h < end; h++) {
-      timeSlots.push(`${h}:00`, `${h}:30`);
+  for (let h = start; h < end; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const timeString = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      timeSlots.push(timeString);
     }
   }
 
-  const hasAllocationsForTimeSlot = (timeSlot) => {
+  const hasAllocationsForTimeSlot = (timeSlot, pitchId) => {
+    return Object.keys(allocations).some(key => 
+      key.includes(`-${timeSlot}-${pitchId}-`)
+    );
+  };
+
+  const hasAnyAllocationsForTimeSlot = (timeSlot) => {
     return Object.keys(allocations).some(key => key.includes(`-${timeSlot}-`));
+  };
+
+  // Count allocations per pitch for display
+  const getAllocationsCountForPitch = (pitchId) => {
+    return Object.keys(allocations).filter(key => key.includes(`-${pitchId}-`)).length;
   };
 
   // Responsive styles
   const containerStyle = {
     padding: isMobile ? '12px' : '24px',
-    backgroundColor: sharedData?.type === 'match' ? '#059669' : '#f9fafb',
+    backgroundColor: '#f9fafb',
     minHeight: '100vh',
     fontFamily: 'system-ui, sans-serif'
   };
@@ -169,10 +179,10 @@ function ShareView() {
     margin: '0 auto'
   };
 
-  const renderPitchGrid = (pitch) => (
+  const renderPitchGrid = (pitchId) => (
     <div style={{ padding: '4px' }}>
       {timeSlots.map((s) => {
-        const hasAllocations = hasAllocationsForTimeSlot(s);
+        const hasAllocations = hasAllocationsForTimeSlot(s, pitchId);
         
         return (
           <div key={s} style={{ marginBottom: isMobile ? '12px' : '8px' }}>
@@ -184,12 +194,8 @@ function ShareView() {
               textAlign: 'center'
             }}>
               <span style={{
-                backgroundColor: hasAllocations 
-                  ? (sharedData?.type === 'match' ? '#fed7aa' : '#dbeafe')
-                  : '#e5e7eb',
-                color: hasAllocations 
-                  ? (sharedData?.type === 'match' ? '#9a3412' : '#1e40af')
-                  : '#9ca3af',
+                backgroundColor: hasAllocations ? '#dbeafe' : '#e5e7eb',
+                color: hasAllocations ? '#1e40af' : '#9ca3af',
                 padding: isMobile ? '2px 6px' : '4px 8px',
                 borderRadius: '9999px',
                 fontSize: isMobile ? '11px' : '12px',
@@ -222,7 +228,7 @@ function ShareView() {
                   zIndex: 10
                 }}>
                   {sections.map((sec) => {
-                    const key = `${date}-${s}-${pitch.id}-${sec}`;
+                    const key = `${date}-${s}-${pitchId}-${sec}`;
                     const alloc = allocations[key];
                     
                     return (
@@ -239,9 +245,9 @@ function ShareView() {
                           fontWeight: '500',
                           padding: '2px',
                           textAlign: 'center',
-                          backgroundColor: alloc ? alloc.colour + '90' : 'rgba(255,255,255,0.1)',
-                          borderColor: alloc ? alloc.colour : 'rgba(255,255,255,0.5)',
-                          color: alloc ? (isLightColor(alloc.colour) ? '#000' : '#fff') : '#374151'
+                          backgroundColor: alloc ? (alloc.colour || alloc.color) + '90' : 'rgba(255,255,255,0.1)',
+                          borderColor: alloc ? (alloc.colour || alloc.color) : 'rgba(255,255,255,0.5)',
+                          color: alloc ? (isLightColor(alloc.colour || alloc.color) ? '#000' : '#fff') : '#374151'
                         }}
                       >
                         <div style={{
@@ -272,6 +278,49 @@ function ShareView() {
                     );
                   })}
                 </div>
+                
+                {/* Grass area if enabled */}
+                {showGrassArea[pitchId] && (
+                  <div style={{ marginTop: '8px' }}>
+                    <div style={{
+                      width: '100%',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '4px',
+                      height: '60px'
+                    }}>
+                      <div style={{
+                        position: 'relative',
+                        backgroundColor: '#dcfce7',
+                        border: '2px solid white',
+                        borderRadius: '4px',
+                        padding: '4px'
+                      }}>
+                        {(() => {
+                          const grassKey = `${date}-${s}-${pitchId}-grass`;
+                          const grassAlloc = allocations[grassKey];
+                          return (
+                            <div style={{
+                              height: '100%',
+                              border: '2px solid rgba(255,255,255,0.5)',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: isMobile ? '9px' : '11px',
+                              backgroundColor: grassAlloc ? (grassAlloc.colour || grassAlloc.color) + '90' : 'rgba(255,255,255,0.1)',
+                              color: grassAlloc ? (isLightColor(grassAlloc.colour || grassAlloc.color) ? '#000' : '#fff') : '#374151'
+                            }}>
+                              <div style={{ fontWeight: 'bold' }}>GRASS</div>
+                              {grassAlloc && <div>{grassAlloc.team}</div>}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -282,7 +331,7 @@ function ShareView() {
 
   return (
     <div style={containerStyle}>
-      <div style={{ maxWidth: isMobile ? '100%' : '1280px', margin: '0 auto' }}>
+      <div style={{ maxWidth: isMobile ? '100%' : '1400px', margin: '0 auto' }}>
         {/* Header */}
         <div style={headerStyle}>
           <div style={{
@@ -298,7 +347,7 @@ function ShareView() {
               margin: 0,
               marginBottom: isMobile ? '12px' : 0
             }}>
-              {allocationType} - {clubName}
+              {clubName} - {allocationType} Allocations
             </h1>
             {!isMobile && (
               <button
@@ -333,6 +382,12 @@ function ShareView() {
               })}
             </div>
             <div style={{ marginBottom: isMobile ? '8px' : 0 }}>
+              <strong>Time Range:</strong> {start}:00 - {end}:00
+            </div>
+            <div style={{ marginBottom: isMobile ? '8px' : 0 }}>
+              <strong>Total Pitches:</strong> {pitches.length}
+            </div>
+            <div>
               <strong>Expires:</strong> {new Date(sharedData.expiresAt).toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric'
@@ -341,87 +396,108 @@ function ShareView() {
           </div>
         </div>
 
-        {/* Mobile Notice */}
-        {isMobile && (
-          <div style={{
-            backgroundColor: '#f0f9ff',
-            border: '1px solid #60a5fa',
-            borderRadius: '8px',
-            padding: '10px 12px',
-            marginBottom: '12px',
-            fontSize: '12px',
-            color: '#1e40af'
-          }}>
-            <strong>ℹ️ Tip:</strong> Swipe or use tabs below to switch between pitches
-          </div>
-        )}
-
-        {/* Pitch Selector for Mobile */}
-        {isMobile && (
-          <div style={{
-            display: 'flex',
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            padding: '4px',
-            marginBottom: '12px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-          }}>
-            {pitches.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelectedPitch(p.id)}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  backgroundColor: selectedPitch === p.id ? '#3b82f6' : 'transparent',
-                  color: selectedPitch === p.id ? 'white' : '#6b7280',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  fontWeight: selectedPitch === p.id ? 'bold' : 'normal',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Pitch Layouts */}
-        {isMobile ? (
-          // Mobile: Show one pitch at a time
+        {/* Mobile: Pitch selector with horizontal scroll for many pitches */}
+        {isMobile && pitches.length > 0 && (
           <div style={{
             backgroundColor: 'white',
             borderRadius: '8px',
+            padding: '8px',
+            marginBottom: '12px',
             boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            overflow: 'hidden'
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch'
           }}>
             <div style={{
-              backgroundColor: '#f3f4f6',
-              padding: '8px',
-              borderBottom: '1px solid #e5e7eb'
+              display: 'flex',
+              gap: '8px',
+              minWidth: 'min-content'
             }}>
-              <h2 style={{
-                fontSize: '13px',
-                fontWeight: 'bold',
-                color: '#1f2937',
-                margin: 0
-              }}>
-                {pitches.find(p => p.id === selectedPitch)?.name}
-              </h2>
+              {pitches.map((pitchId) => {
+                const allocCount = getAllocationsCountForPitch(pitchId);
+                return (
+                  <button
+                    key={pitchId}
+                    onClick={() => setSelectedPitch(pitchId)}
+                    style={{
+                      padding: '8px 12px',
+                      backgroundColor: selectedPitch === pitchId ? '#3b82f6' : '#f3f4f6',
+                      color: selectedPitch === pitchId ? 'white' : '#374151',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: selectedPitch === pitchId ? 'bold' : 'normal',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      minWidth: '80px'
+                    }}
+                  >
+                    <div>{pitchNames[pitchId] || pitchId.replace('pitch', 'Pitch ')}</div>
+                    <div style={{
+                      fontSize: '10px',
+                      opacity: 0.8,
+                      marginTop: '2px'
+                    }}>
+                      {allocCount} slots
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-            {renderPitchGrid(pitches.find(p => p.id === selectedPitch))}
           </div>
+        )}
+
+        {/* Desktop: Grid of pitches, Mobile: Single selected pitch */}
+        {isMobile ? (
+          // Mobile: Show selected pitch
+          selectedPitch && (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                backgroundColor: '#f3f4f6',
+                padding: '12px',
+                borderBottom: '1px solid #e5e7eb',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <h2 style={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  color: '#1f2937',
+                  margin: 0
+                }}>
+                  {pitchNames[selectedPitch] || selectedPitch.replace('pitch', 'Pitch ')}
+                </h2>
+                <span style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  backgroundColor: '#f9fafb',
+                  padding: '2px 8px',
+                  borderRadius: '4px'
+                }}>
+                  {getAllocationsCountForPitch(selectedPitch)} allocations
+                </span>
+              </div>
+              {renderPitchGrid(selectedPitch)}
+            </div>
+          )
         ) : (
-          // Desktop: Show both pitches side by side
+          // Desktop: Grid layout for multiple pitches
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
+            gridTemplateColumns: pitches.length <= 2 ? 'repeat(auto-fit, minmax(600px, 1fr))' : 
+                                pitches.length <= 4 ? 'repeat(2, 1fr)' : 
+                                'repeat(3, 1fr)',
             gap: '16px'
           }}>
-            {pitches.map((p) => (
-              <div key={p.id} style={{
+            {pitches.map((pitchId) => (
+              <div key={pitchId} style={{
                 backgroundColor: 'white',
                 borderRadius: '8px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
@@ -429,19 +505,43 @@ function ShareView() {
               }}>
                 <div style={{
                   backgroundColor: '#f3f4f6',
-                  padding: '8px',
-                  borderBottom: '1px solid #e5e7eb'
+                  padding: '12px',
+                  borderBottom: '1px solid #e5e7eb',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
                 }}>
                   <h2 style={{
                     fontSize: '14px',
                     fontWeight: 'bold',
                     color: '#1f2937',
                     margin: 0
-                  }}>{p.name}</h2>
+                  }}>
+                    {pitchNames[pitchId] || pitchId.replace('pitch', 'Pitch ')}
+                  </h2>
+                  <span style={{
+                    fontSize: '12px',
+                    color: '#6b7280'
+                  }}>
+                    {getAllocationsCountForPitch(pitchId)} allocations
+                  </span>
                 </div>
-                {renderPitchGrid(p)}
+                {renderPitchGrid(pitchId)}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* No allocations message */}
+        {pitches.length === 0 && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '32px',
+            textAlign: 'center',
+            color: '#6b7280'
+          }}>
+            <p>No allocations found for this date.</p>
           </div>
         )}
       </div>
