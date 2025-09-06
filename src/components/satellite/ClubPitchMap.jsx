@@ -1,11 +1,11 @@
-// ClubPitchMap.jsx - Complete working version
+// ClubPitchMap.jsx - Fixed version with defensive programming
 import React from 'react';
 
 function ClubPitchMap({
   satelliteImage,
   pitchPositions,
-  pitches,
-  selectedPitches,
+  pitches = [], // Default to empty array
+  selectedPitches = [], // Default to empty array
   onPitchClick,
   onPitchPositionChange,
   isEditMode = false,
@@ -14,6 +14,10 @@ function ClubPitchMap({
   pitchAllocations = {},
   pitchNames = {}
 }) {
+  // Ensure pitches is always an array
+  const safePitches = Array.isArray(pitches) ? pitches : [];
+  const safeSelectedPitches = Array.isArray(selectedPitches) ? selectedPitches : [];
+
   // Default positions if not provided
   const defaultPositions = {
     pitch1: { top: '15%', left: '10%', width: '35%', height: '25%' },
@@ -28,10 +32,12 @@ function ClubPitchMap({
     pitch10: { top: '35%', left: '20%', width: '60%', height: '35%' },
   };
 
-  const positions = { ...defaultPositions, ...pitchPositions };
+  const positions = { ...defaultPositions, ...(pitchPositions || {}) };
 
   const getPitchDisplayName = (pitchId) => {
-    if (pitchNames[pitchId]) {
+    if (!pitchId) return 'Unknown Pitch';
+    
+    if (pitchNames && pitchNames[pitchId]) {
       return pitchNames[pitchId];
     }
     
@@ -74,6 +80,48 @@ function ClubPitchMap({
     
     onPitchPositionChange(pitchId, newPosition);
   };
+
+  // Don't render anything if no pitches
+  if (safePitches.length === 0) {
+    return (
+      <div style={{
+        position: 'relative',
+        width: '100%',
+        maxWidth: '800px',
+        margin: '0 auto',
+        backgroundColor: '#f3f4f6',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        padding: '40px',
+        textAlign: 'center'
+      }}>
+        <div style={{
+          width: '100%',
+          paddingTop: '60%',
+          backgroundColor: '#10b981',
+          backgroundImage: 'linear-gradient(0deg, #10b981 0%, #059669 100%)',
+          position: 'relative',
+          borderRadius: '8px'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontSize: '16px',
+            fontWeight: '500'
+          }}>
+            No pitches configured
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -153,12 +201,14 @@ function ClubPitchMap({
         right: 0,
         bottom: 0
       }}>
-        {pitches.map(pitchId => {
+        {safePitches.map(pitchId => {
+          if (!pitchId) return null;
+          
           const position = positions[pitchId];
           if (!position) return null;
           
-          const isSelected = selectedPitches.includes(pitchId);
-          const allocationData = pitchAllocations[pitchId] || {};
+          const isSelected = safeSelectedPitches.includes(pitchId);
+          const allocationData = (pitchAllocations && pitchAllocations[pitchId]) || {};
           const hasAllocations = allocationData.count > 0;
           
           return (
