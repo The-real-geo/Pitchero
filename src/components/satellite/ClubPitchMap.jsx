@@ -14,9 +14,25 @@ function ClubPitchMap({
   pitchAllocations = {},
   pitchNames = {}
 }) {
+  // DEBUG: Log all props received
+  console.log('🔍 ClubPitchMap props received:', {
+    pitches: pitches,
+    pitchesType: typeof pitches,
+    pitchesLength: Array.isArray(pitches) ? pitches.length : 'not array',
+    satelliteImage: !!satelliteImage,
+    pitchPositions: pitchPositions,
+    selectedPitches: selectedPitches,
+    pitchNames: pitchNames
+  });
+
   // Ensure pitches is always an array
   const safePitches = Array.isArray(pitches) ? pitches : [];
   const safeSelectedPitches = Array.isArray(selectedPitches) ? selectedPitches : [];
+  
+  console.log('🔍 ClubPitchMap processed:', {
+    safePitches: safePitches,
+    safePitchesLength: safePitches.length
+  });
 
   // Default positions if not provided
   const defaultPositions = {
