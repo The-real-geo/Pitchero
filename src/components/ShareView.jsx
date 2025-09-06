@@ -1,4 +1,4 @@
-// Mobile-optimized ShareView.jsx with fixed pitch extraction
+// Mobile-optimized ShareView.jsx with strict key matching (no partial matches)
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -46,10 +46,18 @@ function ShareView() {
         console.log('Allocations object:', data?.allocations);
         console.log('Number of allocations:', Object.keys(data?.allocations || {}).length);
         
-        // Log some sample keys to understand the structure
+        // Log sample keys to understand the structure
         if (data?.allocations) {
           const sampleKeys = Object.keys(data.allocations).slice(0, 10);
           console.log('Sample allocation keys:', sampleKeys);
+          
+          // Analyze key structure
+          sampleKeys.forEach(key => {
+            const parts = key.split('-');
+            console.log(`Key: ${key}`);
+            console.log(`  Parts: [${parts.join(', ')}]`);
+            console.log(`  Allocation: ${data.allocations[key]?.team}`);
+          });
         }
         
         // Extract all unique pitches from allocation keys
@@ -57,57 +65,46 @@ function ShareView() {
         let extractedDate = data?.date;
         
         if (data?.allocations && Object.keys(data.allocations).length > 0) {
-          const pitchMap = new Map(); // Use Map to track unique pitches
+          const pitchSet = new Set(); // Use Set to track unique pitches
           const dateSet = new Set();
           const timeSet = new Set();
           
           // Parse each allocation key to extract pitch information
           Object.keys(data.allocations).forEach(key => {
-            console.log('Analyzing key:', key);
             const parts = key.split('-');
             
-            // Common patterns:
-            // 1. date-time-pitch-section (e.g., "2025-01-06-09:00-2-A")
-            // 2. date-time-pitchID-section (e.g., "2025-01-06-09:00-pitch2-A")
+            // Look for patterns in the key structure
+            let dateFound = false;
+            let timeFound = false;
             
-            if (parts.length >= 4) {
-              // Extract date (first part if it looks like a date)
-              if (parts[0].match(/^\d{4}/) || parts[0].length === 10) {
-                dateSet.add(parts[0]);
+            parts.forEach((part, index) => {
+              // Check if it's a date (YYYY-MM-DD format)
+              if (part.match(/^\d{4}/) && part.length >= 8) {
+                dateSet.add(part);
+                dateFound = true;
               }
-              
-              // Extract time (second part if it looks like time)
-              if (parts[1] && parts[1].match(/^\d{2}:\d{2}$/)) {
-                timeSet.add(parts[1]);
+              // Check if it's a time (HH:MM)
+              else if (part.match(/^\d{2}:\d{2}$/)) {
+                timeSet.add(part);
+                timeFound = true;
               }
-              
-              // Extract pitch (third part)
-              if (parts[2]) {
-                let pitchId = parts[2];
-                const originalPitchId = pitchId;
-                
-                // Skip if this is actually a section letter
-                if (sections.includes(pitchId.toUpperCase())) {
-                  return; // Use return instead of continue in forEach
-                }
+              // After finding time, the next non-section part should be pitch
+              else if (timeFound && !sections.includes(part.toUpperCase())) {
+                // This should be the pitch
+                let pitchId = part;
                 
                 // Normalize pitch ID
                 if (/^\d+$/.test(pitchId)) {
                   // Just a number like "2", "8", "10"
                   pitchId = `pitch${pitchId}`;
-                } else if (!pitchId.startsWith('pitch') && pitchId.match(/\d+/)) {
-                  // Contains a number but not in standard format
-                  const num = pitchId.match(/\d+/)[0];
-                  pitchId = `pitch${num}`;
-                }
-                
-                // Only add valid pitch IDs
-                if (pitchId && pitchId !== 'undefined' && pitchId.startsWith('pitch')) {
-                  console.log(`Found pitch: ${pitchId} from ${originalPitchId}`);
-                  pitchMap.set(pitchId, true);
+                  pitchSet.add(pitchId);
+                  console.log(`Found pitch from key ${key}: ${pitchId}`);
+                } else if (pitchId.startsWith('pitch')) {
+                  pitchSet.add(pitchId);
+                  console.log(`Found pitch from key ${key}: ${pitchId}`);
                 }
               }
-            }
+            });
           });
           
           // Also check if pitches are explicitly defined in the data
@@ -117,12 +114,12 @@ function ShareView() {
               if (/^\d+$/.test(p)) {
                 normalizedPitch = `pitch${p}`;
               }
-              pitchMap.set(normalizedPitch, true);
+              pitchSet.add(normalizedPitch);
             });
           }
           
-          // Convert Map keys to array and sort numerically
-          availablePitches = Array.from(pitchMap.keys()).sort((a, b) => {
+          // Convert Set to array and sort numerically
+          availablePitches = Array.from(pitchSet).sort((a, b) => {
             const aNum = parseInt(a.replace(/\D/g, ''));
             const bNum = parseInt(b.replace(/\D/g, ''));
             if (!isNaN(aNum) && !isNaN(bNum)) {
@@ -136,37 +133,10 @@ function ShareView() {
             extractedDate = Array.from(dateSet)[0];
           }
           
+          console.log('=== EXTRACTION RESULTS ===');
           console.log('Extracted unique pitches:', availablePitches);
           console.log('Extracted dates:', Array.from(dateSet));
           console.log('Extracted times (sample):', Array.from(timeSet).slice(0, 10));
-        }
-        
-        // If we still don't have pitches but have allocations, try to scan all possible pitch numbers
-        if (availablePitches.length === 0 && data?.allocations && Object.keys(data.allocations).length > 0) {
-          console.log('No pitches found, scanning for common patterns...');
-          
-          // Check for pitches 1-20
-          for (let i = 1; i <= 20; i++) {
-            const patterns = [
-              `-${i}-`,      // Just number
-              `-pitch${i}-`, // With 'pitch' prefix
-            ];
-            
-            const hasThisPitch = Object.keys(data.allocations).some(key => 
-              patterns.some(pattern => key.includes(pattern))
-            );
-            
-            if (hasThisPitch) {
-              console.log(`Found pitch ${i} through pattern matching`);
-              availablePitches.push(`pitch${i}`);
-            }
-          }
-          
-          availablePitches.sort((a, b) => {
-            const aNum = parseInt(a.replace(/\D/g, ''));
-            const bNum = parseInt(b.replace(/\D/g, ''));
-            return aNum - bNum;
-          });
         }
         
         // Update the shared data with extracted values
@@ -263,20 +233,6 @@ function ShareView() {
   const pitchNames = sharedData?.pitchNames || {};
   const showGrassArea = sharedData?.showGrassArea || {};
   
-  // Build allocation map for flexible lookup
-  const allocationMap = {};
-  Object.entries(allocations).forEach(([key, value]) => {
-    allocationMap[key] = value;
-    allocationMap[key.toLowerCase()] = value;
-    // Store without date if present
-    const parts = key.split('-');
-    if (parts[0].match(/^\d{4}/) || parts[0].match(/^\d{2}/)) {
-      const keyWithoutDate = parts.slice(1).join('-');
-      allocationMap[keyWithoutDate] = value;
-      allocationMap[keyWithoutDate.toLowerCase()] = value;
-    }
-  });
-  
   // Extract time range
   let start = sharedData?.timeRange?.start;
   let end = sharedData?.timeRange?.end;
@@ -324,67 +280,75 @@ function ShareView() {
     }
   }
 
-  // More comprehensive allocation lookup
+  // STRICT allocation lookup - NO PARTIAL MATCHING
   const findAllocation = (timeSlot, pitchId, section) => {
     const pitchNum = pitchId.replace(/\D/g, ''); // Extract just the number
     
-    // Try all possible key formats
+    // Try exact key formats only
     const possibleKeys = [
       `${date}-${timeSlot}-${pitchNum}-${section}`,           // date-time-number-section
-      `${date}-${timeSlot}-${pitchId}-${section}`,           // date-time-pitchID-section
       `${date}-${timeSlot}-pitch${pitchNum}-${section}`,     // date-time-pitch#-section
       `${timeSlot}-${pitchNum}-${section}`,                  // time-number-section
-      `${timeSlot}-${pitchId}-${section}`,                   // time-pitchID-section  
       `${timeSlot}-pitch${pitchNum}-${section}`,             // time-pitch#-section
     ];
     
-    // Try each possible key
+    // Try each possible key - EXACT MATCH ONLY
     for (const key of possibleKeys) {
-      if (allocationMap[key]) {
-        return allocationMap[key];
-      }
-      if (allocationMap[key.toLowerCase()]) {
-        return allocationMap[key.toLowerCase()];
+      if (allocations[key]) {
+        console.log(`Found allocation for ${timeSlot}-${pitchId}-${section} with key: ${key}`);
+        return allocations[key];
       }
     }
     
-    // Last resort: search through all keys for partial match
-    for (const [key, value] of Object.entries(allocationMap)) {
-      // Check if key contains the time, pitch number, and section in sequence
-      if (key.includes(timeSlot) && 
-          key.includes(`-${pitchNum}-`) && 
-          key.includes(`-${section}`)) {
-        return value;
-      }
-    }
-    
+    // NO PARTIAL MATCHING - return null if no exact match found
     return null;
   };
 
   const hasAllocationsForTimeSlot = (timeSlot, pitchId) => {
     const pitchNum = pitchId.replace(/\D/g, '');
     
+    // Check for exact keys only
+    const possibleKeys = [
+      `${date}-${timeSlot}-${pitchNum}`,
+      `${date}-${timeSlot}-pitch${pitchNum}`,
+      `${timeSlot}-${pitchNum}`,
+      `${timeSlot}-pitch${pitchNum}`,
+    ];
+    
     return Object.keys(allocations).some(key => {
-      return key.includes(timeSlot) && key.includes(`-${pitchNum}-`);
+      // Check if key starts with any of our possible patterns
+      return possibleKeys.some(pattern => key.startsWith(pattern + '-'));
     });
   };
 
   const getAllocationsCountForPitch = (pitchId) => {
     const pitchNum = pitchId.replace(/\D/g, '');
     
-    return Object.keys(allocations).filter(key => {
-      // Check if the key contains this pitch number after a time slot
+    let count = 0;
+    Object.keys(allocations).forEach(key => {
       const parts = key.split('-');
-      // Look for the pitch number in the expected position (after time)
-      return parts.some((part, index) => {
-        if (index >= 2 && part === pitchNum) {
-          // Verify the previous part looks like a time
-          const prevPart = parts[index - 1];
-          return prevPart && prevPart.match(/^\d{2}:\d{2}$/);
+      // Look for the pitch number in the expected position
+      let hasPitch = false;
+      
+      for (let i = 0; i < parts.length - 1; i++) {
+        // Check if this part is the pitch number and next part is a section
+        if (parts[i] === pitchNum && sections.includes(parts[i + 1].toUpperCase())) {
+          hasPitch = true;
+          break;
         }
-        return false;
-      });
-    }).length;
+        // Also check for "pitch#" format
+        if (parts[i] === `pitch${pitchNum}` && sections.includes(parts[i + 1].toUpperCase())) {
+          hasPitch = true;
+          break;
+        }
+      }
+      
+      if (hasPitch) {
+        count++;
+      }
+    });
+    
+    return count;
   };
 
   const calculateUniqueAllocations = () => {
@@ -595,7 +559,7 @@ function ShareView() {
     return pitchId;
   };
 
-  const showDebugInfo = false; // Set to true for debugging
+  const showDebugInfo = true; // Keep on to debug the issue
 
   return (
     <div style={containerStyle}>
@@ -608,21 +572,23 @@ function ShareView() {
             padding: '12px',
             marginBottom: '16px',
             fontSize: '11px',
-            maxHeight: '200px',
+            maxHeight: '300px',
             overflow: 'auto'
           }}>
             <strong>Debug Info:</strong>
             <div>Pitches Found: {pitches.map(p => getPitchDisplayName(p)).join(', ')}</div>
             <div>Selected Pitch: {selectedPitch ? getPitchDisplayName(selectedPitch) : 'None'}</div>
             <div>Total Allocations: {Object.keys(allocations).length}</div>
-            <div>First 5 allocation keys:</div>
-            <pre style={{ fontSize: '10px', marginLeft: '10px' }}>
-              {Object.keys(allocations).slice(0, 5).map(key => 
-                `${key} => ${allocations[key]?.team || 'unknown'}`
-              ).join('\n')}
-            </pre>
             <div style={{ marginTop: '8px' }}>
-              Pitch allocation counts:
+              <strong>ALL allocation keys:</strong>
+              <pre style={{ fontSize: '10px', marginLeft: '10px', maxHeight: '150px', overflow: 'auto' }}>
+                {Object.keys(allocations).map(key => 
+                  `${key} => ${allocations[key]?.team || 'unknown'}`
+                ).join('\n')}
+              </pre>
+            </div>
+            <div style={{ marginTop: '8px' }}>
+              <strong>Pitch allocation counts:</strong>
               {pitches.map(p => (
                 <div key={p} style={{ marginLeft: '10px' }}>
                   {getPitchDisplayName(p)}: {getAllocationsCountForPitch(p)} allocations
@@ -942,7 +908,7 @@ function ShareView() {
               We found {Object.keys(allocations).length} allocations but couldn't identify the pitches.
             </p>
             <p style={{ fontSize: '12px', color: '#92400e' }}>
-              Please regenerate the share link from the main application.
+              Please check the debug info above to see the allocation key format.
             </p>
           </div>
         )}
