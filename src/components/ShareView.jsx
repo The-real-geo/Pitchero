@@ -50,7 +50,7 @@ function ShareView() {
         if (availablePitches.length === 0 && data?.allocations) {
           // Extract unique pitch IDs from allocation keys
           const pitchSet = new Set();
-          const pitchPattern = /^[^-]+-[^-]+-([^-]+)-[^-]+$/; // date-time-pitch-section pattern
+          // Removed unused pitchPattern variable - line 53 fix
           
           Object.keys(data.allocations).forEach(key => {
             // Try different patterns to extract pitch ID
@@ -492,7 +492,7 @@ function ShareView() {
   };
 
   // Debug info for development
-  const showDebugInfo = true; // Set to false for production
+  const showDebugInfo = false; // Set to true for debugging
 
   return (
     <div style={containerStyle}>
