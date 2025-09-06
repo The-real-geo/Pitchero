@@ -1,4 +1,4 @@
-// Mobile-optimized ShareView.jsx with responsive design and multi-pitch support
+// Mobile-optimized ShareView.jsx with enhanced debugging and flexible matching
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -39,56 +39,91 @@ function ShareView() {
       try {
         const data = await getSharedAllocation(shareId);
         
-        // Debug logging
-        console.log('Loaded share data:', data);
-        console.log('Allocations:', data?.allocations);
-        console.log('Sample allocation keys:', Object.keys(data?.allocations || {}).slice(0, 5));
+        // Enhanced debug logging
+        console.log('=== SHARE DATA DEBUG ===');
+        console.log('Full data:', data);
+        console.log('Allocations object:', data?.allocations);
+        console.log('Number of allocations:', Object.keys(data?.allocations || {}).length);
+        
+        // Log first 5 allocation keys and values for debugging
+        if (data?.allocations) {
+          const sampleKeys = Object.keys(data.allocations).slice(0, 5);
+          console.log('Sample allocation keys:', sampleKeys);
+          sampleKeys.forEach(key => {
+            console.log(`Key: ${key}`, 'Value:', data.allocations[key]);
+          });
+        }
         
         // Extract pitches from allocations if not provided
         let availablePitches = data?.pitches || [];
+        let extractedDate = data?.date;
         
-        if (availablePitches.length === 0 && data?.allocations) {
-          // Extract unique pitch IDs from allocation keys
+        if (data?.allocations && Object.keys(data.allocations).length > 0) {
+          // Extract unique pitch IDs and dates from allocation keys
           const pitchSet = new Set();
-          // Removed unused pitchPattern variable - line 53 fix
+          const dateSet = new Set();
+          const timeSet = new Set();
           
           Object.keys(data.allocations).forEach(key => {
-            // Try different patterns to extract pitch ID
+            console.log('Processing key:', key);
             const parts = key.split('-');
             
-            // Log first few keys for debugging
-            if (pitchSet.size === 0) {
-              console.log('Sample key:', key, 'Parts:', parts);
-            }
-            
-            // Common patterns:
-            // 1. date-time-pitch-section (4 parts)
-            // 2. date-time-pitchId-section (4 parts where pitchId might be like "pitch1" or "pitch06")
-            
-            if (parts.length >= 4) {
-              // The pitch ID is typically the third part (index 2)
-              let pitchId = parts[2];
+            // Try to identify the pattern
+            if (parts.length >= 3) {
+              // Assuming pattern could be:
+              // date-time-pitch-section
+              // OR just time-pitch-section (if date is stored separately)
               
-              // Clean up the pitch ID if needed
-              if (pitchId && pitchId !== 'undefined' && pitchId !== '') {
-                // If it's just a number like "06", prepend "pitch"
-                if (/^\d+$/.test(pitchId)) {
-                  pitchId = `pitch${pitchId}`;
+              // Check if first part looks like a date (YYYY-MM-DD format)
+              if (parts[0].match(/^\d{4}/) || parts[0].match(/^\d{2}/)) {
+                // First part is likely date
+                dateSet.add(parts[0]);
+                if (parts[1]) timeSet.add(parts[1]);
+                if (parts[2]) {
+                  let pitchId = parts[2];
+                  // Clean up pitch ID
+                  if (/^\d+$/.test(pitchId)) {
+                    pitchId = `pitch${pitchId}`;
+                  }
+                  pitchSet.add(pitchId);
                 }
-                pitchSet.add(pitchId);
+              } else {
+                // First part might be time, no date in key
+                if (parts[0]) timeSet.add(parts[0]);
+                if (parts[1]) {
+                  let pitchId = parts[1];
+                  // Clean up pitch ID
+                  if (/^\d+$/.test(pitchId)) {
+                    pitchId = `pitch${pitchId}`;
+                  }
+                  pitchSet.add(pitchId);
+                }
               }
             }
           });
           
-          availablePitches = Array.from(pitchSet).sort();
+          // Set extracted values
+          if (pitchSet.size > 0) {
+            availablePitches = Array.from(pitchSet).sort();
+          }
+          
+          // If we found dates in the keys, use the first one
+          if (dateSet.size > 0 && !extractedDate) {
+            extractedDate = Array.from(dateSet)[0];
+          }
+          
           console.log('Extracted pitches:', availablePitches);
+          console.log('Extracted dates:', Array.from(dateSet));
+          console.log('Extracted times:', Array.from(timeSet).slice(0, 10));
         }
         
-        // Update the shared data with extracted pitches
+        // Update the shared data with extracted values
         const updatedData = {
           ...data,
-          pitches: availablePitches
+          pitches: availablePitches,
+          date: extractedDate || data?.date || new Date().toISOString().split('T')[0]
         };
+        
         setSharedData(updatedData);
         
         // Set initial selected pitch
@@ -171,46 +206,62 @@ function ShareView() {
   const clubName = sharedData?.clubName || 'Soccer Club';
   const allocationType = sharedData?.type === 'match' ? 'Match Day' : sharedData?.type === 'training' ? 'Training' : 'Pitch';
   
-  // Get pitches - now properly extracted
+  // Get pitches
   const pitches = sharedData?.pitches || [];
   const pitchNames = sharedData?.pitchNames || {};
   const showGrassArea = sharedData?.showGrassArea || {};
   
-  // Extract time range and interval from actual allocations
+  // Build a map of allocations by time and pitch for easier lookup
+  const allocationMap = {};
+  Object.entries(allocations).forEach(([key, value]) => {
+    allocationMap[key] = value;
+    // Also store with normalized keys for flexible matching
+    const parts = key.split('-');
+    if (parts.length >= 3) {
+      // Store multiple possible key formats
+      allocationMap[key.toLowerCase()] = value;
+      // Try without date prefix if it exists
+      if (parts[0].match(/^\d{4}/) || parts[0].match(/^\d{2}/)) {
+        const keyWithoutDate = parts.slice(1).join('-');
+        allocationMap[keyWithoutDate] = value;
+        allocationMap[keyWithoutDate.toLowerCase()] = value;
+      }
+    }
+  });
+  
+  console.log('Allocation map created with', Object.keys(allocationMap).length, 'entries');
+  
+  // Extract time range from actual allocations
   let start = sharedData?.timeRange?.start;
   let end = sharedData?.timeRange?.end;
-  let timeInterval = 30; // Default to 30 minutes
+  let timeInterval = 30;
   
-  // Detect actual time slots used in allocations
   const actualTimeSlots = new Set();
   
   if (Object.keys(allocations).length > 0) {
     Object.keys(allocations).forEach(key => {
       const parts = key.split('-');
-      if (parts.length >= 2) {
-        const timeStr = parts[1];
-        if (timeStr && timeStr.includes(':')) {
-          actualTimeSlots.add(timeStr);
+      // Try to find time in different positions
+      parts.forEach(part => {
+        if (part && part.match(/^\d{2}:\d{2}$/)) {
+          actualTimeSlots.add(part);
         }
-      }
+      });
     });
     
-    // Convert to sorted array
     const sortedTimes = Array.from(actualTimeSlots).sort();
-    console.log('Actual time slots found:', sortedTimes);
+    console.log('Found time slots:', sortedTimes);
     
     if (sortedTimes.length > 0) {
-      // Determine start and end times
       const firstTime = sortedTimes[0];
       const lastTime = sortedTimes[sortedTimes.length - 1];
       
       start = parseInt(firstTime.split(':')[0]) || 9;
       const lastHour = parseInt(lastTime.split(':')[0]) || 17;
-      end = Math.min(lastHour + 2, 21); // Add buffer, max 21:00
+      end = Math.min(lastHour + 2, 21);
       
-      // Detect interval (15 or 30 minutes)
+      // Detect interval
       if (sortedTimes.length > 1) {
-        // Check if we have :15 or :45 minutes
         const has15MinIntervals = sortedTimes.some(t => t.endsWith(':15') || t.endsWith(':45'));
         if (has15MinIntervals) {
           timeInterval = 15;
@@ -219,11 +270,9 @@ function ShareView() {
     }
   }
   
-  // Use defaults if still not set
   start = start || 9;
   end = end || 18;
   
-  // Generate time slots based on detected interval
   const timeSlots = [];
   for (let h = start; h < end; h++) {
     for (let m = 0; m < 60; m += timeInterval) {
@@ -232,52 +281,64 @@ function ShareView() {
     }
   }
 
-  // More flexible allocation matching
-  const hasAllocationsForTimeSlot = (timeSlot, pitchId) => {
-    // Check both the exact pitch ID and possible variations
-    const possibleKeys = [
-      `${date}-${timeSlot}-${pitchId}`,  // Base pattern
-      `${date}-${timeSlot}-${pitchId.replace('pitch', '')}`, // Without 'pitch' prefix
-      `${date}-${timeSlot}-pitch${pitchId}`, // With 'pitch' prefix
-    ];
-    
-    return Object.keys(allocations).some(key => {
-      // Check if key starts with any of our patterns
-      return possibleKeys.some(pattern => key.startsWith(pattern + '-'));
-    });
-  };
-
-  // Get allocation for a specific slot and section
-  const getAllocation = (timeSlot, pitchId, section) => {
-    // Try different key formats
+  // Very flexible allocation lookup
+  const findAllocation = (timeSlot, pitchId, section) => {
+    // Try many possible key formats
     const possibleKeys = [
       `${date}-${timeSlot}-${pitchId}-${section}`,
       `${date}-${timeSlot}-${pitchId.replace('pitch', '')}-${section}`,
       `${date}-${timeSlot}-pitch${pitchId}-${section}`,
+      `${timeSlot}-${pitchId}-${section}`,
+      `${timeSlot}-${pitchId.replace('pitch', '')}-${section}`,
+      `${timeSlot}-pitch${pitchId}-${section}`,
+      // Try with just the pitch number
+      `${date}-${timeSlot}-${pitchId.replace(/\D/g, '')}-${section}`,
+      `${timeSlot}-${pitchId.replace(/\D/g, '')}-${section}`,
     ];
     
     for (const key of possibleKeys) {
-      if (allocations[key]) {
-        return allocations[key];
+      if (allocationMap[key]) {
+        return allocationMap[key];
+      }
+      if (allocationMap[key.toLowerCase()]) {
+        return allocationMap[key.toLowerCase()];
       }
     }
+    
+    // Last resort: search through all keys for partial match
+    const searchPattern = `${timeSlot}-${pitchId.replace(/\D/g, '')}-${section}`;
+    for (const [key, value] of Object.entries(allocationMap)) {
+      if (key.includes(searchPattern)) {
+        return value;
+      }
+    }
+    
     return null;
   };
 
-  // Count allocations per pitch for display
-  const getAllocationsCountForPitch = (pitchId) => {
-    const patterns = [
-      `-${pitchId}-`,
-      `-${pitchId.replace('pitch', '')}-`,
-      `-pitch${pitchId}-`
-    ];
+  // Check if any allocations exist for a time slot and pitch
+  const hasAllocationsForTimeSlot = (timeSlot, pitchId) => {
+    const pitchNum = pitchId.replace(/\D/g, '');
     
+    // Check if any key contains this time slot and pitch
+    return Object.keys(allocations).some(key => {
+      return key.includes(timeSlot) && (
+        key.includes(`-${pitchId}-`) ||
+        key.includes(`-${pitchNum}-`) ||
+        key.includes(`-pitch${pitchNum}-`)
+      );
+    });
+  };
+
+  const getAllocationsCountForPitch = (pitchId) => {
+    const pitchNum = pitchId.replace(/\D/g, '');
     return Object.keys(allocations).filter(key => 
-      patterns.some(pattern => key.includes(pattern))
+      key.includes(`-${pitchId}-`) ||
+      key.includes(`-${pitchNum}-`) ||
+      key.includes(`-pitch${pitchNum}-`)
     ).length;
   };
 
-  // Calculate total unique allocations (not counting multi-slot duplicates)
   const calculateUniqueAllocations = () => {
     const uniqueAllocations = new Set();
     Object.entries(allocations).forEach(([key, alloc]) => {
@@ -290,7 +351,7 @@ function ShareView() {
 
   const uniqueAllocationCount = calculateUniqueAllocations();
 
-  // Responsive styles
+  // Styles
   const containerStyle = {
     padding: isMobile ? '12px' : '24px',
     backgroundColor: '#f9fafb',
@@ -323,9 +384,9 @@ function ShareView() {
       {timeSlots.map((s) => {
         const hasAllocations = hasAllocationsForTimeSlot(s, pitchId);
         
-        // Only show time slots that actually have allocations
-        if (!hasAllocations && actualTimeSlots.size > 0) {
-          return null; // Skip empty slots if we have detected actual slots
+        // Show all time slots if we don't have actual time slots, or only show ones with allocations
+        if (!hasAllocations && actualTimeSlots.size > 0 && !actualTimeSlots.has(s)) {
+          return null;
         }
         
         return (
@@ -350,7 +411,7 @@ function ShareView() {
               </span>
             </h3>
             
-            {hasAllocations && (
+            {(hasAllocations || actualTimeSlots.has(s)) && (
               <div style={pitchGridStyle}>
                 <div style={{
                   position: 'absolute',
@@ -372,7 +433,7 @@ function ShareView() {
                   zIndex: 10
                 }}>
                   {sections.map((sec) => {
-                    const alloc = getAllocation(s, pitchId, sec);
+                    const alloc = findAllocation(s, pitchId, sec);
                     
                     return (
                       <div 
@@ -422,7 +483,7 @@ function ShareView() {
                   })}
                 </div>
                 
-                {/* Grass area if enabled */}
+                {/* Grass area */}
                 {showGrassArea[pitchId] && (
                   <div style={{ marginTop: '8px' }}>
                     <div style={{
@@ -440,7 +501,7 @@ function ShareView() {
                         padding: '4px'
                       }}>
                         {(() => {
-                          const grassAlloc = getAllocation(s, pitchId, 'grass');
+                          const grassAlloc = findAllocation(s, pitchId, 'grass');
                           return (
                             <div style={{
                               height: '100%',
@@ -467,23 +528,20 @@ function ShareView() {
             )}
           </div>
         );
-      }).filter(Boolean)} {/* Remove null entries */}
+      }).filter(Boolean)}
     </div>
   );
 
-  // Get proper pitch display name
   const getPitchDisplayName = (pitchId) => {
     if (pitchNames[pitchId]) {
       return pitchNames[pitchId];
     }
     
-    // Handle various formats
     if (pitchId.startsWith('pitch')) {
       const num = pitchId.replace('pitch', '');
       return `Pitch ${num}`;
     }
     
-    // If it's just a number
     if (/^\d+$/.test(pitchId)) {
       return `Pitch ${pitchId}`;
     }
@@ -491,13 +549,13 @@ function ShareView() {
     return pitchId;
   };
 
-  // Debug info for development
-  const showDebugInfo = false; // Set to true for debugging
+  // ALWAYS show debug info for now to diagnose the issue
+  const showDebugInfo = true;
 
   return (
     <div style={containerStyle}>
       <div style={{ maxWidth: isMobile ? '100%' : '1400px', margin: '0 auto' }}>
-        {/* Debug Information */}
+        {/* Enhanced Debug Information */}
         {showDebugInfo && (
           <div style={{
             backgroundColor: '#fef3c7',
@@ -505,21 +563,43 @@ function ShareView() {
             borderRadius: '4px',
             padding: '12px',
             marginBottom: '16px',
-            fontSize: '12px'
+            fontSize: '11px',
+            maxHeight: '300px',
+            overflow: 'auto'
           }}>
-            <strong>Debug Info:</strong>
+            <strong>Debug Information:</strong>
             <div>Share ID: {shareId}</div>
+            <div>Date being used: {date}</div>
             <div>Total Allocation Keys: {Object.keys(allocations).length}</div>
             <div>Unique Allocations: {uniqueAllocationCount}</div>
-            <div>Pitches Found: {pitches.join(', ') || 'None'}</div>
-            <div>Date: {date}</div>
+            <div>Pitches Found: {pitches.join(', ') || 'None detected'}</div>
             <div>Time Range: {start}:00 - {end}:00 (interval: {timeInterval}min)</div>
-            <div>Actual Time Slots: {Array.from(actualTimeSlots).sort().slice(0, 5).join(', ')}...</div>
-            <details>
-              <summary>Sample Allocation Keys (first 10)</summary>
-              <pre style={{ fontSize: '10px', overflow: 'auto' }}>
-                {JSON.stringify(Object.keys(allocations).slice(0, 10), null, 2)}
+            <div>Time Slots Found: {Array.from(actualTimeSlots).sort().join(', ')}</div>
+            
+            <details style={{ marginTop: '8px' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+                First 10 Allocation Keys (Click to expand)
+              </summary>
+              <pre style={{ fontSize: '10px', overflow: 'auto', backgroundColor: 'white', padding: '8px', borderRadius: '4px', marginTop: '4px' }}>
+                {Object.keys(allocations).slice(0, 10).map(key => 
+                  `${key}\n  -> Team: ${allocations[key]?.team}, Color: ${allocations[key]?.colour || allocations[key]?.color}`
+                ).join('\n')}
               </pre>
+            </details>
+            
+            <details style={{ marginTop: '8px' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+                Test Allocation Lookup (Click to expand)
+              </summary>
+              <div style={{ fontSize: '10px', marginTop: '4px' }}>
+                {actualTimeSlots.size > 0 && pitches.length > 0 && (
+                  <div>
+                    Testing: Time={Array.from(actualTimeSlots)[0]}, Pitch={pitches[0]}, Section=A
+                    <br />
+                    Result: {JSON.stringify(findAllocation(Array.from(actualTimeSlots)[0], pitches[0], 'A'))}
+                  </div>
+                )}
+              </div>
             </details>
           </div>
         )}
@@ -584,200 +664,196 @@ function ShareView() {
                 <strong>Pitches:</strong> {pitches.length}
               </div>
             )}
-            {sharedData?.expiresAt && (
-              <div>
-                <strong>Expires:</strong> {new Date(sharedData.expiresAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Mobile: Pitch selector */}
-        {isMobile && pitches.length > 0 && (
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            padding: '8px',
-            marginBottom: '12px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            overflowX: 'auto',
-            WebkitOverflowScrolling: 'touch'
-          }}>
-            <div style={{
-              display: 'flex',
-              gap: '8px',
-              minWidth: 'min-content'
-            }}>
-              {pitches.map((pitchId) => {
-                const allocCount = getAllocationsCountForPitch(pitchId);
-                const displayName = getPitchDisplayName(pitchId);
-                return (
-                  <button
-                    key={pitchId}
-                    onClick={() => setSelectedPitch(pitchId)}
-                    style={{
-                      padding: '8px 12px',
-                      backgroundColor: selectedPitch === pitchId ? '#3b82f6' : '#f3f4f6',
-                      color: selectedPitch === pitchId ? 'white' : '#374151',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: selectedPitch === pitchId ? 'bold' : 'normal',
-                      whiteSpace: 'nowrap',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      minWidth: '80px'
-                    }}
-                  >
-                    <div>{displayName}</div>
-                    <div style={{
-                      fontSize: '10px',
-                      opacity: 0.8,
-                      marginTop: '2px'
-                    }}>
-                      {allocCount} slots
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* Content based on what we have */}
+        {pitches.length > 0 ? (
+          <>
+            {/* Mobile: Pitch selector */}
+            {isMobile && (
+              <div style={{
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                padding: '8px',
+                marginBottom: '12px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  minWidth: 'min-content'
+                }}>
+                  {pitches.map((pitchId) => {
+                    const allocCount = getAllocationsCountForPitch(pitchId);
+                    const displayName = getPitchDisplayName(pitchId);
+                    return (
+                      <button
+                        key={pitchId}
+                        onClick={() => setSelectedPitch(pitchId)}
+                        style={{
+                          padding: '8px 12px',
+                          backgroundColor: selectedPitch === pitchId ? '#3b82f6' : '#f3f4f6',
+                          color: selectedPitch === pitchId ? 'white' : '#374151',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: selectedPitch === pitchId ? 'bold' : 'normal',
+                          whiteSpace: 'nowrap',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          minWidth: '80px'
+                        }}
+                      >
+                        <div>{displayName}</div>
+                        <div style={{
+                          fontSize: '10px',
+                          opacity: 0.8,
+                          marginTop: '2px'
+                        }}>
+                          {allocCount} slots
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-        {/* Desktop: Grid of pitches, Mobile: Single selected pitch */}
-        {isMobile ? (
-          // Mobile: Show selected pitch
-          selectedPitch && (
+            {/* Render pitches */}
+            {isMobile ? (
+              selectedPitch && (
+                <div style={{
+                  backgroundColor: 'white',
+                  borderRadius: '8px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    backgroundColor: '#f3f4f6',
+                    padding: '12px',
+                    borderBottom: '1px solid #e5e7eb',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <h2 style={{
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      color: '#1f2937',
+                      margin: 0
+                    }}>
+                      {getPitchDisplayName(selectedPitch)}
+                    </h2>
+                    <span style={{
+                      fontSize: '12px',
+                      color: '#6b7280',
+                      backgroundColor: '#f9fafb',
+                      padding: '2px 8px',
+                      borderRadius: '4px'
+                    }}>
+                      {getAllocationsCountForPitch(selectedPitch)} allocations
+                    </span>
+                  </div>
+                  {renderPitchGrid(selectedPitch)}
+                </div>
+              )
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: pitches.length <= 2 ? 'repeat(auto-fit, minmax(600px, 1fr))' : 
+                                    pitches.length <= 4 ? 'repeat(2, 1fr)' : 
+                                    'repeat(3, 1fr)',
+                gap: '16px'
+              }}>
+                {pitches.map((pitchId) => {
+                  const displayName = getPitchDisplayName(pitchId);
+                  return (
+                    <div key={pitchId} style={{
+                      backgroundColor: 'white',
+                      borderRadius: '8px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{
+                        backgroundColor: '#f3f4f6',
+                        padding: '12px',
+                        borderBottom: '1px solid #e5e7eb',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <h2 style={{
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          color: '#1f2937',
+                          margin: 0
+                        }}>
+                          {displayName}
+                        </h2>
+                        <span style={{
+                          fontSize: '12px',
+                          color: '#6b7280'
+                        }}>
+                          {getAllocationsCountForPitch(pitchId)} allocations
+                        </span>
+                      </div>
+                      {renderPitchGrid(pitchId)}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        ) : (
+          // No pitches detected but we have allocations
+          Object.keys(allocations).length > 0 ? (
+            <div style={{
+              backgroundColor: '#fef3c7',
+              border: '1px solid #f59e0b',
+              borderRadius: '8px',
+              padding: '24px',
+              textAlign: 'center'
+            }}>
+              <h3 style={{ color: '#92400e', marginBottom: '12px' }}>
+                Data Structure Issue
+              </h3>
+              <p style={{ color: '#78350f', marginBottom: '16px' }}>
+                We found {Object.keys(allocations).length} allocation entries but couldn't extract the pitch information.
+              </p>
+              <p style={{ fontSize: '12px', color: '#92400e', marginBottom: '16px' }}>
+                Please check the debug information above and regenerate the share link.
+              </p>
+              <details style={{ textAlign: 'left', marginTop: '16px' }}>
+                <summary style={{ cursor: 'pointer' }}>View Raw Data</summary>
+                <pre style={{ fontSize: '10px', overflow: 'auto', maxHeight: '200px', backgroundColor: 'white', padding: '8px', borderRadius: '4px', marginTop: '8px' }}>
+                  {JSON.stringify(allocations, null, 2)}
+                </pre>
+              </details>
+            </div>
+          ) : (
+            // No allocations at all
             <div style={{
               backgroundColor: 'white',
               borderRadius: '8px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              overflow: 'hidden'
+              padding: '32px',
+              textAlign: 'center',
+              color: '#6b7280'
             }}>
-              <div style={{
-                backgroundColor: '#f3f4f6',
-                padding: '12px',
-                borderBottom: '1px solid #e5e7eb',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <h2 style={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  color: '#1f2937',
-                  margin: 0
-                }}>
-                  {getPitchDisplayName(selectedPitch)}
-                </h2>
-                <span style={{
-                  fontSize: '12px',
-                  color: '#6b7280',
-                  backgroundColor: '#f9fafb',
-                  padding: '2px 8px',
-                  borderRadius: '4px'
-                }}>
-                  {getAllocationsCountForPitch(selectedPitch)} allocations
-                </span>
-              </div>
-              {renderPitchGrid(selectedPitch)}
+              <h3 style={{ fontSize: '18px', marginBottom: '12px' }}>
+                No allocations found
+              </h3>
+              <p style={{ marginBottom: '8px' }}>
+                This share link doesn't contain any pitch allocations.
+              </p>
+              <p style={{ fontSize: '14px' }}>
+                Share ID: {shareId}
+              </p>
             </div>
           )
-        ) : (
-          // Desktop: Grid layout for multiple pitches
-          pitches.length > 0 ? (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: pitches.length <= 2 ? 'repeat(auto-fit, minmax(600px, 1fr))' : 
-                                  pitches.length <= 4 ? 'repeat(2, 1fr)' : 
-                                  'repeat(3, 1fr)',
-              gap: '16px'
-            }}>
-              {pitches.map((pitchId) => {
-                const displayName = getPitchDisplayName(pitchId);
-                return (
-                  <div key={pitchId} style={{
-                    backgroundColor: 'white',
-                    borderRadius: '8px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{
-                      backgroundColor: '#f3f4f6',
-                      padding: '12px',
-                      borderBottom: '1px solid #e5e7eb',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
-                      <h2 style={{
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        color: '#1f2937',
-                        margin: 0
-                      }}>
-                        {displayName}
-                      </h2>
-                      <span style={{
-                        fontSize: '12px',
-                        color: '#6b7280'
-                      }}>
-                        {getAllocationsCountForPitch(pitchId)} allocations
-                      </span>
-                    </div>
-                    {renderPitchGrid(pitchId)}
-                  </div>
-                );
-              })}
-            </div>
-          ) : null
-        )}
-
-        {/* No allocations message */}
-        {Object.keys(allocations).length === 0 && (
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            padding: '32px',
-            textAlign: 'center',
-            color: '#6b7280'
-          }}>
-            <h3 style={{ fontSize: '18px', marginBottom: '12px' }}>
-              No allocations found
-            </h3>
-            <p style={{ marginBottom: '8px' }}>
-              This share link doesn't contain any pitch allocations.
-            </p>
-            <p style={{ fontSize: '14px' }}>
-              Share ID: {shareId}
-            </p>
-          </div>
-        )}
-
-        {/* Show message if allocations exist but no pitches could be extracted */}
-        {Object.keys(allocations).length > 0 && pitches.length === 0 && (
-          <div style={{
-            backgroundColor: '#fef3c7',
-            border: '1px solid #f59e0b',
-            borderRadius: '8px',
-            padding: '24px',
-            textAlign: 'center'
-          }}>
-            <h3 style={{ color: '#92400e', marginBottom: '12px' }}>
-              Data Structure Issue
-            </h3>
-            <p style={{ color: '#78350f', marginBottom: '16px' }}>
-              We found {Object.keys(allocations).length} allocation entries but couldn't determine the pitch layout.
-            </p>
-            <p style={{ fontSize: '12px', color: '#92400e' }}>
-              Please regenerate the share link from the main application.
-            </p>
-          </div>
         )}
       </div>
     </div>
