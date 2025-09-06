@@ -70,4 +70,22 @@ const getSharedAllocation = async (shareId) => {
   }
 };
 
-// ... rest of your ShareView component code stays the same ...
+// Pitch layout positions (same as main app)
+const pitchPositions = {
+  pitch1: { top: '15%', left: '10%', width: '35%', height: '25%' },
+  pitch2: { top: '15%', left: '55%', width: '35%', height: '25%' },
+  pitch3: { top: '45%', left: '10%', width: '35%', height: '25%' },
+  pitch4: { top: '45%', left: '55%', width: '35%', height: '25%' },
+  pitch5: { top: '75%', left: '10%', width: '35%', height: '20%' },
+  pitch6: { top: '75%', left: '55%', width: '35%', height: '20%' },
+  pitch7: { top: '5%', left: '30%', width: '40%', height: '30%' },
+  pitch8: { top: '40%', left: '30%', width: '40%', height: '30%' },
+  pitch9: { top: '75%', left: '30%', width: '40%', height: '20%' },
+  pitch10: { top: '35%', left: '20%', width: '60%', height: '35%' },
+};
+
+function ShareView() {
+  // ... rest of your ShareView component code stays the same ...
+}
+
+export default ShareView;
