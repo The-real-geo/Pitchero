@@ -42,9 +42,7 @@ function ShareView() {
         // Debug logging
         console.log('Loaded share data:', data);
         console.log('Allocations:', data?.allocations);
-        console.log('Pitches from data:', data?.pitches);
-        
-        setSharedData(data);
+        console.log('Sample allocation keys:', Object.keys(data?.allocations || {}).slice(0, 5));
         
         // Extract pitches from allocations if not provided
         let availablePitches = data?.pitches || [];
@@ -52,20 +50,38 @@ function ShareView() {
         if (availablePitches.length === 0 && data?.allocations) {
           // Extract unique pitch IDs from allocation keys
           const pitchSet = new Set();
+          const pitchPattern = /^[^-]+-[^-]+-([^-]+)-[^-]+$/; // date-time-pitch-section pattern
+          
           Object.keys(data.allocations).forEach(key => {
-            // Key format: date-time-pitch-section
+            // Try different patterns to extract pitch ID
             const parts = key.split('-');
+            
+            // Log first few keys for debugging
+            if (pitchSet.size === 0) {
+              console.log('Sample key:', key, 'Parts:', parts);
+            }
+            
+            // Common patterns:
+            // 1. date-time-pitch-section (4 parts)
+            // 2. date-time-pitchId-section (4 parts where pitchId might be like "pitch1" or "pitch06")
+            
             if (parts.length >= 4) {
-              // The pitch ID is typically the third part
-              const pitchId = parts[2];
-              if (pitchId && pitchId !== 'undefined') {
+              // The pitch ID is typically the third part (index 2)
+              let pitchId = parts[2];
+              
+              // Clean up the pitch ID if needed
+              if (pitchId && pitchId !== 'undefined' && pitchId !== '') {
+                // If it's just a number like "06", prepend "pitch"
+                if (/^\d+$/.test(pitchId)) {
+                  pitchId = `pitch${pitchId}`;
+                }
                 pitchSet.add(pitchId);
               }
             }
           });
-          availablePitches = Array.from(pitchSet).sort();
           
-          console.log('Extracted pitches from allocations:', availablePitches);
+          availablePitches = Array.from(pitchSet).sort();
+          console.log('Extracted pitches:', availablePitches);
         }
         
         // Update the shared data with extracted pitches
@@ -160,31 +176,46 @@ function ShareView() {
   const pitchNames = sharedData?.pitchNames || {};
   const showGrassArea = sharedData?.showGrassArea || {};
   
-  // Extract time range from actual allocations if not provided
+  // Extract time range and interval from actual allocations
   let start = sharedData?.timeRange?.start;
   let end = sharedData?.timeRange?.end;
+  let timeInterval = 30; // Default to 30 minutes
   
-  if ((!start || !end) && Object.keys(allocations).length > 0) {
-    // Extract times from allocation keys
-    const times = [];
+  // Detect actual time slots used in allocations
+  const actualTimeSlots = new Set();
+  
+  if (Object.keys(allocations).length > 0) {
     Object.keys(allocations).forEach(key => {
       const parts = key.split('-');
       if (parts.length >= 2) {
-        const timeStr = parts[1]; // Second part is the time
+        const timeStr = parts[1];
         if (timeStr && timeStr.includes(':')) {
-          times.push(timeStr);
+          actualTimeSlots.add(timeStr);
         }
       }
     });
     
-    if (times.length > 0) {
-      times.sort();
-      const startTime = times[0];
-      const endTime = times[times.length - 1];
+    // Convert to sorted array
+    const sortedTimes = Array.from(actualTimeSlots).sort();
+    console.log('Actual time slots found:', sortedTimes);
+    
+    if (sortedTimes.length > 0) {
+      // Determine start and end times
+      const firstTime = sortedTimes[0];
+      const lastTime = sortedTimes[sortedTimes.length - 1];
       
-      // Parse hours from time strings
-      start = parseInt(startTime.split(':')[0]) || 9;
-      end = Math.min(parseInt(endTime.split(':')[0]) + 2, 21) || 18; // Add 2 hours buffer, max 21:00
+      start = parseInt(firstTime.split(':')[0]) || 9;
+      const lastHour = parseInt(lastTime.split(':')[0]) || 17;
+      end = Math.min(lastHour + 2, 21); // Add buffer, max 21:00
+      
+      // Detect interval (15 or 30 minutes)
+      if (sortedTimes.length > 1) {
+        // Check if we have :15 or :45 minutes
+        const has15MinIntervals = sortedTimes.some(t => t.endsWith(':15') || t.endsWith(':45'));
+        if (has15MinIntervals) {
+          timeInterval = 15;
+        }
+      }
     }
   }
   
@@ -192,28 +223,72 @@ function ShareView() {
   start = start || 9;
   end = end || 18;
   
-  // Generate time slots based on actual range
+  // Generate time slots based on detected interval
   const timeSlots = [];
   for (let h = start; h < end; h++) {
-    for (let m = 0; m < 60; m += 15) {
+    for (let m = 0; m < 60; m += timeInterval) {
       const timeString = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
       timeSlots.push(timeString);
     }
   }
 
+  // More flexible allocation matching
   const hasAllocationsForTimeSlot = (timeSlot, pitchId) => {
-    return Object.keys(allocations).some(key => 
-      key.includes(`-${timeSlot}-${pitchId}-`)
-    );
+    // Check both the exact pitch ID and possible variations
+    const possibleKeys = [
+      `${date}-${timeSlot}-${pitchId}`,  // Base pattern
+      `${date}-${timeSlot}-${pitchId.replace('pitch', '')}`, // Without 'pitch' prefix
+      `${date}-${timeSlot}-pitch${pitchId}`, // With 'pitch' prefix
+    ];
+    
+    return Object.keys(allocations).some(key => {
+      // Check if key starts with any of our patterns
+      return possibleKeys.some(pattern => key.startsWith(pattern + '-'));
+    });
+  };
+
+  // Get allocation for a specific slot and section
+  const getAllocation = (timeSlot, pitchId, section) => {
+    // Try different key formats
+    const possibleKeys = [
+      `${date}-${timeSlot}-${pitchId}-${section}`,
+      `${date}-${timeSlot}-${pitchId.replace('pitch', '')}-${section}`,
+      `${date}-${timeSlot}-pitch${pitchId}-${section}`,
+    ];
+    
+    for (const key of possibleKeys) {
+      if (allocations[key]) {
+        return allocations[key];
+      }
+    }
+    return null;
   };
 
   // Count allocations per pitch for display
   const getAllocationsCountForPitch = (pitchId) => {
-    return Object.keys(allocations).filter(key => key.includes(`-${pitchId}-`)).length;
+    const patterns = [
+      `-${pitchId}-`,
+      `-${pitchId.replace('pitch', '')}-`,
+      `-pitch${pitchId}-`
+    ];
+    
+    return Object.keys(allocations).filter(key => 
+      patterns.some(pattern => key.includes(pattern))
+    ).length;
   };
 
-  // Calculate total allocations
-  const totalAllocations = Object.keys(allocations).length;
+  // Calculate total unique allocations (not counting multi-slot duplicates)
+  const calculateUniqueAllocations = () => {
+    const uniqueAllocations = new Set();
+    Object.entries(allocations).forEach(([key, alloc]) => {
+      if (!alloc.isMultiSlot || alloc.slotIndex === 0) {
+        uniqueAllocations.add(key);
+      }
+    });
+    return uniqueAllocations.size;
+  };
+
+  const uniqueAllocationCount = calculateUniqueAllocations();
 
   // Responsive styles
   const containerStyle = {
@@ -247,6 +322,11 @@ function ShareView() {
     <div style={{ padding: '4px' }}>
       {timeSlots.map((s) => {
         const hasAllocations = hasAllocationsForTimeSlot(s, pitchId);
+        
+        // Only show time slots that actually have allocations
+        if (!hasAllocations && actualTimeSlots.size > 0) {
+          return null; // Skip empty slots if we have detected actual slots
+        }
         
         return (
           <div key={s} style={{ marginBottom: isMobile ? '12px' : '8px' }}>
@@ -292,8 +372,7 @@ function ShareView() {
                   zIndex: 10
                 }}>
                   {sections.map((sec) => {
-                    const key = `${date}-${s}-${pitchId}-${sec}`;
-                    const alloc = allocations[key];
+                    const alloc = getAllocation(s, pitchId, sec);
                     
                     return (
                       <div 
@@ -361,8 +440,7 @@ function ShareView() {
                         padding: '4px'
                       }}>
                         {(() => {
-                          const grassKey = `${date}-${s}-${pitchId}-grass`;
-                          const grassAlloc = allocations[grassKey];
+                          const grassAlloc = getAllocation(s, pitchId, 'grass');
                           return (
                             <div style={{
                               height: '100%',
@@ -389,12 +467,32 @@ function ShareView() {
             )}
           </div>
         );
-      })}
+      }).filter(Boolean)} {/* Remove null entries */}
     </div>
   );
 
+  // Get proper pitch display name
+  const getPitchDisplayName = (pitchId) => {
+    if (pitchNames[pitchId]) {
+      return pitchNames[pitchId];
+    }
+    
+    // Handle various formats
+    if (pitchId.startsWith('pitch')) {
+      const num = pitchId.replace('pitch', '');
+      return `Pitch ${num}`;
+    }
+    
+    // If it's just a number
+    if (/^\d+$/.test(pitchId)) {
+      return `Pitch ${pitchId}`;
+    }
+    
+    return pitchId;
+  };
+
   // Debug info for development
-  const showDebugInfo = false; // Set to true for debugging
+  const showDebugInfo = true; // Set to false for production
 
   return (
     <div style={containerStyle}>
@@ -411,14 +509,16 @@ function ShareView() {
           }}>
             <strong>Debug Info:</strong>
             <div>Share ID: {shareId}</div>
-            <div>Total Allocations: {totalAllocations}</div>
-            <div>Pitches: {pitches.join(', ') || 'None'}</div>
+            <div>Total Allocation Keys: {Object.keys(allocations).length}</div>
+            <div>Unique Allocations: {uniqueAllocationCount}</div>
+            <div>Pitches Found: {pitches.join(', ') || 'None'}</div>
             <div>Date: {date}</div>
-            <div>Time Range: {start}:00 - {end}:00</div>
+            <div>Time Range: {start}:00 - {end}:00 (interval: {timeInterval}min)</div>
+            <div>Actual Time Slots: {Array.from(actualTimeSlots).sort().slice(0, 5).join(', ')}...</div>
             <details>
-              <summary>Allocation Keys</summary>
+              <summary>Sample Allocation Keys (first 10)</summary>
               <pre style={{ fontSize: '10px', overflow: 'auto' }}>
-                {JSON.stringify(Object.keys(allocations), null, 2)}
+                {JSON.stringify(Object.keys(allocations).slice(0, 10), null, 2)}
               </pre>
             </details>
           </div>
@@ -477,7 +577,7 @@ function ShareView() {
               <strong>Time Range:</strong> {start}:00 - {end}:00
             </div>
             <div style={{ marginBottom: isMobile ? '8px' : 0 }}>
-              <strong>Total Allocations:</strong> {totalAllocations}
+              <strong>Total Allocations:</strong> {uniqueAllocationCount}
             </div>
             {pitches.length > 0 && (
               <div style={{ marginBottom: isMobile ? '8px' : 0 }}>
@@ -488,14 +588,15 @@ function ShareView() {
               <div>
                 <strong>Expires:</strong> {new Date(sharedData.expiresAt).toLocaleDateString('en-US', {
                   month: 'short',
-                  day: 'numeric'
+                  day: 'numeric',
+                  year: 'numeric'
                 })}
               </div>
             )}
           </div>
         </div>
 
-        {/* Mobile: Pitch selector with horizontal scroll for many pitches */}
+        {/* Mobile: Pitch selector */}
         {isMobile && pitches.length > 0 && (
           <div style={{
             backgroundColor: 'white',
@@ -513,10 +614,7 @@ function ShareView() {
             }}>
               {pitches.map((pitchId) => {
                 const allocCount = getAllocationsCountForPitch(pitchId);
-                const displayName = pitchNames[pitchId] || 
-                                  (pitchId.includes('pitch') ? 
-                                    `Pitch ${pitchId.replace(/[^0-9]/g, '')}` : 
-                                    pitchId);
+                const displayName = getPitchDisplayName(pitchId);
                 return (
                   <button
                     key={pitchId}
@@ -575,10 +673,7 @@ function ShareView() {
                   color: '#1f2937',
                   margin: 0
                 }}>
-                  {pitchNames[selectedPitch] || 
-                   (selectedPitch.includes('pitch') ? 
-                     `Pitch ${selectedPitch.replace(/[^0-9]/g, '')}` : 
-                     selectedPitch)}
+                  {getPitchDisplayName(selectedPitch)}
                 </h2>
                 <span style={{
                   fontSize: '12px',
@@ -604,10 +699,7 @@ function ShareView() {
               gap: '16px'
             }}>
               {pitches.map((pitchId) => {
-                const displayName = pitchNames[pitchId] || 
-                                   (pitchId.includes('pitch') ? 
-                                     `Pitch ${pitchId.replace(/[^0-9]/g, '')}` : 
-                                     pitchId);
+                const displayName = getPitchDisplayName(pitchId);
                 return (
                   <div key={pitchId} style={{
                     backgroundColor: 'white',
@@ -646,8 +738,8 @@ function ShareView() {
           ) : null
         )}
 
-        {/* No allocations message - only show if really no data */}
-        {totalAllocations === 0 && (
+        {/* No allocations message */}
+        {Object.keys(allocations).length === 0 && (
           <div style={{
             backgroundColor: 'white',
             borderRadius: '8px',
@@ -668,7 +760,7 @@ function ShareView() {
         )}
 
         {/* Show message if allocations exist but no pitches could be extracted */}
-        {totalAllocations > 0 && pitches.length === 0 && (
+        {Object.keys(allocations).length > 0 && pitches.length === 0 && (
           <div style={{
             backgroundColor: '#fef3c7',
             border: '1px solid #f59e0b',
@@ -680,10 +772,10 @@ function ShareView() {
               Data Structure Issue
             </h3>
             <p style={{ color: '#78350f', marginBottom: '16px' }}>
-              We found {totalAllocations} allocations but couldn't determine the pitch layout.
+              We found {Object.keys(allocations).length} allocation entries but couldn't determine the pitch layout.
             </p>
             <p style={{ fontSize: '12px', color: '#92400e' }}>
-              This might be due to an older share format. Please regenerate the share link from the main application.
+              Please regenerate the share link from the main application.
             </p>
           </div>
         )}
