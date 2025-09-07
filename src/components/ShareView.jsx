@@ -1,4 +1,5 @@
 // Mobile-optimized ShareView.jsx with satellite map and clickable pitches
+// Fixed CORS issue using Firebase SDK
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -51,6 +52,7 @@ const getSharedAllocation = async (shareId) => {
       clubName: clubData.name,
       satelliteConfig: {
         imageUrl: clubData.satelliteConfig?.imageUrl,
+        imagePath: clubData.satelliteConfig?.imagePath, // Store the Firebase path for SDK usage
         imageWidth: clubData.satelliteConfig?.imageWidth,
         imageHeight: clubData.satelliteConfig?.imageHeight,
         pitchBoundaries: clubData.satelliteConfig?.pitchBoundaries?.map((boundary, index) => ({
@@ -84,6 +86,11 @@ function ShareView() {
   const imageRef = useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  
+  // Firebase SDK image loading states
+  const [firebaseImageUrl, setFirebaseImageUrl] = useState(null);
+  const [imageLoadingState, setImageLoadingState] = useState('idle'); // 'idle', 'loading', 'loaded', 'error'
+  const [imageError, setImageError] = useState(null);
 
   // Handle window resize
   useEffect(() => {
@@ -94,6 +101,58 @@ function ShareView() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Firebase SDK image loading
+  useEffect(() => {
+    const loadFirebaseImage = async () => {
+      if (!sharedData?.satelliteConfig?.imageUrl) return;
+      
+      try {
+        setImageLoadingState('loading');
+        setImageError(null);
+        
+        // If we have a Firebase storage path, use Firebase SDK
+        if (sharedData.satelliteConfig.imagePath) {
+          console.log('Loading image via Firebase SDK:', sharedData.satelliteConfig.imagePath);
+          
+          const { ref, getDownloadURL } = await import('firebase/storage');
+          const { storage } = await import('../utils/firebase'); // Adjust path as needed
+          
+          // Create a reference to the image using the path
+          const imageRef = ref(storage, sharedData.satelliteConfig.imagePath);
+          
+          // Get the download URL using Firebase SDK (handles CORS automatically)
+          const url = await getDownloadURL(imageRef);
+          
+          console.log('Firebase SDK URL:', url);
+          setFirebaseImageUrl(url);
+          setImageLoadingState('loaded');
+          
+        } else {
+          // Fallback to direct URL if no path is available
+          console.log('Using direct URL:', sharedData.satelliteConfig.imageUrl);
+          setFirebaseImageUrl(sharedData.satelliteConfig.imageUrl);
+          setImageLoadingState('loaded');
+        }
+        
+      } catch (error) {
+        console.error('Error loading Firebase image:', error);
+        setImageError(error.message);
+        setImageLoadingState('error');
+        
+        // Fallback to direct URL on error
+        if (sharedData.satelliteConfig.imageUrl) {
+          console.log('Falling back to direct URL');
+          setFirebaseImageUrl(sharedData.satelliteConfig.imageUrl);
+          setImageLoadingState('loaded');
+        }
+      }
+    };
+
+    if (sharedData?.satelliteConfig) {
+      loadFirebaseImage();
+    }
+  }, [sharedData]);
 
   // Calculate canvas size maintaining aspect ratio
   const calculateCanvasSize = (imgWidth, imgHeight) => {
@@ -122,6 +181,14 @@ function ShareView() {
       setCanvasSize(size);
       setImageLoaded(true);
     }
+  };
+
+  // Handle image error
+  const handleImageError = (error) => {
+    console.error('Image failed to load:', error);
+    setImageLoaded(false);
+    setImageLoadingState('error');
+    setImageError('Failed to load satellite image');
   };
 
   // Draw the canvas with image and pitch boundaries
@@ -491,7 +558,7 @@ function ShareView() {
         justifyContent: 'center'
       }}>
         {/* Canvas for satellite map */}
-        {satelliteConfig?.imageUrl ? (
+        {firebaseImageUrl && satelliteConfig ? (
           <>
             <canvas
               ref={canvasRef}
@@ -507,7 +574,7 @@ function ShareView() {
             />
             
             {/* Loading state */}
-            {!imageLoaded && (
+            {(imageLoadingState === 'loading' || !imageLoaded) && (
               <div style={{
                 width: '100%',
                 height: isMobile ? '300px' : '400px',
@@ -517,15 +584,38 @@ function ShareView() {
                 backgroundColor: '#f3f4f6',
                 color: '#6b7280'
               }}>
-                Loading satellite view...
+                {imageLoadingState === 'loading' ? 'Loading satellite view...' : 'Preparing satellite view...'}
+              </div>
+            )}
+            
+            {/* Error state */}
+            {imageLoadingState === 'error' && (
+              <div style={{
+                width: '100%',
+                height: isMobile ? '300px' : '400px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#fef2f2',
+                color: '#dc2626',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div>Unable to load satellite image</div>
+                {imageError && (
+                  <div style={{ fontSize: '12px', opacity: 0.7 }}>
+                    {imageError}
+                  </div>
+                )}
               </div>
             )}
             
             {/* Hidden image element for loading */}
             <img
               ref={imageRef}
-              src={satelliteConfig.imageUrl}
+              src={firebaseImageUrl}
               onLoad={handleImageLoad}
+              onError={handleImageError}
               style={{ display: 'none' }}
               alt="Satellite view"
               crossOrigin="anonymous"
@@ -576,7 +666,7 @@ function ShareView() {
       </div>
 
       {/* Pitch List for mobile when no satellite */}
-      {(isMobile || !satelliteConfig?.imageUrl) && satelliteConfig?.pitchBoundaries && (
+      {(isMobile || !firebaseImageUrl) && satelliteConfig?.pitchBoundaries && (
         <div style={{
           backgroundColor: 'white',
           borderRadius: '8px',
