@@ -17,65 +17,54 @@ function isLightColor(color) {
 // Function to get shared allocation data
 const getSharedAllocation = async (shareId) => {
   try {
-    // Try to get from localStorage first (for testing/demo)
-    const localData = localStorage.getItem(`shared_allocation_${shareId}`);
-    if (localData) {
-      return JSON.parse(localData);
-    }
-
-    // If not in localStorage, try to fetch from API
-    const response = await fetch(`/api/shares/${shareId}`);
-    if (!response.ok) {
-      throw new Error(`Share not found (${response.status})`);
+    // Import Firebase here (adjust the path to match your project structure)
+    const { doc, getDoc, collection } = await import('firebase/firestore');
+    const { db } = await import('../utils/firebase'); // Adjust path as needed
+    
+    // Get the shared allocation data from Firebase
+    const shareDoc = await getDoc(doc(db, 'sharedAllocations', shareId));
+    
+    if (!shareDoc.exists()) {
+      throw new Error('Share not found');
     }
     
-    const data = await response.json();
-    return data;
+    const shareData = shareDoc.data();
+    console.log('Share data:', shareData);
+    
+    // Get the club data to fetch satelliteConfig and pitchBoundaries
+    const clubId = shareData.clubId;
+    if (!clubId) {
+      throw new Error('Club ID not found in share data');
+    }
+    
+    const clubDoc = await getDoc(doc(db, 'clubs', clubId));
+    if (!clubDoc.exists()) {
+      throw new Error('Club not found');
+    }
+    
+    const clubData = clubDoc.data();
+    console.log('Club data:', clubData);
+    
+    // Combine the share data with club satellite config
+    return {
+      ...shareData,
+      clubName: clubData.name,
+      satelliteConfig: {
+        imageUrl: clubData.satelliteConfig?.imageUrl,
+        imageWidth: clubData.satelliteConfig?.imageWidth,
+        imageHeight: clubData.satelliteConfig?.imageHeight,
+        pitchBoundaries: clubData.satelliteConfig?.pitchBoundaries?.map((boundary, index) => ({
+          pitchNumber: (index + 1).toString(), // Convert 0-based to 1-based numbering
+          sizeType: boundary.sizeType || 'large',
+          boundaries: boundary.boundaries
+        })) || []
+      }
+    };
 
   } catch (error) {
     console.error('Error fetching shared allocation:', error);
     
-    // Fallback: Return mock data for demonstration
-    if (shareId === 'demo' || process.env.NODE_ENV === 'development') {
-      return {
-        allocations: {
-          '2025-09-06-09:00-pitch1-A': {
-            team: 'Under 10',
-            colour: '#00AA00',
-            duration: 60,
-            isMultiSlot: false
-          },
-          '2025-09-06-10:00-pitch1-B': {
-            team: 'Under 12 YPL',
-            colour: '#FFD700',
-            duration: 60,
-            isMultiSlot: false
-          }
-        },
-        date: '2025-09-06',
-        clubName: 'Demo Soccer Club',
-        type: 'training',
-        pitches: ['pitch1', 'pitch2'],
-        satelliteConfig: {
-          imageUrl: "https://firebasestorage.googleapis.com/v0/b/pitchero-eae06.firebasestorage.app/o/clubs%2F1RFZOF%2Fsatellite-1756349137919.PNG?alt=media&token=25ea2ebc-773a-4728-b22e-59704700841o",
-          imageWidth: 1233,
-          imageHeight: 1058,
-          pitchBoundaries: [
-            {
-              pitchNumber: "1",
-              sizeType: "large",
-              boundaries: { x1: 100, y1: 100, x2: 220, y2: 280 }
-            },
-            {
-              pitchNumber: "2", 
-              sizeType: "large",
-              boundaries: { x1: 250, y1: 120, x2: 380, y2: 310 }
-            }
-          ]
-        }
-      };
-    }
-    
+    // Remove the fallback mock data since you have real data
     throw new Error(error.message || 'Failed to load shared allocation');
   }
 };
