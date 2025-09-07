@@ -31,6 +31,29 @@ export const storage = getStorage(app); // NEW: Added Storage reference
 export { serverTimestamp };
 
 // ================================
+// NEW: FIREBASE STORAGE HELPER FUNCTIONS
+// ================================
+
+// Helper function to get download URL from Firebase Storage path
+export const getFirebaseImageUrl = async (imagePath) => {
+  try {
+    if (!imagePath) return null;
+    
+    const imageRef = ref(storage, imagePath);
+    const downloadURL = await getDownloadURL(imageRef);
+    return downloadURL;
+  } catch (error) {
+    console.error('Error getting Firebase image URL:', error);
+    throw error;
+  }
+};
+
+// Helper function to check if a URL is a Firebase Storage URL
+export const isFirebaseStorageUrl = (url) => {
+  return url && url.includes('firebasestorage.googleapis.com');
+};
+
+// ================================
 // EXISTING USER PROFILE FUNCTIONS
 // ================================
 
@@ -178,7 +201,7 @@ export const getAllClubs = async () => {
 };
 
 // ================================
-// NEW: SATELLITE CONFIGURATION FUNCTIONS
+// UPDATED: SATELLITE CONFIGURATION FUNCTIONS
 // ================================
 
 // Initialize satellite configuration for a club
@@ -192,6 +215,7 @@ export const initializeSatelliteConfig = async (clubId) => {
     await updateDoc(clubRef, {
       'satelliteConfig': {
         imageUrl: null,
+        imagePath: null, // NEW: Added Firebase Storage path
         imageWidth: 0,
         imageHeight: 0,
         lastUpdated: null,
@@ -207,20 +231,27 @@ export const initializeSatelliteConfig = async (clubId) => {
   }
 };
 
-// Update satellite image URL and dimensions
-export const updateSatelliteImage = async (clubId, imageUrl, imageWidth, imageHeight) => {
+// UPDATED: Update satellite image URL, path, and dimensions
+export const updateSatelliteImage = async (clubId, imageUrl, imageWidth, imageHeight, imagePath = null) => {
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');
   
   try {
     const clubRef = doc(db, 'clubs', clubId);
     
-    await updateDoc(clubRef, {
+    const updateData = {
       'satelliteConfig.imageUrl': imageUrl,
       'satelliteConfig.imageWidth': imageWidth,
       'satelliteConfig.imageHeight': imageHeight,
       'satelliteConfig.lastUpdated': serverTimestamp()
-    });
+    };
+
+    // Add imagePath if provided (for Firebase Storage images)
+    if (imagePath) {
+      updateData['satelliteConfig.imagePath'] = imagePath;
+    }
+    
+    await updateDoc(clubRef, updateData);
     
     console.log(`Satellite image updated for club: ${clubId}`);
     return true;
@@ -284,7 +315,7 @@ export const getSatelliteConfig = async (clubId) => {
   }
 };
 
-// Upload satellite image to Firebase Storage
+// UPDATED: Upload satellite image to Firebase Storage
 export const uploadSatelliteImage = async (clubId, imageFile) => {
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');
@@ -306,7 +337,8 @@ export const uploadSatelliteImage = async (clubId, imageFile) => {
     const timestamp = Date.now();
     const fileExtension = imageFile.name.split('.').pop();
     const fileName = `satellite-${timestamp}.${fileExtension}`;
-    const storageRef = ref(storage, `clubs/${clubId}/${fileName}`);
+    const imagePath = `clubs/${clubId}/${fileName}`; // Store the path
+    const storageRef = ref(storage, imagePath);
     
     // Upload file
     console.log('Uploading satellite image...');
@@ -318,6 +350,7 @@ export const uploadSatelliteImage = async (clubId, imageFile) => {
     console.log('Satellite image uploaded successfully:', downloadURL);
     return {
       url: downloadURL,
+      path: imagePath, // NEW: Include Firebase Storage path
       fileName: fileName,
       size: imageFile.size
     };
