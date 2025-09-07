@@ -1,5 +1,5 @@
 // Mobile-optimized ShareView.jsx with satellite map and clickable pitches
-// Fixed CORS issue using Firebase SDK
+// Fixed CORS issue using Firebase SDK with proper public access
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -102,7 +102,7 @@ function ShareView() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Firebase SDK image loading
+  // Firebase SDK image loading - Fixed for proper public access
   useEffect(() => {
     const loadFirebaseImage = async () => {
       if (!sharedData?.satelliteConfig?.imageUrl) return;
@@ -111,41 +111,45 @@ function ShareView() {
         setImageLoadingState('loading');
         setImageError(null);
         
-        // If we have a Firebase storage path, use Firebase SDK
-        if (sharedData.satelliteConfig.imagePath) {
-          console.log('Loading image via Firebase SDK:', sharedData.satelliteConfig.imagePath);
+        let imagePath = sharedData.satelliteConfig.imagePath;
+        
+        // If no imagePath, extract from the imageUrl
+        if (!imagePath && sharedData.satelliteConfig.imageUrl) {
+          const pathMatch = sharedData.satelliteConfig.imageUrl.match(/\/o\/(.+?)\?alt=/);
+          if (pathMatch) {
+            imagePath = decodeURIComponent(pathMatch[1]);
+            console.log('Extracted path from URL:', imagePath);
+          }
+        }
+        
+        // Use Firebase SDK to get public access URL
+        if (imagePath) {
+          console.log('Loading image via Firebase SDK:', imagePath);
           
           const { ref, getDownloadURL } = await import('firebase/storage');
           const { storage } = await import('../utils/firebase'); // Adjust path as needed
           
           // Create a reference to the image using the path
-          const imageRef = ref(storage, sharedData.satelliteConfig.imagePath);
+          const imageRef = ref(storage, imagePath);
           
-          // Get the download URL using Firebase SDK (handles CORS automatically)
-          const url = await getDownloadURL(imageRef);
+          // Get the download URL using Firebase SDK (generates proper public access token)
+          const publicUrl = await getDownloadURL(imageRef);
           
-          console.log('Firebase SDK URL:', url);
-          setFirebaseImageUrl(url);
+          console.log('Firebase SDK generated public URL successfully');
+          setFirebaseImageUrl(publicUrl);
           setImageLoadingState('loaded');
           
         } else {
-          // Fallback to direct URL if no path is available
-          console.log('Using direct URL:', sharedData.satelliteConfig.imageUrl);
-          setFirebaseImageUrl(sharedData.satelliteConfig.imageUrl);
-          setImageLoadingState('loaded');
+          // No path available - this will likely fail due to CORS
+          console.log('No Firebase path available, cannot use SDK - image will likely fail to load');
+          setImageError('No Firebase storage path available');
+          setImageLoadingState('error');
         }
         
       } catch (error) {
         console.error('Error loading Firebase image:', error);
-        setImageError(error.message);
+        setImageError(error.message || 'Failed to load satellite image');
         setImageLoadingState('error');
-        
-        // Fallback to direct URL on error
-        if (sharedData.satelliteConfig.imageUrl) {
-          console.log('Falling back to direct URL');
-          setFirebaseImageUrl(sharedData.satelliteConfig.imageUrl);
-          setImageLoadingState('loaded');
-        }
       }
     };
 
@@ -558,7 +562,7 @@ function ShareView() {
         justifyContent: 'center'
       }}>
         {/* Canvas for satellite map */}
-        {firebaseImageUrl && satelliteConfig ? (
+        {firebaseImageUrl && satelliteConfig && imageLoadingState === 'loaded' ? (
           <>
             <canvas
               ref={canvasRef}
@@ -574,7 +578,7 @@ function ShareView() {
             />
             
             {/* Loading state */}
-            {(imageLoadingState === 'loading' || !imageLoaded) && (
+            {!imageLoaded && (
               <div style={{
                 width: '100%',
                 height: isMobile ? '300px' : '400px',
@@ -584,29 +588,7 @@ function ShareView() {
                 backgroundColor: '#f3f4f6',
                 color: '#6b7280'
               }}>
-                {imageLoadingState === 'loading' ? 'Loading satellite view...' : 'Preparing satellite view...'}
-              </div>
-            )}
-            
-            {/* Error state */}
-            {imageLoadingState === 'error' && (
-              <div style={{
-                width: '100%',
-                height: isMobile ? '300px' : '400px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#fef2f2',
-                color: '#dc2626',
-                flexDirection: 'column',
-                gap: '8px'
-              }}>
-                <div>Unable to load satellite image</div>
-                {imageError && (
-                  <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                    {imageError}
-                  </div>
-                )}
+                Preparing satellite view...
               </div>
             )}
             
@@ -618,9 +600,41 @@ function ShareView() {
               onError={handleImageError}
               style={{ display: 'none' }}
               alt="Satellite view"
-              crossOrigin="anonymous"
             />
           </>
+        ) : imageLoadingState === 'loading' ? (
+          /* Loading state */
+          <div style={{
+            width: '100%',
+            height: isMobile ? '300px' : '400px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#f3f4f6',
+            color: '#6b7280'
+          }}>
+            Loading satellite view...
+          </div>
+        ) : imageLoadingState === 'error' ? (
+          /* Error state */
+          <div style={{
+            width: '100%',
+            height: isMobile ? '300px' : '400px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#fef2f2',
+            color: '#dc2626',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <div>Unable to load satellite image</div>
+            {imageError && (
+              <div style={{ fontSize: '12px', opacity: 0.7 }}>
+                {imageError}
+              </div>
+            )}
+          </div>
         ) : (
           /* Fallback if no satellite image */
           <div style={{
@@ -666,7 +680,7 @@ function ShareView() {
       </div>
 
       {/* Pitch List for mobile when no satellite */}
-      {(isMobile || !firebaseImageUrl) && satelliteConfig?.pitchBoundaries && (
+      {(isMobile || imageLoadingState !== 'loaded') && satelliteConfig?.pitchBoundaries && (
         <div style={{
           backgroundColor: 'white',
           borderRadius: '8px',
