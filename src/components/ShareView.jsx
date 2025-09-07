@@ -310,7 +310,7 @@ function ShareView() {
       } catch (err) {
         console.error('Error loading shared data:', err);
         setError(err.message || 'Failed to load shared allocation');
-      } finally {{
+      } finally {
         setLoading(false);
       }
     };
