@@ -483,19 +483,6 @@ function ShareView() {
     return count;
   };
 
-  const getPitchDisplayName = (pitchId) => {
-    if (pitchNames[pitchId]) {
-      return pitchNames[pitchId];
-    }
-    
-    if (pitchId.startsWith('pitch')) {
-      const num = pitchId.replace('pitch', '');
-      return `Pitch ${num}`;
-    }
-    
-    return pitchId;
-  };
-
   // Render satellite map view with canvas
   const renderMapView = () => (
     <div style={{
