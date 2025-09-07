@@ -267,7 +267,18 @@ function ShareView() {
     if (imageLoaded && canvasRef.current && sharedData) {
       drawCanvas();
     }
-  }, [imageLoaded, sharedData, drawCanvas]);
+  }, [imageLoaded, sharedData, drawCanvas, viewMode]); // Added viewMode dependency
+
+  // Additional effect to redraw canvas when returning to map view
+  useEffect(() => {
+    if (viewMode === 'map' && imageLoaded && canvasRef.current && sharedData) {
+      // Small delay to ensure canvas is properly mounted
+      const timer = setTimeout(() => {
+        drawCanvas();
+      }, 10);
+      return () => clearTimeout(timer);
+    }
+  }, [viewMode, imageLoaded, sharedData, drawCanvas]);
 
   // Handle canvas click to select pitch
   const handleCanvasClick = (e) => {
