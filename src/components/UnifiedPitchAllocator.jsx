@@ -8,17 +8,33 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 // Reusing constants from existing allocators
 const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
-// Time slots function from existing allocators
-const timeSlots = (start = 9, end = 18) => {
+// Updated time slots function - 8:00am to 9:30pm
+const timeSlots = (start = 8, end = 21.5) => {
   const slots = [];
-  for (let h = start; h < end; h++) {
+  for (let h = start; h <= Math.floor(end); h++) {
     for (let m = 0; m < 60; m += 15) {
+      if (h === Math.floor(end) && m > (end % 1) * 60) break;
       const timeString = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
       slots.push(timeString);
     }
   }
   return slots;
 };
+
+// Duration options for dropdown
+const durationOptions = [
+  { value: 15, label: '15 minutes' },
+  { value: 30, label: '30 minutes' },
+  { value: 45, label: '45 minutes' },
+  { value: 60, label: '60 minutes' },
+  { value: 75, label: '75 minutes' },
+  { value: 90, label: '90 minutes' },
+  { value: 105, label: '105 minutes' },
+  { value: 120, label: '120 minutes' },
+  { value: 135, label: '135 minutes' },
+  { value: 150, label: '150 minutes' },
+  { value: 180, label: '180 minutes' }
+];
 
 const UnifiedPitchAllocator = () => {
   const { pitchId } = useParams();
@@ -45,7 +61,7 @@ const UnifiedPitchAllocator = () => {
   const [team, setTeam] = useState('');
   const [section, setSection] = useState('A');
   const [sectionGroup, setSectionGroup] = useState('A');
-  const [slot, setSlot] = useState('09:00');
+  const [slot, setSlot] = useState('08:00');
   const [duration, setDuration] = useState(30);
 
   // Menu and UI state
@@ -908,8 +924,8 @@ const UnifiedPitchAllocator = () => {
         createdAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days expiry
         timeRange: {
-          start: 9, // Match the UnifiedPitchAllocator's default
-          end: 18   // 9am to 6pm
+          start: 8, // Updated to match new time range
+          end: 21.5   // 8am to 9:30pm
         }
       };
       
@@ -1009,7 +1025,7 @@ const UnifiedPitchAllocator = () => {
                 fontWeight: '500'
               }}
             >
-              📋 Copy Link
+              Copy Link
             </button>
             
             <button
@@ -1027,7 +1043,7 @@ const UnifiedPitchAllocator = () => {
                 fontWeight: '500'
               }}
             >
-              🔗 Open Link
+              Open Link
             </button>
             
             <button
@@ -1253,6 +1269,28 @@ const UnifiedPitchAllocator = () => {
                 onClick={() => allocation && isAdmin && !isDeleting && clearAllocation(key)}
                 title={allocation ? `${allocation.team} (${allocation.duration}min) - Click to remove` : `Section ${sec} - Available`}
               >
+                {/* Type indicator icon */}
+                {allocation && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '2px',
+                    right: '2px',
+                    width: '14px',
+                    height: '14px',
+                    backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
+                    color: 'white',
+                    fontSize: '8px',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '2px',
+                    zIndex: 20
+                  }}>
+                    {allocation.type === 'training' ? 'T' : 'M'}
+                  </div>
+                )}
+                
                 <div style={{
                   fontSize: '12px',
                   opacity: 0.75,
@@ -1353,10 +1391,10 @@ const UnifiedPitchAllocator = () => {
               borderBottom: '1px solid #e5e7eb'
             }}>
               <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px' }}>
-                🏢 {clubInfo?.name || 'Loading Club...'}
+                {clubInfo?.name || 'Loading Club...'}
               </div>
               <div style={{ fontSize: '13px', color: '#374151', marginBottom: '2px' }}>
-                👤 {user?.email}
+                {user?.email}
               </div>
               <div style={{ fontSize: '12px', color: '#6b7280' }}>
                 Role: {userRole === 'admin' ? 'Administrator' : 'Member'}
@@ -1380,7 +1418,7 @@ const UnifiedPitchAllocator = () => {
                     fontSize: '14px'
                   }}
                 >
-                  📥 Import Allocation
+                  Import Allocation
                 </button>
                 
                 <button
@@ -1398,7 +1436,7 @@ const UnifiedPitchAllocator = () => {
                     fontSize: '14px'
                   }}
                 >
-                  📤 Export Allocations
+                  Export Allocations
                 </button>
               </>
             )}
@@ -1426,7 +1464,7 @@ const UnifiedPitchAllocator = () => {
                   gap: '8px'
                 }}
               >
-                🚪 Logout
+                Logout
               </button>
             </div>
           </div>
@@ -1472,27 +1510,45 @@ const UnifiedPitchAllocator = () => {
                   alignItems: 'center',
                   gap: '4px'
                 }}>
-                  📊 {totalAllocations} allocation{totalAllocations !== 1 ? 's' : ''}
+                  {totalAllocations} allocation{totalAllocations !== 1 ? 's' : ''}
                 </span>
                 <span style={{ marginLeft: '8px' }}>on {currentPitchName}</span>
               </p>
             </div>
             
-            <button
-              onClick={() => navigate('/club-pitch-map')}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#6b7280',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              ← Back to Overview
-            </button>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => navigate('/club-pitch-map')}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Back to Overview
+              </button>
+              
+              <button
+                onClick={() => navigate('/')}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Back to Main Menu
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1528,7 +1584,7 @@ const UnifiedPitchAllocator = () => {
                   height: '42px'
                 }}
               >
-                ← Previous Day
+                Previous Day
               </button>
               
               <div style={{
@@ -1568,7 +1624,7 @@ const UnifiedPitchAllocator = () => {
                   height: '42px'
                 }}
               >
-                Next Day →
+                Next Day
               </button>
             </div>
             
@@ -1576,38 +1632,6 @@ const UnifiedPitchAllocator = () => {
               display: 'flex',
               gap: '12px'
             }}>
-              <button
-                onClick={() => setAllSlotsExpanded(true)}
-                style={{
-                  padding: '10px 16px',
-                  backgroundColor: '#e0f2fe',
-                  color: '#0369a1',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  height: '42px'
-                }}
-              >
-                Expand All
-              </button>
-              
-              <button
-                onClick={() => setAllSlotsExpanded(false)}
-                style={{
-                  padding: '10px 16px',
-                  backgroundColor: '#fef3c7',
-                  color: '#92400e',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  height: '42px'
-                }}
-              >
-                Collapse All
-              </button>
-
               <button 
                 onClick={handleShare}
                 disabled={Object.keys(allocations).length === 0 || savingAllocation}
@@ -1624,7 +1648,7 @@ const UnifiedPitchAllocator = () => {
                 }}
                 title="Create a shareable link for this allocation"
               >
-                🔗 Share
+                Share
               </button>
               
               {isAdmin && (
@@ -1768,13 +1792,9 @@ const UnifiedPitchAllocator = () => {
                   color: '#374151',
                   marginBottom: '8px'
                 }}>
-                  Duration (minutes)
+                  Duration
                 </label>
-                <input
-                  type="number"
-                  min="15"
-                  max="180"
-                  step="15"
+                <select
                   value={duration}
                   onChange={(e) => setDuration(parseInt(e.target.value))}
                   disabled={allocationType === 'game'}
@@ -1786,7 +1806,13 @@ const UnifiedPitchAllocator = () => {
                     fontSize: '14px',
                     backgroundColor: allocationType === 'game' ? '#f9fafb' : 'white'
                   }}
-                />
+                >
+                  {durationOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Section Selection */}
@@ -1878,14 +1904,58 @@ const UnifiedPitchAllocator = () => {
           padding: '24px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
         }}>
-          <h2 style={{
-            fontSize: '20px',
-            fontWeight: '600',
-            color: '#1f2937',
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             marginBottom: '20px'
           }}>
-            {currentPitchName} - {new Date(date).toLocaleDateString()}
-          </h2>
+            <h2 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#1f2937',
+              margin: 0
+            }}>
+              {currentPitchName} - {new Date(date).toLocaleDateString()}
+            </h2>
+            
+            <div style={{
+              display: 'flex',
+              gap: '12px'
+            }}>
+              <button
+                onClick={() => setAllSlotsExpanded(true)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#e0f2fe',
+                  color: '#0369a1',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  height: '36px'
+                }}
+              >
+                Expand All
+              </button>
+              
+              <button
+                onClick={() => setAllSlotsExpanded(false)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#fef3c7',
+                  color: '#92400e',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  height: '36px'
+                }}
+              >
+                Collapse All
+              </button>
+            </div>
+          </div>
 
           <div style={{
             display: 'flex',
@@ -2021,11 +2091,34 @@ const UnifiedPitchAllocator = () => {
                                       borderColor: allocation ? (allocation.colour || allocation.color) : 'rgba(255,255,255,0.5)',
                                       color: allocation ? (isLightColor(allocation.colour || allocation.color) ? '#000' : '#fff') : '#374151',
                                       opacity: isDeleting ? 0.5 : 1,
-                                      pointerEvents: isDeleting ? 'none' : 'auto'
+                                      pointerEvents: isDeleting ? 'none' : 'auto',
+                                      position: 'relative'
                                     }}
                                     onClick={() => allocation && isAdmin && !isDeleting && clearAllocation(key)}
                                     title={allocation ? `${allocation.team} (${allocation.duration}min) - Click to remove` : `Grass Area - Available`}
                                   >
+                                    {/* Type indicator icon for grass area */}
+                                    {allocation && (
+                                      <div style={{
+                                        position: 'absolute',
+                                        top: '2px',
+                                        right: '2px',
+                                        width: '14px',
+                                        height: '14px',
+                                        backgroundColor: allocation.type === 'training' ? '#3b82f6' : '#ef4444',
+                                        color: 'white',
+                                        fontSize: '8px',
+                                        fontWeight: 'bold',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderRadius: '2px',
+                                        zIndex: 20
+                                      }}>
+                                        {allocation.type === 'training' ? 'T' : 'M'}
+                                      </div>
+                                    )}
+                                    
                                     <div style={{
                                       fontSize: '12px',
                                       opacity: 0.75,
