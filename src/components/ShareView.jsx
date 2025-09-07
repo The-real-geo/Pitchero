@@ -18,7 +18,7 @@ function isLightColor(color) {
 const getSharedAllocation = async (shareId) => {
   try {
     // Import Firebase here (adjust the path to match your project structure)
-    const { doc, getDoc, collection } = await import('firebase/firestore');
+    const { doc, getDoc } = await import('firebase/firestore');
     const { db } = await import('../utils/firebase'); // Adjust path as needed
     
     // Get the shared allocation data from Firebase
