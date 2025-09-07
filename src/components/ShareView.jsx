@@ -56,10 +56,6 @@ const getSharedAllocation = async (shareId) => {
         clubName: 'Demo Soccer Club',
         type: 'training',
         pitches: ['pitch1', 'pitch2'],
-        pitchNames: {
-          'pitch1': 'Main Training Pitch',
-          'pitch2': 'Secondary Pitch'
-        },
         satelliteConfig: {
           imageUrl: "https://firebasestorage.googleapis.com/v0/b/pitchero-eae06.firebasestorage.app/o/clubs%2F1RFZOF%2Fsatellite-1756349137919.PNG?alt=media&token=25ea2ebc-773a-4728-b22e-59704700841o",
           imageWidth: 1233,
@@ -110,7 +106,7 @@ function ShareView() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Calculate canvas size maintaining aspect ratio (similar to SatelliteOverviewMap)
+  // Calculate canvas size maintaining aspect ratio
   const calculateCanvasSize = (imgWidth, imgHeight) => {
     const maxWidth = isMobile ? window.innerWidth - 40 : 1000;
     const maxHeight = isMobile ? 400 : 600;
@@ -139,7 +135,7 @@ function ShareView() {
     }
   };
 
-  // Draw the canvas with image and pitch boundaries (similar to SatelliteOverviewMap)
+  // Draw the canvas with image and pitch boundaries
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
@@ -155,60 +151,57 @@ function ShareView() {
     const scaleX = canvas.width / sharedData.satelliteConfig.imageWidth;
     const scaleY = canvas.height / sharedData.satelliteConfig.imageHeight;
 
+    const allocations = sharedData?.allocations || {};
+
     // Draw pitch boundaries
     if (sharedData.satelliteConfig.pitchBoundaries) {
       sharedData.satelliteConfig.pitchBoundaries.forEach((pitch) => {
-        drawPitchBoundary(ctx, pitch, scaleX, scaleY);
+        const x = pitch.boundaries.x1 * scaleX;
+        const y = pitch.boundaries.y1 * scaleY;
+        const width = (pitch.boundaries.x2 - pitch.boundaries.x1) * scaleX;
+        const height = (pitch.boundaries.y2 - pitch.boundaries.y1) * scaleY;
+
+        // Check if this pitch has allocations
+        const pitchNum = pitch.pitchNumber;
+        const hasAllocations = Object.keys(allocations).some(key => {
+          const parts = key.split('-');
+          return parts.some(part => part === pitchNum || part === `pitch${pitchNum}`);
+        });
+
+        // Draw rectangle
+        ctx.fillStyle = hasAllocations ? 'rgba(34, 197, 94, 0.6)' : 'rgba(34, 197, 94, 0.3)';
+        ctx.fillRect(x, y, width, height);
+        
+        ctx.strokeStyle = '#16a34a';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, width, height);
+
+        // Draw pitch number
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = '#1f2937';
+        ctx.lineWidth = 3;
+        ctx.font = `bold ${Math.max(16, Math.min(28, width / 6))}px sans-serif`;
+        ctx.textAlign = 'center';
+        
+        // Draw text outline
+        ctx.strokeText(pitch.pitchNumber, x + width / 2, y + height / 2 + 8);
+        // Draw text fill
+        ctx.fillText(pitch.pitchNumber, x + width / 2, y + height / 2 + 8);
+
+        // Draw allocation count if has allocations
+        if (hasAllocations) {
+          const allocCount = Object.keys(allocations).filter(key => {
+            const parts = key.split('-');
+            return parts.some(part => part === pitchNum || part === `pitch${pitchNum}`);
+          }).length;
+          
+          ctx.font = `${Math.max(10, Math.min(16, width / 10))}px sans-serif`;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.fillText(`${allocCount} slots`, x + width / 2, y + height / 2 + 28);
+        }
       });
     }
   }, [imageLoaded, sharedData]);
-
-  // Draw individual pitch boundary (similar to SatelliteOverviewMap)
-  const drawPitchBoundary = (ctx, pitch, scaleX, scaleY) => {
-    const x = pitch.boundaries.x1 * scaleX;
-    const y = pitch.boundaries.y1 * scaleY;
-    const width = (pitch.boundaries.x2 - pitch.boundaries.x1) * scaleX;
-    const height = (pitch.boundaries.y2 - pitch.boundaries.y1) * scaleY;
-
-    // Check if this pitch has allocations
-    const pitchNum = pitch.pitchNumber;
-    const hasAllocations = Object.keys(allocations).some(key => {
-      const parts = key.split('-');
-      return parts.some(part => part === pitchNum || part === `pitch${pitchNum}`);
-    });
-
-    // Draw rectangle
-    ctx.fillStyle = hasAllocations ? 'rgba(34, 197, 94, 0.6)' : 'rgba(34, 197, 94, 0.3)';
-    ctx.fillRect(x, y, width, height);
-    
-    ctx.strokeStyle = '#16a34a';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, width, height);
-
-    // Draw pitch number
-    ctx.fillStyle = 'white';
-    ctx.strokeStyle = '#1f2937';
-    ctx.lineWidth = 3;
-    ctx.font = `bold ${Math.max(16, Math.min(28, width / 6))}px sans-serif`;
-    ctx.textAlign = 'center';
-    
-    // Draw text outline
-    ctx.strokeText(pitch.pitchNumber, x + width / 2, y + height / 2 + 8);
-    // Draw text fill
-    ctx.fillText(pitch.pitchNumber, x + width / 2, y + height / 2 + 8);
-
-    // Draw allocation count if has allocations
-    if (hasAllocations) {
-      const allocCount = Object.keys(allocations).filter(key => {
-        const parts = key.split('-');
-        return parts.some(part => part === pitchNum || part === `pitch${pitchNum}`);
-      }).length;
-      
-      ctx.font = `${Math.max(10, Math.min(16, width / 10))}px sans-serif`;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.fillText(`${allocCount} slots`, x + width / 2, y + height / 2 + 28);
-    }
-  };
 
   useEffect(() => {
     if (imageLoaded && canvasRef.current && sharedData) {
@@ -239,7 +232,6 @@ function ShareView() {
   useEffect(() => {
     const loadSharedData = async () => {
       try {
-        // Use Firebase's getSharedAllocation function directly
         const data = await getSharedAllocation(shareId);
         
         console.log('=== SHARE DATA DEBUG ===');
@@ -252,7 +244,6 @@ function ShareView() {
         if (data?.allocations && Object.keys(data.allocations).length > 0) {
           const pitchSet = new Set();
           const dateSet = new Set();
-          const timeSet = new Set();
           
           Object.keys(data.allocations).forEach(key => {
             const parts = key.split('-');
@@ -260,8 +251,6 @@ function ShareView() {
             parts.forEach((part, index) => {
               if (part.match(/^\d{4}/) && part.length >= 8) {
                 dateSet.add(part);
-              } else if (part.match(/^\d{2}:\d{2}$/)) {
-                timeSet.add(part);
               } else if (index > 0 && !sections.includes(part.toUpperCase())) {
                 // Check if this could be a pitch
                 let pitchId = part;
@@ -383,7 +372,6 @@ function ShareView() {
   const clubName = sharedData?.clubName || 'Soccer Club';
   const allocationType = sharedData?.type === 'match' ? 'Match Day' : sharedData?.type === 'training' ? 'Training' : 'Pitch';
   const pitches = sharedData?.pitches || [];
-  const pitchNames = sharedData?.pitchNames || {};
   const satelliteConfig = sharedData?.satelliteConfig;
   
   // Extract time range
