@@ -1868,32 +1868,34 @@ const UnifiedPitchAllocator = () => {
             </div>
 
             {/* Add Button */}
-            <button
-              onClick={addAllocation}
-              disabled={hasConflict || !team || savingAllocation}
-              style={{
-                padding: '12px 24px',
-                backgroundColor: hasConflict || !team ? '#9ca3af' : '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: hasConflict || !team || savingAllocation ? 'not-allowed' : 'pointer',
-                fontSize: '16px',
-                fontWeight: '600'
-              }}
-            >
-              {savingAllocation ? 'Saving...' : hasConflict ? 'Time Conflict' : `Add ${allocationType === 'training' ? 'Training' : 'Game'}`}
-            </button>
+            <div style={{ textAlign: 'center' }}>
+              <button
+                onClick={addAllocation}
+                disabled={hasConflict || !team || savingAllocation}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: hasConflict || !team ? '#9ca3af' : '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: hasConflict || !team || savingAllocation ? 'not-allowed' : 'pointer',
+                  fontSize: '16px',
+                  fontWeight: '600'
+                }}
+              >
+                {savingAllocation ? 'Saving...' : hasConflict ? 'Time Conflict' : `Add ${allocationType === 'training' ? 'Training' : 'Game'}`}
+              </button>
 
-            {hasConflict && (
-              <p style={{
-                color: '#ef4444',
-                fontSize: '14px',
-                marginTop: '8px'
-              }}>
-                This time slot conflicts with an existing allocation
-              </p>
-            )}
+              {hasConflict && (
+                <p style={{
+                  color: '#ef4444',
+                  fontSize: '14px',
+                  marginTop: '8px'
+                }}>
+                  This time slot conflicts with an existing allocation
+                </p>
+              )}
+            </div>
           </div>
         )}
 
