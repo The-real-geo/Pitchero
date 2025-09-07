@@ -1348,129 +1348,6 @@ const UnifiedPitchAllocator = () => {
       minHeight: '100vh',
       fontFamily: 'system-ui, sans-serif'
     }}>
-      {/* Hamburger Menu */}
-      <div style={{
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        zIndex: 1000
-      }}>
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          style={{
-            padding: '10px',
-            backgroundColor: 'white',
-            border: '1px solid #d1d5db',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div style={{ width: '20px', height: '2px', backgroundColor: '#374151', marginBottom: '4px' }}></div>
-          <div style={{ width: '20px', height: '2px', backgroundColor: '#374151', marginBottom: '4px' }}></div>
-          <div style={{ width: '20px', height: '2px', backgroundColor: '#374151' }}></div>
-        </button>
-        
-        {menuOpen && (
-          <div style={{
-            position: 'absolute',
-            top: '50px',
-            right: '0',
-            backgroundColor: 'white',
-            border: '1px solid #d1d5db',
-            borderRadius: '8px',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-            minWidth: '200px',
-            padding: '12px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-          }}>
-            <div style={{
-              padding: '8px',
-              borderBottom: '1px solid #e5e7eb'
-            }}>
-              <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px' }}>
-                {clubInfo?.name || 'Loading Club...'}
-              </div>
-              <div style={{ fontSize: '13px', color: '#374151', marginBottom: '2px' }}>
-                {user?.email}
-              </div>
-              <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                Role: {userRole === 'admin' ? 'Administrator' : 'Member'}
-              </div>
-            </div>
-            
-            {isAdmin && (
-              <>
-                <button
-                  onClick={() => {
-                    importAllocations();
-                    setMenuOpen(false);
-                  }}
-                  style={{
-                    padding: '8px',
-                    backgroundColor: '#f3f4f6',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontSize: '14px'
-                  }}
-                >
-                  Import Allocation
-                </button>
-                
-                <button
-                  onClick={() => {
-                    exportAllocations();
-                    setMenuOpen(false);
-                  }}
-                  style={{
-                    padding: '8px',
-                    backgroundColor: '#f3f4f6',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontSize: '14px'
-                  }}
-                >
-                  Export Allocations
-                </button>
-              </>
-            )}
-            
-            {/* Logout button */}
-            <div style={{
-              borderTop: '1px solid #e5e7eb',
-              marginTop: '8px',
-              paddingTop: '8px'
-            }}>
-              <button
-                onClick={handleLogout}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  backgroundColor: 'white',
-                  color: '#dc2626',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
         {/* Header with club info and allocation count */}
         <div style={{
@@ -1580,18 +1457,17 @@ const UnifiedPitchAllocator = () => {
                     borderRadius: '8px',
                     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                     minWidth: '200px',
-                    padding: '12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
                     zIndex: 1000
                   }}>
+                    {/* User Info Section */}
                     <div style={{
-                      padding: '8px',
-                      borderBottom: '1px solid #e5e7eb'
+                      padding: '12px 16px',
+                      backgroundColor: '#f9fafb',
+                      borderBottom: '1px solid #e5e7eb',
+                      borderRadius: '8px 8px 0 0'
                     }}>
-                      <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px' }}>
-                        {clubInfo?.name || 'Loading Club...'}
+                      <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px', color: '#1f2937' }}>
+                        🏟️ {clubInfo?.name || 'Loading Club...'}
                       </div>
                       <div style={{ fontSize: '13px', color: '#374151', marginBottom: '2px' }}>
                         {user?.email}
@@ -1601,72 +1477,107 @@ const UnifiedPitchAllocator = () => {
                       </div>
                     </div>
                     
+                    {/* Action Buttons */}
                     {isAdmin && (
-                      <>
-                        <button
-                          onClick={() => {
-                            importAllocations();
-                            setMenuOpen(false);
-                          }}
-                          style={{
-                            padding: '8px',
-                            backgroundColor: '#f3f4f6',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            fontSize: '14px'
-                          }}
-                        >
-                          Import Allocation
-                        </button>
-                        
+                      <div style={{ padding: '8px' }}>
                         <button
                           onClick={() => {
                             exportAllocations();
                             setMenuOpen(false);
                           }}
                           style={{
-                            padding: '8px',
-                            backgroundColor: '#f3f4f6',
+                            width: '100%',
+                            padding: '12px 16px',
+                            backgroundColor: 'white',
+                            color: '#374151',
                             border: 'none',
-                            borderRadius: '4px',
                             cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: '500',
                             textAlign: 'left',
-                            fontSize: '14px'
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f3f4f6';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'white';
                           }}
                         >
-                          Export Allocations
+                          📤 Export
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            importAllocations();
+                            setMenuOpen(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            backgroundColor: 'white',
+                            color: '#374151',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            textAlign: 'left',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f3f4f6';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'white';
+                          }}
+                        >
+                          📥 Import
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Logout Button - Separated at bottom */}
+                    {user && (
+                      <>
+                        <div style={{
+                          borderTop: '1px solid #e5e7eb',
+                          margin: '0'
+                        }}></div>
+                        <button
+                          onClick={handleLogout}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            backgroundColor: 'white',
+                            color: '#dc2626',
+                            border: 'none',
+                            borderRadius: '0 0 8px 8px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            textAlign: 'left',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#fef2f2';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'white';
+                          }}
+                        >
+                          🚪 Logout
                         </button>
                       </>
                     )}
-                    
-                    {/* Logout button */}
-                    <div style={{
-                      borderTop: '1px solid #e5e7eb',
-                      marginTop: '8px',
-                      paddingTop: '8px'
-                    }}>
-                      <button
-                        onClick={handleLogout}
-                        style={{
-                          width: '100%',
-                          padding: '8px',
-                          backgroundColor: 'white',
-                          color: '#dc2626',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '14px',
-                          fontWeight: '500',
-                          textAlign: 'left',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px'
-                        }}
-                      >
-                        Logout
-                      </button>
-                    </div>
                   </div>
                 )}
               </div>
