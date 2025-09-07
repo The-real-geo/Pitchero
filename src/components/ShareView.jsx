@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { getSharedAllocation } from '../utils/firebase';
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
@@ -51,7 +52,6 @@ function ShareView() {
   useEffect(() => {
     const loadSharedData = async () => {
       try {
-        // Use Firebase's getSharedAllocation function directly
         const data = await getSharedAllocation(shareId);
         
         console.log('=== SHARE DATA DEBUG ===');
