@@ -1747,9 +1747,7 @@ const UnifiedPitchAllocator = () => {
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: '16px',
-              marginBottom: '20px',
-              maxWidth: '900px',
-              margin: '0 auto 20px auto'
+              marginBottom: '20px'
             }}>
               {/* Time */}
               <div>
