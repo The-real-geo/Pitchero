@@ -1083,8 +1083,8 @@ const UnifiedPitchAllocator = () => {
               Close
             </button>
           </div>
+        </div>
       </div>
-    </div>
     );
   };
 
@@ -1684,53 +1684,26 @@ const UnifiedPitchAllocator = () => {
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
-              gap: '16px'
+              alignItems: 'center'
             }}>
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center'
-              }}>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  style={{
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
-                />
-                <span style={{
-                  fontSize: '12px',
-                  color: '#6b7280',
-                  marginTop: '4px'
-                }}>
-                  {new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}
-                </span>
-              </div>
-              
-              {/* Share button moved to center */}
-              <button 
-                onClick={handleShare}
-                disabled={Object.keys(allocations).length === 0 || savingAllocation}
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
                 style={{
-                  padding: '10px 16px',
-                  backgroundColor: (Object.keys(allocations).length === 0 || savingAllocation) ? '#9ca3af' : '#8b5cf6',
-                  color: 'white',
-                  border: 'none',
+                  padding: '8px 12px',
+                  border: '1px solid #d1d5db',
                   borderRadius: '6px',
-                  cursor: (Object.keys(allocations).length === 0 || savingAllocation) ? 'not-allowed' : 'pointer',
-                  fontSize: '14px',
-                  height: '42px',
-                  fontWeight: '500'
+                  fontSize: '14px'
                 }}
-                title="Create a shareable link for this allocation"
-              >
-                Share
-              </button>
+              />
+              <span style={{
+                fontSize: '12px',
+                color: '#6b7280',
+                marginTop: '4px'
+              }}>
+                {new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}
+              </span>
             </div>
             
             {/* Next Day - Right side */}
@@ -2033,27 +2006,50 @@ const UnifiedPitchAllocator = () => {
               {currentPitchName} - {new Date(date).toLocaleDateString()}
             </h2>
             
-            {/* Filter menu */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+            {/* Share and Filter buttons */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px' 
+            }}>
+              <button 
+                onClick={handleShare}
+                disabled={Object.keys(allocations).length === 0 || savingAllocation}
                 style={{
                   padding: '8px 12px',
-                  backgroundColor: 'white',
-                  border: '1px solid #d1d5db',
+                  backgroundColor: (Object.keys(allocations).length === 0 || savingAllocation) ? '#9ca3af' : '#8b5cf6',
+                  color: 'white',
+                  border: 'none',
                   borderRadius: '6px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
+                  cursor: (Object.keys(allocations).length === 0 || savingAllocation) ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
                 }}
+                title="Create a shareable link for this allocation"
               >
-                {/* Filter icon */}
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M2 4.5L6 8.5V14L10 12V8.5L14 4.5V2H2V4.5Z" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span style={{ fontSize: '14px', color: '#374151' }}>Filter</span>
+                Share
               </button>
+              
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+                  style={{
+                    padding: '8px 12px',
+                    backgroundColor: 'white',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {/* Filter icon */}
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 4.5L6 8.5V14L10 12V8.5L14 4.5V2H2V4.5Z" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span style={{ fontSize: '14px', color: '#374151' }}>Filter</span>
+                </button>
                 
                 {filterMenuOpen && (
                   <div style={{
