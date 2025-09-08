@@ -978,7 +978,8 @@ const UnifiedPitchAllocator = () => {
             fontWeight: '600',
             color: '#1f2937',
             marginBottom: '16px',
-            margin: '0 0 16px 0'
+            margin: '0 0 16px 0',
+            textAlign: 'center'
           }}>
             Share Pitch Allocation
           </h3>
@@ -987,7 +988,8 @@ const UnifiedPitchAllocator = () => {
             fontSize: '14px',
             color: '#6b7280',
             marginBottom: '16px',
-            margin: '0 0 16px 0'
+            margin: '0 0 16px 0',
+            textAlign: 'center'
           }}>
             Your shareable link has been created! This link will expire in 30 days.
           </p>
@@ -999,7 +1001,8 @@ const UnifiedPitchAllocator = () => {
             marginBottom: '16px',
             wordBreak: 'break-all',
             fontSize: '14px',
-            fontFamily: 'monospace'
+            fontFamily: 'monospace',
+            textAlign: 'center'
           }}>
             {shareLink}
           </div>
@@ -1007,7 +1010,7 @@ const UnifiedPitchAllocator = () => {
           <div style={{
             display: 'flex',
             gap: '12px',
-            justifyContent: 'flex-end'
+            justifyContent: 'center'
           }}>
             <button
               onClick={() => {
@@ -1080,7 +1083,8 @@ const UnifiedPitchAllocator = () => {
         borderRadius: '8px',
         padding: '16px',
         width: '280px',
-        height: '400px'
+        height: '400px',
+        margin: '0 auto'
       }}>
         <div style={{
           position: 'absolute',
@@ -1346,23 +1350,31 @@ const UnifiedPitchAllocator = () => {
       padding: '24px',
       backgroundColor: '#f9fafb',
       minHeight: '100vh',
-      fontFamily: 'system-ui, sans-serif'
+      fontFamily: 'system-ui, sans-serif',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center'
     }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      <div style={{ 
+        maxWidth: '1400px', 
+        width: '100%',
+        margin: '0 auto'
+      }}>
         {/* Header with club info and allocation count */}
         <div style={{
           backgroundColor: 'white',
           borderRadius: '12px',
           padding: '16px 24px',
           marginBottom: '24px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center'
         }}>
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <div>
+            <div style={{ textAlign: 'left' }}>
               <h2 style={{
                 fontSize: '24px',
                 fontWeight: 'bold',
@@ -1467,7 +1479,7 @@ const UnifiedPitchAllocator = () => {
                       borderRadius: '8px 8px 0 0'
                     }}>
                       <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px', color: '#1f2937' }}>
-                        🏟️ {clubInfo?.name || 'Loading Club...'}
+                        🟢 {clubInfo?.name || 'Loading Club...'}
                       </div>
                       <div style={{ fontSize: '13px', color: '#374151', marginBottom: '2px' }}>
                         {user?.email}
@@ -1591,11 +1603,12 @@ const UnifiedPitchAllocator = () => {
           borderRadius: '12px',
           padding: '16px 24px',
           marginBottom: '24px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center'
         }}>
           <div style={{
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'center',
             alignItems: 'center',
             flexWrap: 'wrap',
             gap: '16px'
@@ -1715,13 +1728,15 @@ const UnifiedPitchAllocator = () => {
             borderRadius: '12px',
             padding: '24px',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            marginBottom: '24px'
+            marginBottom: '24px',
+            textAlign: 'center'
           }}>
             <h2 style={{
               fontSize: '20px',
               fontWeight: '600',
               color: '#1f2937',
-              marginBottom: '20px'
+              marginBottom: '20px',
+              textAlign: 'center'
             }}>
               Add New Allocation
             </h2>
@@ -1730,7 +1745,9 @@ const UnifiedPitchAllocator = () => {
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: '16px',
-              marginBottom: '20px'
+              marginBottom: '20px',
+              maxWidth: '1000px',
+              margin: '0 auto 20px auto'
             }}>
               {/* Time */}
               <div>
@@ -1739,7 +1756,8 @@ const UnifiedPitchAllocator = () => {
                   fontSize: '14px',
                   fontWeight: '500',
                   color: '#374151',
-                  marginBottom: '8px'
+                  marginBottom: '8px',
+                  textAlign: 'center'
                 }}>
                   Start Time
                 </label>
@@ -1767,7 +1785,8 @@ const UnifiedPitchAllocator = () => {
                   fontSize: '14px',
                   fontWeight: '500',
                   color: '#374151',
-                  marginBottom: '8px'
+                  marginBottom: '8px',
+                  textAlign: 'center'
                 }}>
                   Type
                 </label>
@@ -1794,7 +1813,8 @@ const UnifiedPitchAllocator = () => {
                   fontSize: '14px',
                   fontWeight: '500',
                   color: '#374151',
-                  marginBottom: '8px'
+                  marginBottom: '8px',
+                  textAlign: 'center'
                 }}>
                   Team
                 </label>
@@ -1823,7 +1843,8 @@ const UnifiedPitchAllocator = () => {
                   fontSize: '14px',
                   fontWeight: '500',
                   color: '#374151',
-                  marginBottom: '8px'
+                  marginBottom: '8px',
+                  textAlign: 'center'
                 }}>
                   Duration
                 </label>
@@ -1855,7 +1876,8 @@ const UnifiedPitchAllocator = () => {
                   fontSize: '14px',
                   fontWeight: '500',
                   color: '#374151',
-                  marginBottom: '8px'
+                  marginBottom: '8px',
+                  textAlign: 'center'
                 }}>
                   {allocationType === 'training' ? 'Section' : 'Layout'}
                 </label>
@@ -1923,7 +1945,8 @@ const UnifiedPitchAllocator = () => {
                 <p style={{
                   color: '#ef4444',
                   fontSize: '14px',
-                  marginTop: '8px'
+                  marginTop: '8px',
+                  textAlign: 'center'
                 }}>
                   This time slot conflicts with an existing allocation
                 </p>
@@ -1937,19 +1960,23 @@ const UnifiedPitchAllocator = () => {
           backgroundColor: 'white',
           borderRadius: '12px',
           padding: '24px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center'
         }}>
           <div style={{
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'center',
             alignItems: 'center',
-            marginBottom: '20px'
+            marginBottom: '20px',
+            flexWrap: 'wrap',
+            gap: '16px'
           }}>
             <h2 style={{
               fontSize: '20px',
               fontWeight: '600',
               color: '#1f2937',
-              margin: 0
+              margin: 0,
+              textAlign: 'center'
             }}>
               {currentPitchName} - {new Date(date).toLocaleDateString()}
             </h2>
@@ -1995,7 +2022,8 @@ const UnifiedPitchAllocator = () => {
           <div style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px'
+            gap: '12px',
+            alignItems: 'center'
           }}>
             {slots.map(timeSlot => {
               const slotAllocations = Object.entries(allocations).filter(([key]) =>
@@ -2007,7 +2035,9 @@ const UnifiedPitchAllocator = () => {
                 <div key={timeSlot} style={{
                   borderRadius: '8px',
                   border: '1px solid #e5e7eb',
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  width: '100%',
+                  maxWidth: '800px'
                 }}>
                   <div
                     onClick={() => toggleSlotExpanded(timeSlot)}
@@ -2084,7 +2114,8 @@ const UnifiedPitchAllocator = () => {
                           display: 'grid',
                           gridTemplateColumns: '1fr 1fr',
                           gap: '4px',
-                          height: '104px'
+                          height: '104px',
+                          margin: '0 auto'
                         }}>
                           <div style={{
                             position: 'relative',
