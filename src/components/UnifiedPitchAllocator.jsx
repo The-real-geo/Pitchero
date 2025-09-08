@@ -1010,7 +1010,7 @@ const UnifiedPitchAllocator = () => {
           <div style={{
             display: 'flex',
             gap: '12px',
-            justifyContent: 'center'
+            justifyContent: 'flex-end'
           }}>
             <button
               onClick={() => {
