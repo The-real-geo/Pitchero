@@ -1973,30 +1973,7 @@ const UnifiedPitchAllocator = () => {
             </div>
 
             {/* Add Button - Now aligned to the right */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'flex-end', 
-              gap: '12px',
-              alignItems: 'flex-start' 
-            }}>
-              <button 
-                onClick={handleShare}
-                disabled={Object.keys(allocations).length === 0 || savingAllocation}
-                style={{
-                  padding: '12px 24px',
-                  backgroundColor: (Object.keys(allocations).length === 0 || savingAllocation) ? '#9ca3af' : '#8b5cf6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: (Object.keys(allocations).length === 0 || savingAllocation) ? 'not-allowed' : 'pointer',
-                  fontSize: '16px',
-                  fontWeight: '600'
-                }}
-                title="Create a shareable link for this allocation"
-              >
-                Share
-              </button>
-
+            <div style={{ textAlign: 'right' }}>
               <button
                 onClick={addAllocation}
                 disabled={hasConflict || !team || savingAllocation}
@@ -2014,35 +1991,17 @@ const UnifiedPitchAllocator = () => {
                 {savingAllocation ? 'Saving...' : hasConflict ? 'Time Conflict' : `Add ${allocationType === 'training' ? 'Training' : 'Match'}`}
               </button>
 
-              <button
-                onClick={clearAllAllocations}
-                disabled={deletingAllocation}
-                style={{
-                  padding: '12px 24px',
-                  backgroundColor: deletingAllocation ? '#9ca3af' : '#fee2e2',
-                  color: deletingAllocation ? 'white' : '#dc2626',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: deletingAllocation ? 'not-allowed' : 'pointer',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  opacity: deletingAllocation ? 0.6 : 1
-                }}
-              >
-                {deletingAllocation ? 'Clearing...' : 'Clear All'}
-              </button>
+              {hasConflict && (
+                <p style={{
+                  color: '#ef4444',
+                  fontSize: '14px',
+                  marginTop: '8px',
+                  textAlign: 'right'
+                }}>
+                  This time slot conflicts with an existing allocation
+                </p>
+              )}
             </div>
-
-            {hasConflict && (
-              <p style={{
-                color: '#ef4444',
-                fontSize: '14px',
-                marginTop: '8px',
-                textAlign: 'right'
-              }}>
-                This time slot conflicts with an existing allocation
-              </p>
-            )}
           </div>
         )}
 
