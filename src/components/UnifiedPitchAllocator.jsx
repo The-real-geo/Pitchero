@@ -1424,7 +1424,7 @@ const UnifiedPitchAllocator = () => {
                   fontWeight: '500'
                 }}
               >
-                Choose another pitch
+                Back to Overview
               </button>
               
               <button
@@ -1805,7 +1805,7 @@ const UnifiedPitchAllocator = () => {
                   }}
                 >
                   <option value="training">Training</option>
-                  <option value="game">Game</option>
+                  <option value="game">Match</option>
                 </select>
               </div>
 
