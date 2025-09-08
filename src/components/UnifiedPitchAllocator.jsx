@@ -1347,20 +1347,18 @@ const UnifiedPitchAllocator = () => {
 
   return (
     <div style={{
-      padding: '24px',
-      backgroundColor: '#f9fafb',
       minHeight: '100vh',
+      backgroundColor: '#f9fafb',
       fontFamily: 'system-ui, sans-serif',
-      display: 'flex',
-      justifyContent: 'center',
-      width: '100%'
+      display: 'grid',          // grid makes centering reliable
+      justifyItems: 'center',   // centers horizontally
+      alignContent: 'start',    // keep content top-aligned
+      padding: '24px'
     }}>
       <div style={{ 
-        width: '100%',
-        maxWidth: '1200px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center'
+        width: 'min(1400px, 100%)',  // explicit width so it doesn't flex to full width
+        marginInline: 'auto',
+        flex: '0 0 auto'              // protects against parent flex layouts
       }}>
         {/* Header with club info and allocation count */}
         <div style={{
