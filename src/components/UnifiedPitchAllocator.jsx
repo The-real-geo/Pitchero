@@ -1951,7 +1951,7 @@ const UnifiedPitchAllocator = () => {
                   marginTop: '8px',
                   textAlign: 'center'
                 }}>
-                  This time slot conflicts with an existing allocation
+                  This time slot conflicts with an existing allocation.
                 </p>
               )}
             </div>
