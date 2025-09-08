@@ -1979,6 +1979,24 @@ const UnifiedPitchAllocator = () => {
               gap: '12px',
               alignItems: 'flex-start' 
             }}>
+              <button 
+                onClick={handleShare}
+                disabled={Object.keys(allocations).length === 0 || savingAllocation}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: (Object.keys(allocations).length === 0 || savingAllocation) ? '#9ca3af' : '#8b5cf6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: (Object.keys(allocations).length === 0 || savingAllocation) ? 'not-allowed' : 'pointer',
+                  fontSize: '16px',
+                  fontWeight: '600'
+                }}
+                title="Create a shareable link for this allocation"
+              >
+                Share
+              </button>
+
               <button
                 onClick={addAllocation}
                 disabled={hasConflict || !team || savingAllocation}
