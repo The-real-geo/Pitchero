@@ -1356,9 +1356,9 @@ const UnifiedPitchAllocator = () => {
       padding: '24px'
     }}>
       <div style={{ 
-        width: 'min(1400px, 100%)',  // explicit width so it doesn't flex to full width
-        marginInline: 'auto',
-        flex: '0 0 auto'              // protects against parent flex layouts
+        width: '100%',
+        maxWidth: '1280px',
+        margin: '0 auto'
       }}>
         {/* Header with club info and allocation count */}
         <div style={{
