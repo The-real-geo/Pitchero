@@ -1660,31 +1660,33 @@ const UnifiedPitchAllocator = () => {
         }}>
           <div style={{
             display: 'flex',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '16px'
+            width: '100%'
           }}>
+            {/* Previous Day - Left side */}
+            <button
+              onClick={() => changeDate(-1)}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: '#f3f4f6',
+                border: '1px solid #d1d5db',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                height: '42px'
+              }}
+            >
+              Previous Day
+            </button>
+            
+            {/* Center content */}
             <div style={{
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               gap: '16px'
             }}>
-              <button
-                onClick={() => changeDate(-1)}
-                style={{
-                  padding: '10px 16px',
-                  backgroundColor: '#f3f4f6',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  height: '42px'
-                }}
-              >
-                Previous Day
-              </button>
-              
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -1710,26 +1712,7 @@ const UnifiedPitchAllocator = () => {
                 </span>
               </div>
               
-              <button
-                onClick={() => changeDate(1)}
-                style={{
-                  padding: '10px 16px',
-                  backgroundColor: '#f3f4f6',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  height: '42px'
-                }}
-              >
-                Next Day
-              </button>
-            </div>
-            
-            <div style={{
-              display: 'flex',
-              gap: '12px'
-            }}>
+              {/* Share button moved to center */}
               <button 
                 onClick={handleShare}
                 disabled={Object.keys(allocations).length === 0 || savingAllocation}
@@ -1748,28 +1731,23 @@ const UnifiedPitchAllocator = () => {
               >
                 Share
               </button>
-              
-              {isAdmin && (
-                <button
-                  onClick={clearAllAllocations}
-                  disabled={deletingAllocation}
-                  style={{
-                    padding: '10px 16px',
-                    backgroundColor: deletingAllocation ? '#9ca3af' : '#fee2e2',
-                    color: deletingAllocation ? 'white' : '#dc2626',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: deletingAllocation ? 'not-allowed' : 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    height: '42px',
-                    opacity: deletingAllocation ? 0.6 : 1
-                  }}
-                >
-                  {deletingAllocation ? 'Clearing...' : 'Clear All'}
-                </button>
-              )}
             </div>
+            
+            {/* Next Day - Right side */}
+            <button
+              onClick={() => changeDate(1)}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: '#f3f4f6',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                height: '42px'
+              }}
+            >
+              Next Day
+            </button>
           </div>
         </div>
 
