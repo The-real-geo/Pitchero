@@ -2054,173 +2054,174 @@ const UnifiedPitchAllocator = () => {
                 </svg>
                 <span style={{ fontSize: '14px', color: '#374151' }}>Filter</span>
               </button>
-              
-              {filterMenuOpen && (
-                <div style={{
-                  position: 'absolute',
-                  top: '40px',
-                  right: '0',
-                  backgroundColor: 'white',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                  minWidth: '180px',
-                  zIndex: 1000
-                }}>
-                  {/* Expand/Collapse Section */}
-                  <div style={{ padding: '8px' }}>
-                    <button
-                      onClick={() => {
-                        setAllSlotsExpanded(true);
-                        setFilterMenuOpen(false);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        backgroundColor: 'white',
-                        color: '#374151',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        textAlign: 'left',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f3f4f6';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'white';
-                      }}
-                    >
-                      📂 Expand All
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        setAllSlotsExpanded(false);
-                        setFilterMenuOpen(false);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        backgroundColor: 'white',
-                        color: '#374151',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        textAlign: 'left',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f3f4f6';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'white';
-                      }}
-                    >
-                      📁 Collapse All
-                    </button>
-                  </div>
-                  
-                  {/* Divider */}
+                
+                {filterMenuOpen && (
                   <div style={{
-                    borderTop: '1px solid #e5e7eb',
-                    margin: '0'
-                  }}></div>
-                  
-                  {/* Filter Section */}
-                  <div style={{ padding: '8px' }}>
-                    <button
-                      onClick={() => {
-                        setFilterType('all');
-                        setFilterMenuOpen(false);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        backgroundColor: filterType === 'all' ? '#e0f2fe' : 'white',
-                        color: filterType === 'all' ? '#0369a1' : '#374151',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        textAlign: 'left',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (filterType !== 'all') {
+                    position: 'absolute',
+                    top: '40px',
+                    right: '0',
+                    backgroundColor: 'white',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    minWidth: '180px',
+                    zIndex: 1000
+                  }}>
+                    {/* Expand/Collapse Section */}
+                    <div style={{ padding: '8px' }}>
+                      <button
+                        onClick={() => {
+                          setAllSlotsExpanded(true);
+                          setFilterMenuOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          backgroundColor: 'white',
+                          color: '#374151',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          textAlign: 'left',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = '#f3f4f6';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = filterType === 'all' ? '#e0f2fe' : 'white';
-                      }}
-                    >
-                      🔷 Show All
-                    </button>
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'white';
+                        }}
+                      >
+                        📂 Expand All
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setAllSlotsExpanded(false);
+                          setFilterMenuOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          backgroundColor: 'white',
+                          color: '#374151',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          textAlign: 'left',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#f3f4f6';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'white';
+                        }}
+                      >
+                        📁 Collapse All
+                      </button>
+                    </div>
                     
-                    <button
-                      onClick={() => {
-                        setFilterType('training');
-                        setFilterMenuOpen(false);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        backgroundColor: filterType === 'training' ? '#dbeafe' : 'white',
-                        color: filterType === 'training' ? '#1e40af' : '#374151',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        textAlign: 'left',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (filterType !== 'training') {
-                          e.currentTarget.style.backgroundColor = '#f3f4f6';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = filterType === 'training' ? '#dbeafe' : 'white';
-                      }}
-                    >
-                      🏃 Training Only
-                    </button>
+                    {/* Divider */}
+                    <div style={{
+                      borderTop: '1px solid #e5e7eb',
+                      margin: '0'
+                    }}></div>
                     
-                    <button
-                      onClick={() => {
-                        setFilterType('game');
-                        setFilterMenuOpen(false);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        backgroundColor: filterType === 'game' ? '#fee2e2' : 'white',
-                        color: filterType === 'game' ? '#991b1b' : '#374151',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        textAlign: 'left',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (filterType !== 'game') {
-                          e.currentTarget.style.backgroundColor = '#f3f4f6';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = filterType === 'game' ? '#fee2e2' : 'white';
-                      }}
-                    >
-                      ⚽ Matches Only
-                    </button>
+                    {/* Filter Section */}
+                    <div style={{ padding: '8px' }}>
+                      <button
+                        onClick={() => {
+                          setFilterType('all');
+                          setFilterMenuOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          backgroundColor: filterType === 'all' ? '#e0f2fe' : 'white',
+                          color: filterType === 'all' ? '#0369a1' : '#374151',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          textAlign: 'left',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (filterType !== 'all') {
+                            e.currentTarget.style.backgroundColor = '#f3f4f6';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = filterType === 'all' ? '#e0f2fe' : 'white';
+                        }}
+                      >
+                        🔷 Show All
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setFilterType('training');
+                          setFilterMenuOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          backgroundColor: filterType === 'training' ? '#dbeafe' : 'white',
+                          color: filterType === 'training' ? '#1e40af' : '#374151',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          textAlign: 'left',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (filterType !== 'training') {
+                            e.currentTarget.style.backgroundColor = '#f3f4f6';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = filterType === 'training' ? '#dbeafe' : 'white';
+                        }}
+                      >
+                        🏃 Training Only
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setFilterType('game');
+                          setFilterMenuOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          backgroundColor: filterType === 'game' ? '#fee2e2' : 'white',
+                          color: filterType === 'game' ? '#991b1b' : '#374151',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          textAlign: 'left',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (filterType !== 'game') {
+                            e.currentTarget.style.backgroundColor = '#f3f4f6';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = filterType === 'game' ? '#fee2e2' : 'white';
+                        }}
+                      >
+                        ⚽ Matches Only
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
