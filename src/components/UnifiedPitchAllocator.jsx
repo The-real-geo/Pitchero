@@ -1424,7 +1424,7 @@ const UnifiedPitchAllocator = () => {
                   fontWeight: '500'
                 }}
               >
-                Back to Overview
+                Choose another pitch
               </button>
               
               <button
