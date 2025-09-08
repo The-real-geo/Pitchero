@@ -1352,13 +1352,15 @@ const UnifiedPitchAllocator = () => {
       minHeight: '100vh',
       fontFamily: 'system-ui, sans-serif',
       display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center'
+      justifyContent: 'center',
+      width: '100%'
     }}>
       <div style={{ 
-        maxWidth: '1400px', 
         width: '100%',
-        margin: '0 auto'
+        maxWidth: '1200px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center'
       }}>
         {/* Header with club info and allocation count */}
         <div style={{
@@ -1367,12 +1369,14 @@ const UnifiedPitchAllocator = () => {
           padding: '16px 24px',
           marginBottom: '24px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          textAlign: 'center'
+          width: '100%'
         }}>
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px'
           }}>
             <div style={{ textAlign: 'left' }}>
               <h2 style={{
@@ -1604,7 +1608,7 @@ const UnifiedPitchAllocator = () => {
           padding: '16px 24px',
           marginBottom: '24px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          textAlign: 'center'
+          width: '100%'
         }}>
           <div style={{
             display: 'flex',
@@ -1729,7 +1733,7 @@ const UnifiedPitchAllocator = () => {
             padding: '24px',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
             marginBottom: '24px',
-            textAlign: 'center'
+            width: '100%'
           }}>
             <h2 style={{
               fontSize: '20px',
@@ -1746,7 +1750,7 @@ const UnifiedPitchAllocator = () => {
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: '16px',
               marginBottom: '20px',
-              maxWidth: '1000px',
+              maxWidth: '900px',
               margin: '0 auto 20px auto'
             }}>
               {/* Time */}
@@ -1961,7 +1965,7 @@ const UnifiedPitchAllocator = () => {
           borderRadius: '12px',
           padding: '24px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          textAlign: 'center'
+          width: '100%'
         }}>
           <div style={{
             display: 'flex',
@@ -2023,7 +2027,8 @@ const UnifiedPitchAllocator = () => {
             display: 'flex',
             flexDirection: 'column',
             gap: '12px',
-            alignItems: 'center'
+            alignItems: 'center',
+            width: '100%'
           }}>
             {slots.map(timeSlot => {
               const slotAllocations = Object.entries(allocations).filter(([key]) =>
@@ -2037,7 +2042,7 @@ const UnifiedPitchAllocator = () => {
                   border: '1px solid #e5e7eb',
                   overflow: 'hidden',
                   width: '100%',
-                  maxWidth: '800px'
+                  maxWidth: '600px'
                 }}>
                   <div
                     onClick={() => toggleSlotExpanded(timeSlot)}
@@ -2204,7 +2209,7 @@ const UnifiedPitchAllocator = () => {
                                     {allocation && allocation.isMultiSlot && (
                                       <div style={{
                                         fontSize: '12px',
-                                        opacity: 0.6,
+                                        opacity: 0.6',
                                         marginTop: '4px'
                                       }}>
                                         {allocation.duration}min
@@ -2217,14 +2222,6 @@ const UnifiedPitchAllocator = () => {
                           </div>
                           <div></div>
                         </div>
-                      )}
-                      
-                      {/* Spacer for pitches without grass area */}
-                      {!showGrassArea[normalizedPitchId] && (
-                        <div style={{ 
-                          height: '104px',
-                          width: '280px'
-                        }}></div>
                       )}
                     </div>
                   )}
