@@ -1356,9 +1356,9 @@ const UnifiedPitchAllocator = () => {
       padding: '24px'
     }}>
       <div style={{ 
-        width: '100%',
-        maxWidth: '1280px',
-        margin: '0 auto'
+        width: 'min(1400px, 100%)',  // explicit width so it doesn't flex to full width
+        marginInline: 'auto',
+        flex: '0 0 auto'              // protects against parent flex layouts
       }}>
         {/* Header with club info and allocation count */}
         <div style={{
@@ -2205,7 +2205,7 @@ const UnifiedPitchAllocator = () => {
                                     {allocation && allocation.isMultiSlot && (
                                       <div style={{
                                         fontSize: '12px',
-                                        opacity: 0.6,
+                                        opacity: 0.6',
                                         marginTop: '4px'
                                       }}>
                                         {allocation.duration}min
