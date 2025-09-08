@@ -1335,12 +1335,9 @@ const UnifiedPitchAllocator = () => {
         justifyContent: 'center', 
         alignItems: 'center', 
         height: '100vh',
-        fontFamily: 'system-ui, sans-serif',
-        backgroundColor: 'red',
-        color: 'white',
-        fontSize: '48px'
+        fontFamily: 'system-ui, sans-serif'
       }}>
-        <div>TESTING - THIS SHOULD BE RED</div>
+        <div>Loading...</div>
       </div>
     );
   }
@@ -2208,7 +2205,7 @@ const UnifiedPitchAllocator = () => {
                                     {allocation && allocation.isMultiSlot && (
                                       <div style={{
                                         fontSize: '12px',
-                                        opacity: 0.6,
+                                        opacity: 0.6',
                                         marginTop: '4px'
                                       }}>
                                         {allocation.duration}min
