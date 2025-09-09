@@ -495,7 +495,7 @@ const ClubPitchMap = ({
               color: '#1e40af',
               textAlign: 'center'
             }}>
-              Click pitch on map to view
+              Click pitch on map to view 
             </div>
           </div>
         )}
