@@ -235,6 +235,24 @@ const ClubPitchMap = ({
         <p style={{ color: '#6b7280' }}>
           Please wait while we load your facility map...
         </p>
+        
+        {/* Debug info even during loading */}
+        <div style={{
+          backgroundColor: '#f3f4f6',
+          padding: '12px',
+          borderRadius: '4px',
+          marginTop: '16px',
+          fontSize: '12px',
+          color: '#374151',
+          textAlign: 'left'
+        }}>
+          <div><strong>Debug Info (Loading):</strong></div>
+          <div>Club ID: {clubId || 'Not loaded'}</div>
+          <div>Satellite Config: {satelliteConfig ? 'Loaded' : 'Not loaded'}</div>
+          <div>Loading: {loading ? 'Yes' : 'No'}</div>
+          <div>Error: {error || 'None'}</div>
+        </div>
+        
         <style>{`
           @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -263,6 +281,74 @@ const ClubPitchMap = ({
         <p style={{ color: '#7f1d1d', marginBottom: '16px' }}>
           {error}
         </p>
+        
+        {/* Debug info even during error */}
+        <div style={{
+          backgroundColor: '#f3f4f6',
+          padding: '12px',
+          borderRadius: '4px',
+          marginTop: '16px',
+          fontSize: '12px',
+          color: '#374151',
+          textAlign: 'left'
+        }}>
+          <div><strong>Debug Info (Error):</strong></div>
+          <div>Club ID: {clubId || 'Not loaded'}</div>
+          <div>Club Name: {clubName || 'Not loaded'}</div>
+          <div>Satellite Config: {satelliteConfig ? 'Loaded' : 'Not loaded'}</div>
+          <div>Has imageUrl: {satelliteConfig?.imageUrl ? 'Yes' : 'No'}</div>
+          <div>Loading: {loading ? 'Yes' : 'No'}</div>
+          <div>Error: {error || 'None'}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Debug view - let's always show this first to see what's happening
+  if (!satelliteConfig) {
+    return (
+      <div style={{
+        textAlign: 'center',
+        padding: '48px',
+        backgroundColor: '#fff3cd',
+        borderRadius: '12px',
+        margin: '0 auto',
+        maxWidth: '800px'
+      }}>
+        <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#856404', marginBottom: '16px' }}>
+          Debug: No Satellite Config
+        </h3>
+        
+        <div style={{
+          backgroundColor: '#f3f4f6',
+          padding: '16px',
+          borderRadius: '4px',
+          fontSize: '14px',
+          color: '#374151',
+          textAlign: 'left',
+          marginBottom: '16px'
+        }}>
+          <div><strong>Current State:</strong></div>
+          <div>Club ID: {clubId || 'Not loaded'}</div>
+          <div>Club Name: {clubName || 'Not loaded'}</div>
+          <div>Satellite Config: {satelliteConfig ? 'Loaded' : 'NULL - This is the problem!'}</div>
+          <div>Loading: {loading ? 'Yes' : 'No'}</div>
+          <div>Error: {error || 'None'}</div>
+          
+          {satelliteConfig && (
+            <div style={{ marginTop: '12px' }}>
+              <div><strong>Satellite Config Details:</strong></div>
+              <div>Has imageUrl: {satelliteConfig.imageUrl ? 'Yes' : 'No'}</div>
+              <div>ImageUrl: {satelliteConfig.imageUrl || 'None'}</div>
+              <div>Has pitchBoundaries: {satelliteConfig.pitchBoundaries ? 'Yes' : 'No'}</div>
+              <div>Boundaries count: {satelliteConfig.pitchBoundaries?.length || 0}</div>
+            </div>
+          )}
+        </div>
+        
+        <p style={{ color: '#856404' }}>
+          The satellite config is not loading. Check Firebase for the club document structure.
+        </p>
       </div>
     );
   }
@@ -285,6 +371,25 @@ const ClubPitchMap = ({
         <p style={{ color: '#6b7280', marginBottom: '16px' }}>
           No satellite image has been configured for this facility yet. Please set up the satellite view in Settings.
         </p>
+        
+        {/* Show what we do have */}
+        <div style={{
+          backgroundColor: '#f3f4f6',
+          padding: '12px',
+          borderRadius: '4px',
+          marginTop: '16px',
+          fontSize: '12px',
+          color: '#374151',
+          textAlign: 'left'
+        }}>
+          <div><strong>Debug Info:</strong></div>
+          <div>Club ID: {clubId}</div>
+          <div>Club Name: {clubName}</div>
+          <div>Has Satellite Config: Yes</div>
+          <div>Has imageUrl: No - This is why the map won't show</div>
+          <div>Has pitchBoundaries: {satelliteConfig.pitchBoundaries ? 'Yes' : 'No'}</div>
+          <div>Boundaries count: {satelliteConfig.pitchBoundaries?.length || 0}</div>
+        </div>
       </div>
     );
   }
