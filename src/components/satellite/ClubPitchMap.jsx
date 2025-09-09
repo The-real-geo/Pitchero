@@ -290,7 +290,7 @@ const ClubPitchMap = ({
   }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px' }}>
+    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
       {/* Header */}
       <div style={{
         display: 'flex',
