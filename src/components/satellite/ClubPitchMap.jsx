@@ -425,7 +425,7 @@ const ClubPitchMap = ({
           color: '#1f2937', 
           margin: 0 
         }}>
-          {clubName} Facility Overview
+          {clubName} Facility Overview 
         </h2>
         
         {/* Empty div for spacing */}
