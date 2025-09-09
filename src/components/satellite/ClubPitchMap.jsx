@@ -19,6 +19,7 @@ const ClubPitchMap = ({
   // States for data loading
   const [satelliteConfig, setSatelliteConfig] = useState(null);
   const [clubId, setClubId] = useState(null);
+  const [clubName, setClubName] = useState(''); // Add state for club name
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -72,6 +73,10 @@ const ClubPitchMap = ({
         
         if (clubDoc.exists()) {
           const clubData = clubDoc.data();
+          
+          // Set club name from club document
+          setClubName(clubData.name || 'Club'); // Fallback to 'Club' if name not found
+          
           // Access satelliteConfig field from club document
           if (clubData.satelliteConfig) {
             setSatelliteConfig(clubData.satelliteConfig);
@@ -315,7 +320,7 @@ const ClubPitchMap = ({
           color: '#1f2937', 
           margin: 0 
         }}>
-          BeansFC Facility Overview
+          {clubName} Facility Overview
         </h2>
         
         {/* Empty div for spacing */}
