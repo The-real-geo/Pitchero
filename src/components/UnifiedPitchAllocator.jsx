@@ -1389,7 +1389,30 @@ const UnifiedPitchAllocator = () => {
     );
   }
 
-  const currentPitchName = pitchNames[normalizedPitchId] || `Pitch ${pitchId}`;
+  // Get the current pitch name with better fallback logic
+  const currentPitchName = useMemo(() => {
+    // Try multiple possible key formats
+    const possibleKeys = [
+      normalizedPitchId,           // e.g., 'pitch1'
+      pitchId,                     // e.g., '1' or 'pitch1'
+      `pitch${pitchId}`,          // e.g., 'pitch1'
+      `pitch-${pitchId}`,         // e.g., 'pitch-1'
+    ];
+    
+    for (const key of possibleKeys) {
+      if (pitchNames[key]) {
+        console.log(`Found pitch name for key "${key}":`, pitchNames[key]);
+        return pitchNames[key];
+      }
+    }
+    
+    console.log('No custom pitch name found. Available keys:', Object.keys(pitchNames));
+    console.log('Trying to match:', { normalizedPitchId, pitchId });
+    
+    // Fallback to default name
+    return `Pitch ${pitchId}`;
+  }, [pitchNames, normalizedPitchId, pitchId]);
+
   const isAdmin = userRole === 'admin';
 
   return (
