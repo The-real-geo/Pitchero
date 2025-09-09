@@ -280,6 +280,55 @@ const UnifiedPitchAllocator = () => {
     }
   }, [clubInfo?.clubId, team]);
 
+  // Load allocations function
+  const loadAllocations = useCallback(async () => {
+    if (!clubInfo?.clubId || !date || !normalizedPitchId) return;
+
+    try {
+      console.log('Loading allocations for:', { date, pitchId: normalizedPitchId, clubId: clubInfo.clubId });
+      
+      // Load both training and match allocations
+      const trainingDocRef = doc(db, 'trainingAllocations', `${clubInfo.clubId}-${date}`);
+      const matchDocRef = doc(db, 'matchAllocations', `${clubInfo.clubId}-${date}`);
+      
+      const [trainingDoc, matchDoc] = await Promise.all([
+        getDoc(trainingDocRef),
+        getDoc(matchDocRef)
+      ]);
+      
+      let combinedAllocations = {};
+      
+      // Process training allocations
+      if (trainingDoc.exists()) {
+        const trainingData = trainingDoc.data();
+        // Filter for current pitch only
+        Object.entries(trainingData).forEach(([key, value]) => {
+          if (key.includes(`-${normalizedPitchId}-`) && typeof value === 'object') {
+            combinedAllocations[key] = { ...value, type: 'training' };
+          }
+        });
+        console.log('Loaded training allocations:', Object.keys(combinedAllocations).length);
+      }
+      
+      // Process match allocations
+      if (matchDoc.exists()) {
+        const matchData = matchDoc.data();
+        // Filter for current pitch only
+        Object.entries(matchData).forEach(([key, value]) => {
+          if (key.includes(`-${normalizedPitchId}-`) && typeof value === 'object') {
+            combinedAllocations[key] = { ...value, type: 'game' };
+          }
+        });
+      }
+      
+      console.log('Total allocations loaded:', Object.keys(combinedAllocations).length);
+      setAllocations(combinedAllocations);
+    } catch (error) {
+      console.error('Error loading allocations:', error);
+      setAllocations({});
+    }
+  }, [date, normalizedPitchId, clubInfo?.clubId]);
+
   // Load user and club data
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -336,32 +385,28 @@ const UnifiedPitchAllocator = () => {
     return () => unsubscribe();
   }, []);
 
-  // Load settings when club info is available
+  // Load settings when club info is available - FIXED
   useEffect(() => {
-    if (clubInfo?.clubId) {
-      loadSettings();
-    }
-  }, [loadSettings]);
+    loadSettings();
+  }, [clubInfo?.clubId, loadSettings]);
 
-  // Add window focus listener to reload settings when user comes back
+  // Add window focus listener to reload settings when user comes back - FIXED
   useEffect(() => {
+    if (!clubInfo?.clubId) return;
+
     const handleFocus = () => {
       console.log('Window focused, reloading settings...');
-      if (clubInfo?.clubId) {
-        loadSettings();
-      }
+      loadSettings();
     };
 
-    window.addEventListener('focus', handleFocus);
-    
-    // Also listen for visibility change
     const handleVisibilityChange = () => {
-      if (!document.hidden && clubInfo?.clubId) {
+      if (!document.hidden) {
         console.log('Page became visible, reloading settings...');
         loadSettings();
       }
     };
 
+    window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
@@ -369,55 +414,6 @@ const UnifiedPitchAllocator = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [clubInfo?.clubId, loadSettings]);
-
-  // Load allocations function
-  const loadAllocations = useCallback(async () => {
-    if (!clubInfo?.clubId || !date || !normalizedPitchId) return;
-
-    try {
-      console.log('Loading allocations for:', { date, pitchId: normalizedPitchId, clubId: clubInfo.clubId });
-      
-      // Load both training and match allocations
-      const trainingDocRef = doc(db, 'trainingAllocations', `${clubInfo.clubId}-${date}`);
-      const matchDocRef = doc(db, 'matchAllocations', `${clubInfo.clubId}-${date}`);
-      
-      const [trainingDoc, matchDoc] = await Promise.all([
-        getDoc(trainingDocRef),
-        getDoc(matchDocRef)
-      ]);
-      
-      let combinedAllocations = {};
-      
-      // Process training allocations
-      if (trainingDoc.exists()) {
-        const trainingData = trainingDoc.data();
-        // Filter for current pitch only
-        Object.entries(trainingData).forEach(([key, value]) => {
-          if (key.includes(`-${normalizedPitchId}-`) && typeof value === 'object') {
-            combinedAllocations[key] = { ...value, type: 'training' };
-          }
-        });
-        console.log('Loaded training allocations:', Object.keys(combinedAllocations).length);
-      }
-      
-      // Process match allocations
-      if (matchDoc.exists()) {
-        const matchData = matchDoc.data();
-        // Filter for current pitch only
-        Object.entries(matchData).forEach(([key, value]) => {
-          if (key.includes(`-${normalizedPitchId}-`) && typeof value === 'object') {
-            combinedAllocations[key] = { ...value, type: 'game' };
-          }
-        });
-      }
-      
-      console.log('Total allocations loaded:', Object.keys(combinedAllocations).length);
-      setAllocations(combinedAllocations);
-    } catch (error) {
-      console.error('Error loading allocations:', error);
-      setAllocations({});
-    }
-  }, [date, normalizedPitchId, clubInfo?.clubId]);
 
   // Load allocations when date, pitch or club changes
   useEffect(() => {
