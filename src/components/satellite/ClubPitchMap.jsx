@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
-import { auth, db } from '../../firebase/config';
+import { auth, db } from '../../utils/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -495,7 +495,7 @@ const ClubPitchMap = ({
               color: '#1e40af',
               textAlign: 'center'
             }}>
-              Click pitch on map to view 
+              Click pitch on map to view
             </div>
           </div>
         )}
