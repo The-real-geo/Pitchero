@@ -243,6 +243,43 @@ const UnifiedPitchAllocator = () => {
     return uniqueAllocations.size;
   }, [filteredAllocations]);
 
+  // Load settings from Firestore
+  const loadSettings = useCallback(async () => {
+    if (!clubInfo?.clubId) return;
+
+    try {
+      const settingsRef = doc(db, 'clubs', clubInfo.clubId, 'settings', 'general');
+      const settingsDoc = await getDoc(settingsRef);
+      
+      if (settingsDoc.exists()) {
+        const data = settingsDoc.data();
+        console.log('Loading settings:', data);
+        
+        // Update club name if it exists in settings
+        if (data.clubName) {
+          setClubInfo(prev => ({
+            ...prev,
+            name: data.clubName
+          }));
+        }
+        if (data.teams) {
+          setTeams(data.teams);
+          // Set initial team if teams are loaded
+          if (data.teams.length > 0 && !team) {
+            setTeam(data.teams[0].name);
+          }
+        }
+        if (data.pitchNames) {
+          console.log('Updating pitch names:', data.pitchNames);
+          setPitchNames(data.pitchNames);
+        }
+        if (data.showGrassArea) setShowGrassArea(data.showGrassArea);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  }, [clubInfo?.clubId, team]);
+
   // Load user and club data
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -299,41 +336,39 @@ const UnifiedPitchAllocator = () => {
     return () => unsubscribe();
   }, []);
 
-  // Load settings and allocations when club info is available
+  // Load settings when club info is available
   useEffect(() => {
-    if (!clubInfo?.clubId) return;
+    if (clubInfo?.clubId) {
+      loadSettings();
+    }
+  }, [loadSettings]);
 
-    const loadSettings = async () => {
-      try {
-        const settingsRef = doc(db, 'clubs', clubInfo.clubId, 'settings', 'general');
-        const settingsDoc = await getDoc(settingsRef);
-        
-        if (settingsDoc.exists()) {
-          const data = settingsDoc.data();
-          // Update club name if it exists in settings
-          if (data.clubName) {
-            setClubInfo(prev => ({
-              ...prev,
-              name: data.clubName
-            }));
-          }
-          if (data.teams) {
-            setTeams(data.teams);
-            // Set initial team if teams are loaded
-            if (data.teams.length > 0 && !team) {
-              setTeam(data.teams[0].name);
-            }
-          }
-          if (data.pitchNames) setPitchNames(data.pitchNames);
-          if (data.showGrassArea) setShowGrassArea(data.showGrassArea);
-        }
-      } catch (error) {
-        console.error('Error loading settings:', error);
+  // Add window focus listener to reload settings when user comes back
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Window focused, reloading settings...');
+      if (clubInfo?.clubId) {
+        loadSettings();
       }
     };
 
-    loadSettings();
-  }, [clubInfo?.clubId, team]);
+    window.addEventListener('focus', handleFocus);
+    
+    // Also listen for visibility change
+    const handleVisibilityChange = () => {
+      if (!document.hidden && clubInfo?.clubId) {
+        console.log('Page became visible, reloading settings...');
+        loadSettings();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [clubInfo?.clubId, loadSettings]);
 
   // Load allocations function
   const loadAllocations = useCallback(async () => {
@@ -1261,6 +1296,7 @@ const UnifiedPitchAllocator = () => {
             const key = `${date}-${timeSlot}-${normalizedPitchId}-${sec}`;
             const allocation = filteredAllocations[key];
             const isDeleting = deletingKeys.has(key);
+            const isAdmin = userRole === 'admin';
             
             return (
               <div 
@@ -1463,7 +1499,7 @@ const UnifiedPitchAllocator = () => {
                     borderRadius: '8px 8px 0 0'
                   }}>
                     <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px', color: '#1f2937' }}>
-                      🟢 {clubInfo?.name || 'Loading Club...'}
+                      {clubInfo?.name || 'Loading Club...'}
                     </div>
                     <div style={{ fontSize: '13px', color: '#374151', marginBottom: '2px' }}>
                       {user?.email}
@@ -1502,7 +1538,7 @@ const UnifiedPitchAllocator = () => {
                         e.currentTarget.style.backgroundColor = 'white';
                       }}
                     >
-                      🏠 Back to Main Menu
+                      Back to Main Menu
                     </button>
                     
                     <button
@@ -1532,7 +1568,7 @@ const UnifiedPitchAllocator = () => {
                         e.currentTarget.style.backgroundColor = 'white';
                       }}
                     >
-                      📍 Choose Another Pitch
+                      Choose Another Pitch
                     </button>
                   </div>
                   
@@ -1571,7 +1607,7 @@ const UnifiedPitchAllocator = () => {
                             e.currentTarget.style.backgroundColor = 'white';
                           }}
                         >
-                          📤 Export
+                          Export
                         </button>
                         
                         <button
@@ -1601,7 +1637,7 @@ const UnifiedPitchAllocator = () => {
                             e.currentTarget.style.backgroundColor = 'white';
                           }}
                         >
-                          📥 Import
+                          Import
                         </button>
                       </div>
                     </>
@@ -1639,7 +1675,7 @@ const UnifiedPitchAllocator = () => {
                           e.currentTarget.style.backgroundColor = 'white';
                         }}
                       >
-                        🚪 Logout
+                        Logout
                       </button>
                     </>
                   )}
@@ -2089,7 +2125,7 @@ const UnifiedPitchAllocator = () => {
                           e.currentTarget.style.backgroundColor = 'white';
                         }}
                       >
-                        📂 Expand All
+                        Expand All
                       </button>
                       
                       <button
@@ -2116,7 +2152,7 @@ const UnifiedPitchAllocator = () => {
                           e.currentTarget.style.backgroundColor = 'white';
                         }}
                       >
-                        📁 Collapse All
+                        Collapse All
                       </button>
                     </div>
                     
@@ -2154,7 +2190,7 @@ const UnifiedPitchAllocator = () => {
                           e.currentTarget.style.backgroundColor = filterType === 'all' ? '#e0f2fe' : 'white';
                         }}
                       >
-                        🔷 Show All
+                        Show All
                       </button>
                       
                       <button
@@ -2183,7 +2219,7 @@ const UnifiedPitchAllocator = () => {
                           e.currentTarget.style.backgroundColor = filterType === 'training' ? '#dbeafe' : 'white';
                         }}
                       >
-                        🏃 Training Only
+                        Training Only
                       </button>
                       
                       <button
@@ -2212,7 +2248,7 @@ const UnifiedPitchAllocator = () => {
                           e.currentTarget.style.backgroundColor = filterType === 'game' ? '#fee2e2' : 'white';
                         }}
                       >
-                        ⚽ Matches Only
+                        Matches Only
                       </button>
                     </div>
                   </div>
