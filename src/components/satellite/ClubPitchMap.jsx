@@ -386,7 +386,7 @@ const ClubPitchMap = ({
       {/* Main content container with map and legend */}
       <div style={{
         display: 'flex',
-        gap: '24px',
+        gap: '16px',
         alignItems: 'flex-start'
       }}>
         {/* Canvas Container */}
