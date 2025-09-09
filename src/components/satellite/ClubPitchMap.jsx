@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
-import { auth, db } from '../../utils/firebase';
+import { auth, db } from '../../firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -94,8 +94,8 @@ const ClubPitchMap = ({
 
   // Calculate canvas size maintaining aspect ratio
   const calculateCanvasSize = (imgWidth, imgHeight) => {
-    const maxWidth = 800; // Reduced to make room for legend
-    const maxHeight = 600;
+    const maxWidth = 1000;
+    const maxHeight = 700;
     const aspectRatio = imgWidth / imgHeight;
     
     let width = maxWidth;
@@ -383,7 +383,7 @@ const ClubPitchMap = ({
         <div style={{ width: '120px' }}></div>
       </div>
 
-      {/* Main content container with map and legend */}
+      {/* Main content container with map and small legend */}
       <div style={{
         display: 'flex',
         gap: '16px',
@@ -423,120 +423,85 @@ const ClubPitchMap = ({
           />
         </div>
 
-        {/* Legend Table */}
+        {/* SMALL Legend Box - Non-clickable */}
         {satelliteConfig?.pitchBoundaries?.length > 0 && (
           <div style={{
-            minWidth: '300px',
+            width: '180px',
             backgroundColor: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            borderRadius: '6px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
             border: '1px solid #e5e7eb',
-            padding: '20px'
+            padding: '8px',
+            fontSize: '11px'
           }}>
-            <h3 style={{
-              fontSize: '18px',
+            <div style={{
+              fontSize: '12px',
               fontWeight: '600',
-              color: '#1f2937',
-              marginBottom: '16px',
-              borderBottom: '2px solid #e5e7eb',
-              paddingBottom: '8px'
+              color: '#374151',
+              marginBottom: '6px',
+              paddingBottom: '4px',
+              borderBottom: '1px solid #e5e7eb'
             }}>
               Pitch Legend
-            </h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {satelliteConfig.pitchBoundaries.map((pitch, index) => (
-                <div 
-                  key={index}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '12px',
-                    backgroundColor: '#f9fafb',
-                    borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    ':hover': {
-                      backgroundColor: '#f3f4f6',
-                      transform: 'translateX(4px)'
-                    }
-                  }}
-                  onClick={() => {
-                    const pitchId = pitch.pitchNumber || `pitch${index + 1}`;
-                    navigate(`/allocator/${pitchId}`);
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f3f4f6';
-                    e.currentTarget.style.transform = 'translateX(4px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f9fafb';
-                    e.currentTarget.style.transform = 'translateX(0)';
-                  }}
-                >
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    backgroundColor: '#16a34a',
-                    color: 'white',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold',
-                    fontSize: '16px',
-                    marginRight: '12px'
-                  }}>
-                    {pitch.pitchNumber || `P${index + 1}`}
-                  </div>
-                  
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#1f2937',
-                      marginBottom: '2px'
-                    }}>
-                      {pitch.customName || pitch.name || `Pitch ${index + 1}`}
-                    </div>
-                    {pitch.description && (
-                      <div style={{
-                        fontSize: '12px',
-                        color: '#6b7280'
-                      }}>
-                        {pitch.description}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div style={{
-                    color: '#9ca3af',
-                    fontSize: '20px'
-                  }}>
-                    →
-                  </div>
-                </div>
-              ))}
             </div>
             
-            {/* Instructions */}
+            {satelliteConfig.pitchBoundaries.map((pitch, index) => (
+              <div 
+                key={index}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '4px',
+                  marginBottom: '2px',
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '3px',
+                  fontSize: '11px'
+                }}
+              >
+                <span style={{
+                  display: 'inline-block',
+                  width: '20px',
+                  height: '20px',
+                  backgroundColor: '#16a34a',
+                  color: 'white',
+                  borderRadius: '3px',
+                  textAlign: 'center',
+                  lineHeight: '20px',
+                  fontWeight: 'bold',
+                  fontSize: '10px',
+                  marginRight: '6px',
+                  flexShrink: 0
+                }}>
+                  {pitch.pitchNumber || `${index + 1}`}
+                </span>
+                
+                <span style={{ 
+                  color: '#374151',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {pitch.customName || pitch.name || `Pitch ${index + 1}`}
+                </span>
+              </div>
+            ))}
+            
             <div style={{
-              marginTop: '20px',
-              padding: '12px',
-              backgroundColor: '#f0f9ff',
-              border: '1px solid #0ea5e9',
-              borderRadius: '8px',
-              fontSize: '12px',
-              color: '#0c4a6e'
+              marginTop: '6px',
+              padding: '4px',
+              backgroundColor: '#eff6ff',
+              borderRadius: '3px',
+              fontSize: '9px',
+              color: '#1e40af',
+              textAlign: 'center'
             }}>
-              Click on any pitch in the legend or on the map to view its allocation details.
+              Click pitch on map to view
             </div>
           </div>
         )}
       </div>
 
-      {/* Bottom navigation instruction if no legend */}
+      {/* Bottom instruction if no pitches configured */}
       {(!satelliteConfig?.pitchBoundaries || satelliteConfig.pitchBoundaries.length === 0) && (
         <div style={{
           backgroundColor: '#fff3cd',
