@@ -11,6 +11,37 @@ const ClubPitchMap = ({
 }) => {
   const navigate = useNavigate();
   
+  // IMMEDIATE TEST - THIS SHOULD SHOW UP RIGHT AWAY
+  return (
+    <div style={{ 
+      padding: '50px', 
+      backgroundColor: '#ff0000', 
+      color: 'white', 
+      fontSize: '30px', 
+      textAlign: 'center',
+      margin: '20px'
+    }}>
+      <h1>🚨 CODE UPDATE TEST 🚨</h1>
+      <p>If you can see this red screen, the file is updating correctly!</p>
+      <p>Your satellite data is working - we just need to fix the legend display.</p>
+      <button 
+        onClick={() => navigate('/menu')}
+        style={{
+          padding: '20px 40px',
+          fontSize: '20px',
+          backgroundColor: 'white',
+          color: 'black',
+          border: 'none',
+          borderRadius: '10px',
+          cursor: 'pointer',
+          marginTop: '20px'
+        }}
+      >
+        Back to Menu
+      </button>
+    </div>
+  );
+  
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -425,7 +456,7 @@ const ClubPitchMap = ({
           color: '#1f2937', 
           margin: 0 
         }}>
-          {clubName} Facility Overview 
+          {clubName} Facility Overview
         </h2>
         
         {/* Empty div for spacing */}
