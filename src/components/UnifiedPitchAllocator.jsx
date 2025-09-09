@@ -89,17 +89,6 @@ const UnifiedPitchAllocator = () => {
     return id.replace('pitch-', 'pitch');
   }, [pitchId]);
 
-  // Helper function from existing allocators
-  const isLightColor = (color) => {
-    if (!color) return true;
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-    const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-    return brightness > 155;
-  };
-
   // Match day pitch area requirements - reusing existing logic
   const matchDayPitchAreaRequired = useMemo(() => ({
     'Under 6': 'Under 6 & 7',
@@ -113,6 +102,69 @@ const UnifiedPitchAllocator = () => {
     'Under 15': 'Under 14+',
     'Under 16': 'Under 14+'
   }), []);
+
+  // Filtered allocations based on filter type
+  const filteredAllocations = useMemo(() => {
+    if (filterType === 'all') return allocations;
+    
+    const filtered = {};
+    Object.entries(allocations).forEach(([key, allocation]) => {
+      if (allocation.type === filterType) {
+        filtered[key] = allocation;
+      }
+    });
+    return filtered;
+  }, [allocations, filterType]);
+
+  // Count total allocations
+  const totalAllocations = useMemo(() => {
+    const uniqueAllocations = new Set();
+    Object.entries(filteredAllocations).forEach(([key, allocation]) => {
+      if (allocation.isMultiSlot) {
+        // For multi-slot allocations, only count once using startTime
+        const uniqueKey = `${allocation.team}-${allocation.startTime}-${allocation.section}`;
+        uniqueAllocations.add(uniqueKey);
+      } else {
+        uniqueAllocations.add(key);
+      }
+    });
+    return uniqueAllocations.size;
+  }, [filteredAllocations]);
+
+  // Get the current pitch name with better fallback logic
+  const currentPitchName = useMemo(() => {
+    // Try multiple possible key formats
+    const possibleKeys = [
+      normalizedPitchId,           // e.g., 'pitch1'
+      pitchId,                     // e.g., '1' or 'pitch1'
+      `pitch${pitchId}`,          // e.g., 'pitch1'
+      `pitch-${pitchId}`,         // e.g., 'pitch-1'
+    ];
+    
+    for (const key of possibleKeys) {
+      if (pitchNames[key]) {
+        console.log(`Found pitch name for key "${key}":`, pitchNames[key]);
+        return pitchNames[key];
+      }
+    }
+    
+    console.log('No custom pitch name found. Available keys:', Object.keys(pitchNames));
+    console.log('Trying to match:', { normalizedPitchId, pitchId });
+    
+    // Fallback to default name
+    return `Pitch ${pitchId}`;
+  }, [pitchNames, normalizedPitchId, pitchId]);
+
+  // Helper function from existing allocators
+  const isLightColor = (color) => {
+    if (!color) return true;
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return brightness > 155;
+  };
 
   // Get default pitch area for team - reusing existing logic
   const getDefaultPitchAreaForTeam = useCallback((teamName) => {
@@ -215,33 +267,31 @@ const UnifiedPitchAllocator = () => {
     }
   }, [matchDayPitchAreaRequired, getDefaultPitchAreaForTeam]);
 
-  // Filtered allocations based on filter type
-  const filteredAllocations = useMemo(() => {
-    if (filterType === 'all') return allocations;
+  // Conflict checking - following existing allocator pattern
+  const hasConflict = useMemo(() => {
+    const slotsNeeded = duration / 15; // 15-minute intervals
+    const startSlotIndex = slots.indexOf(slot);
     
-    const filtered = {};
-    Object.entries(allocations).forEach(([key, allocation]) => {
-      if (allocation.type === filterType) {
-        filtered[key] = allocation;
-      }
-    });
-    return filtered;
-  }, [allocations, filterType]);
+    if (startSlotIndex + slotsNeeded > slots.length) {
+      return true;
+    }
 
-  // Count total allocations
-  const totalAllocations = useMemo(() => {
-    const uniqueAllocations = new Set();
-    Object.entries(filteredAllocations).forEach(([key, allocation]) => {
-      if (allocation.isMultiSlot) {
-        // For multi-slot allocations, only count once using startTime
-        const uniqueKey = `${allocation.team}-${allocation.startTime}-${allocation.section}`;
-        uniqueAllocations.add(uniqueKey);
-      } else {
-        uniqueAllocations.add(key);
+    const sectionsToCheck = allocationType === 'training' 
+      ? [section] 
+      : getSectionsToAllocate(team, sectionGroup);
+    
+    for (let i = 0; i < slotsNeeded; i++) {
+      const checkSlot = slots[startSlotIndex + i];
+      for (const sectionToCheck of sectionsToCheck) {
+        const checkKey = `${date}-${checkSlot}-${normalizedPitchId}-${sectionToCheck}`;
+        if (allocations[checkKey]) {
+          return true;
+        }
       }
-    });
-    return uniqueAllocations.size;
-  }, [filteredAllocations]);
+    }
+    
+    return false;
+  }, [allocations, date, slot, normalizedPitchId, section, sectionGroup, duration, slots, allocationType, team, getSectionsToAllocate]);
 
   // Load settings from Firestore
   const loadSettings = useCallback(async () => {
@@ -385,12 +435,12 @@ const UnifiedPitchAllocator = () => {
     return () => unsubscribe();
   }, []);
 
-  // Load settings when club info is available - FIXED
+  // Load settings when club info is available
   useEffect(() => {
     loadSettings();
   }, [clubInfo?.clubId, loadSettings]);
 
-  // Add window focus listener to reload settings when user comes back - FIXED
+  // Add window focus listener to reload settings when user comes back
   useEffect(() => {
     if (!clubInfo?.clubId) return;
 
@@ -429,6 +479,23 @@ const UnifiedPitchAllocator = () => {
     setExpandedSlots(initialExpanded);
   }, [slots]);
 
+  // Early return for loading state - placed AFTER all hooks
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontFamily: 'system-ui, sans-serif'
+      }}>
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
+  const isAdmin = userRole === 'admin';
+
   // Logout handler
   const handleLogout = async () => {
     try {
@@ -439,32 +506,6 @@ const UnifiedPitchAllocator = () => {
       console.error('Error signing out:', error);
     }
   };
-
-  // Conflict checking - following existing allocator pattern
-  const hasConflict = useMemo(() => {
-    const slotsNeeded = duration / 15; // 15-minute intervals
-    const startSlotIndex = slots.indexOf(slot);
-    
-    if (startSlotIndex + slotsNeeded > slots.length) {
-      return true;
-    }
-
-    const sectionsToCheck = allocationType === 'training' 
-      ? [section] 
-      : getSectionsToAllocate(team, sectionGroup);
-    
-    for (let i = 0; i < slotsNeeded; i++) {
-      const checkSlot = slots[startSlotIndex + i];
-      for (const sectionToCheck of sectionsToCheck) {
-        const checkKey = `${date}-${checkSlot}-${normalizedPitchId}-${sectionToCheck}`;
-        if (allocations[checkKey]) {
-          return true;
-        }
-      }
-    }
-    
-    return false;
-  }, [allocations, date, slot, normalizedPitchId, section, sectionGroup, duration, slots, allocationType, team, getSectionsToAllocate]);
 
   // Add allocation with optimistic updates
   const addAllocation = async () => {
@@ -580,7 +621,7 @@ const UnifiedPitchAllocator = () => {
     }
   };
 
-  // FIXED: Clear allocation with optimistic updates
+  // Clear allocation with optimistic updates
   const clearAllocation = async (key) => {
     // Check if user is admin
     if (userRole !== 'admin') {
@@ -773,7 +814,7 @@ const UnifiedPitchAllocator = () => {
     const exportData = {
       club: clubInfo.name,
       date: date,
-      pitch: pitchNames[normalizedPitchId] || `Pitch ${pitchId}`,
+      pitch: currentPitchName,
       allocations: allocations,
       exported: new Date().toISOString()
     };
@@ -1292,7 +1333,6 @@ const UnifiedPitchAllocator = () => {
             const key = `${date}-${timeSlot}-${normalizedPitchId}-${sec}`;
             const allocation = filteredAllocations[key];
             const isDeleting = deletingKeys.has(key);
-            const isAdmin = userRole === 'admin';
             
             return (
               <div 
@@ -1374,46 +1414,6 @@ const UnifiedPitchAllocator = () => {
       </div>
     );
   };
-
-  if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontFamily: 'system-ui, sans-serif'
-      }}>
-        <div>Loading...</div>
-      </div>
-    );
-  }
-
-  // Get the current pitch name with better fallback logic
-  const currentPitchName = useMemo(() => {
-    // Try multiple possible key formats
-    const possibleKeys = [
-      normalizedPitchId,           // e.g., 'pitch1'
-      pitchId,                     // e.g., '1' or 'pitch1'
-      `pitch${pitchId}`,          // e.g., 'pitch1'
-      `pitch-${pitchId}`,         // e.g., 'pitch-1'
-    ];
-    
-    for (const key of possibleKeys) {
-      if (pitchNames[key]) {
-        console.log(`Found pitch name for key "${key}":`, pitchNames[key]);
-        return pitchNames[key];
-      }
-    }
-    
-    console.log('No custom pitch name found. Available keys:', Object.keys(pitchNames));
-    console.log('Trying to match:', { normalizedPitchId, pitchId });
-    
-    // Fallback to default name
-    return `Pitch ${pitchId}`;
-  }, [pitchNames, normalizedPitchId, pitchId]);
-
-  const isAdmin = userRole === 'admin';
 
   return (
     <div style={{
