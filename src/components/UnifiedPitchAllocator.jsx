@@ -341,7 +341,7 @@ const UnifiedPitchAllocator = () => {
     if (clubInfo?.clubId) {
       loadSettings();
     }
-  }, [loadSettings]);
+  }, [loadSettings, clubInfo?.clubId]);
 
   // Add window focus listener to reload settings when user comes back
   useEffect(() => {
