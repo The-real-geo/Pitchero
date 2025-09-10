@@ -3,17 +3,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 
-const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
-
-function isLightColor(color) {
-  const hex = color.replace('#', '');
-  const r = parseInt(hex.substr(0, 2), 16);
-  const g = parseInt(hex.substr(2, 2), 16);
-  const b = parseInt(hex.substr(4, 2), 16);
-  const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-  return brightness > 155;
-}
-
 // Helper: get pitch name with fallback
 const getPitchDisplayName = (pitchNumber, pitchNames) => {
   const possibleKeys = [
@@ -83,9 +72,7 @@ function ShareView() {
   const [pitchNames, setPitchNames] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedPitch, setSelectedPitch] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [viewMode, setViewMode] = useState('map');
 
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
@@ -228,7 +215,7 @@ function ShareView() {
       </div>
       <div style={{ marginTop: '20px' }}>
         <h2>Pitch Legend</h2>
-        {satelliteConfig?.pitchBoundaries?.map((p, i) => {
+        {satelliteConfig?.pitchBoundaries?.map((p) => {
           const name = getPitchDisplayName(p.pitchNumber, pitchNames);
           return (
             <div key={`${p.pitchNumber}-${Object.keys(pitchNames).join(',')}`}>{name}</div>
