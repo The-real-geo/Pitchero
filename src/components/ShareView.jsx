@@ -1,29 +1,4 @@
-// Mobile-optimized ShareView.jsx with satellite map and clickable pitches
-// Fixed CORS issue using Firebase SDK with proper public access
-// UPDATED: Now fetches custom pitch names from settings
-
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-
-const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
-
-function isLightColor(color) {
-  const hex = color.replace('#', '');
-  const r = parseInt(hex.substr(0, 2), 16);
-  const g = parseInt(hex.substr(2, 2), 16);
-  const b = parseInt(hex.substr(4, 2), 16);
-  const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-  return brightness > 155;
-}
-
-// Function to get shared allocation data
-const getSharedAllocation = async (shareId) => {
-  try {
-    // Import Firebase here (adjust the path to match your project structure)
-    const { doc, getDoc } = await import('firebase/firestore');
-    const { db } = await import('../utils/firebase'); // Adjust path as needed
-    
-    // Get the shared allocation data from Firebase
+/ Get the shared allocation data from Firebase
     const shareDoc = await getDoc(doc(db, 'sharedAllocations', shareId));
     
     if (!shareDoc.exists()) {
