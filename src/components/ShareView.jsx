@@ -47,13 +47,10 @@ const loadPitchNames = async (clubId, maxRetries = 3) => {
   const { doc, getDoc } = await import('firebase/firestore');
   const { db } = await import('../utils/firebase');
   
-  let retryCount = 0;
-  let lastError = null;
-  
-  while (retryCount < maxRetries) {
+  const attemptLoad = async (attemptNumber) => {
     try {
       const settingsRef = doc(db, 'clubs', clubId, 'settings', 'general');
-      console.log(`🔍 Attempt ${retryCount + 1}: Loading pitch names from clubs/${clubId}/settings/general`);
+      console.log(`🔍 Attempt ${attemptNumber}: Loading pitch names from clubs/${clubId}/settings/general`);
       
       const settingsDoc = await getDoc(settingsRef);
       
@@ -61,28 +58,37 @@ const loadPitchNames = async (clubId, maxRetries = 3) => {
         const settingsData = settingsDoc.data();
         if (settingsData.pitchNames) {
           console.log('✅ Pitch names loaded successfully:', settingsData.pitchNames);
-          return settingsData.pitchNames;
+          return { success: true, data: settingsData.pitchNames };
         } else {
           console.log('⚠️ Settings exist but no pitchNames field');
-          return {};
+          return { success: true, data: {} };
         }
       } else {
         console.log('⚠️ Settings document does not exist');
-        return {};
+        return { success: true, data: {} };
       }
     } catch (error) {
-      lastError = error;
-      retryCount++;
-      console.error(`❌ Attempt ${retryCount} failed:`, error);
-      
-      if (retryCount < maxRetries) {
-        // Wait before retrying (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
-      }
+      console.error(`❌ Attempt ${attemptNumber} failed:`, error);
+      return { success: false, error };
+    }
+  };
+  
+  // Try loading with retries
+  for (let i = 1; i <= maxRetries; i++) {
+    const result = await attemptLoad(i);
+    
+    if (result.success) {
+      return result.data;
+    }
+    
+    // If not the last attempt, wait before retrying (exponential backoff)
+    if (i < maxRetries) {
+      const backoffTime = Math.pow(2, i) * 1000;
+      await new Promise(resolve => setTimeout(resolve, backoffTime));
     }
   }
   
-  console.error('❌ All retry attempts failed:', lastError);
+  console.error('❌ All retry attempts failed');
   return {};
 };
 
