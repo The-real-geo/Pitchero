@@ -746,9 +746,11 @@ function ShareView() {
         </p>
       </div>
 
-      {/* Pitch Legend */}
+      {/* Pitch Legend - with key to force re-render when names load */}
       {satelliteConfig?.pitchBoundaries?.length > 0 && (
-        <div style={{
+        <div 
+          key={`legend-${Object.keys(pitchNames).length}`} // Force re-render when pitch names change
+          style={{
           backgroundColor: 'white',
           borderRadius: '8px',
           boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
