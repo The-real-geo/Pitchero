@@ -263,7 +263,7 @@ function ShareView() {
 
     // Draw pitch boundaries
     if (sharedData.satelliteConfig.pitchBoundaries) {
-      sharedData.satelliteConfig.pitchBoundaries.forEach((pitch) => {
+      sharedData.satelliteConfig.pitchBoundaries.forEach((pitch, index) => {
         const x = pitch.boundaries.x1 * scaleX;
         const y = pitch.boundaries.y1 * scaleY;
         const width = (pitch.boundaries.x2 - pitch.boundaries.x1) * scaleX;
