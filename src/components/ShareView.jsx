@@ -1,4 +1,4 @@
-// ShareView.jsx - Cleaned-up version with proper pitch names re-rendering
+// ShareView.jsx - Cleaned-up version with proper pitch names re-rendering (mobile fix)
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
@@ -162,7 +162,7 @@ function ShareView() {
     const scaleX = canvas.width / sharedData.satelliteConfig.imageWidth;
     const scaleY = canvas.height / sharedData.satelliteConfig.imageHeight;
     if (sharedData.satelliteConfig.pitchBoundaries) {
-      sharedData.satelliteConfig.pitchBoundaries.forEach((pitch, idx) => {
+      sharedData.satelliteConfig.pitchBoundaries.forEach((pitch) => {
         const x = pitch.boundaries.x1 * scaleX;
         const y = pitch.boundaries.y1 * scaleY;
         const w = (pitch.boundaries.x2 - pitch.boundaries.x1) * scaleX;
@@ -217,8 +217,11 @@ function ShareView() {
         <h2>Pitch Legend</h2>
         {satelliteConfig?.pitchBoundaries?.map((p) => {
           const name = getPitchDisplayName(p.pitchNumber, pitchNames);
+          // Force re-render when pitchNames change
           return (
-            <div key={`${p.pitchNumber}-${Object.keys(pitchNames).join(',')}`}>{name}</div>
+            <div key={`${p.pitchNumber}-${JSON.stringify(pitchNames)}`}>
+              {name}
+            </div>
           );
         })}
       </div>
