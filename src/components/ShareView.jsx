@@ -441,63 +441,11 @@ function ShareView() {
   }, [shareId]);
 
   if (loading) {
-    return (
-      <div style={{ 
-        padding: '16px', 
-        textAlign: 'center',
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f9fafb'
-      }}>
-        <div>
-          <h2 style={{ fontSize: isMobile ? '20px' : '24px', color: '#374151', marginBottom: '8px' }}>
-            Loading allocation...
-          </h2>
-          <p style={{ color: '#6b7280', fontSize: isMobile ? '14px' : '16px' }}>
-            Please wait while we fetch the shared data
-          </p>
-        </div>
-      </div>
-    );
+    return <div>Loading allocation…</div>;
   }
 
   if (error) {
-    return (
-      <div style={{ 
-        padding: '16px', 
-        textAlign: 'center',
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#fef2f2'
-      }}>
-        <div>
-          <h2 style={{ fontSize: isMobile ? '20px' : '24px', color: '#dc2626', marginBottom: '8px' }}>
-            Error Loading Share
-          </h2>
-          <p style={{ color: '#7f1d1d', marginBottom: '24px', fontSize: isMobile ? '14px' : '16px' }}>
-            {error}
-          </p>
-          <button
-            onClick={() => navigate('/')}
-            style={{
-              padding: '8px 24px',
-              backgroundColor: '#dc2626',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            Go to Home
-          </button>
-        </div>
-      </div>
-    );
+    return <div>Error: {error}</div>;
   }
 
   const allocations = sharedData?.allocations || {};
