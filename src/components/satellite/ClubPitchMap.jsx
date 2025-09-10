@@ -9,9 +9,9 @@ import { onAuthStateChanged } from 'firebase/auth';
 const ClubPitchMap = ({ 
   onPitchClick 
 }) => {
-  console.log('🔴🔴🔴 CLUBPITCHMAP COMPONENT LOADED - VERSION 4.0 🔴🔴🔴');
+  console.log('🔴🔴🔴 CLUBPITCHMAP COMPONENT LOADED - VERSION 5.0 🔴🔴🔴');
   console.log('Component mounted at:', new Date().toISOString());
-  console.log('🟢 TEST: Version 4.0 - Testing if useEffect runs');
+  console.log('🟢 VERSION 5.0 - With pitch names fix');
   
   const navigate = useNavigate();
   const canvasRef = useRef(null);
@@ -19,12 +19,24 @@ const ClubPitchMap = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   
-  // States for data loading
+  // States for data loading - INCLUDING PITCH NAMES!
   const [satelliteConfig, setSatelliteConfig] = useState(null);
+  const [pitchNames, setPitchNames] = useState({}); // THIS IS THE CRITICAL STATE FOR PITCH NAMES
   const [clubId, setClubId] = useState(null);
   const [clubName, setClubName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // TEST USEEFFECT
+  useEffect(() => {
+    console.log('🔥🔥🔥 BASIC useEffect IS RUNNING! 🔥🔥🔥');
+    console.log('Initial states:', { 
+      clubId, 
+      loading, 
+      pitchNamesKeys: Object.keys(pitchNames),
+      hasPitchNames: Object.keys(pitchNames).length > 0 
+    });
+  }, []);
 
   // Handle navigation back to menu
   const handleBackToMenu = () => {
@@ -33,14 +45,23 @@ const ClubPitchMap = ({
 
   // Load user and club data
   useEffect(() => {
+    console.log('🔐 Starting auth state listener');
+    
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      console.log('👤 Auth state changed, currentUser:', currentUser?.uid || 'null');
+      
       if (currentUser) {
         try {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          console.log('📄 User doc exists:', userDoc.exists());
+          
           if (userDoc.exists()) {
             const userData = userDoc.data();
+            console.log('📊 User data clubId:', userData.clubId);
+            
             if (userData.clubId) {
               setClubId(userData.clubId);
+              console.log('✅ Club ID SET:', userData.clubId);
             } else {
               setError('No club associated with this user');
               setLoading(false);
@@ -55,6 +76,7 @@ const ClubPitchMap = ({
           setLoading(false);
         }
       } else {
+        console.log('❌ No user authenticated');
         setError('User not authenticated');
         setLoading(false);
       }
@@ -63,13 +85,23 @@ const ClubPitchMap = ({
     return () => unsubscribe();
   }, []);
 
-  // Load satellite configuration when clubId is available
+  // Load satellite configuration AND PITCH NAMES when clubId is available
   useEffect(() => {
+    console.log('📍 useEffect for satellite config triggered, clubId is:', clubId);
+    
     const loadSatelliteConfig = async () => {
-      if (!clubId) return;
+      if (!clubId) {
+        console.log('⚠️ No clubId, returning early');
+        return;
+      }
+
+      console.log('🚀 STARTING TO LOAD SATELLITE CONFIG - VERSION 5.0');
+      console.log('🔍 Club ID:', clubId);
 
       try {
         setLoading(true);
+        
+        // Load club document for satellite config
         const clubRef = doc(db, 'clubs', clubId);
         const clubDoc = await getDoc(clubRef);
         
@@ -79,14 +111,43 @@ const ClubPitchMap = ({
           
           if (clubData.satelliteConfig) {
             setSatelliteConfig(clubData.satelliteConfig);
+            console.log('✅ Satellite config loaded');
           } else {
             setSatelliteConfig(null);
+            console.log('⚠️ No satellite config found');
           }
         } else {
           setError('Club not found');
         }
+        
+        // CRITICAL: Load pitch names from settings/general document
+        try {
+          const settingsRef = doc(db, 'clubs', clubId, 'settings', 'general');
+          console.log('🔍 FETCHING PITCH NAMES FROM:', `clubs/${clubId}/settings/general`);
+          const settingsDoc = await getDoc(settingsRef);
+          
+          if (settingsDoc.exists()) {
+            const settingsData = settingsDoc.data();
+            console.log('📋 SETTINGS DATA:', settingsData);
+            
+            if (settingsData.pitchNames) {
+              setPitchNames(settingsData.pitchNames);
+              console.log('✅ PITCH NAMES LOADED:', settingsData.pitchNames);
+            } else {
+              console.log('❌ NO pitchNames FIELD IN SETTINGS');
+              setPitchNames({});
+            }
+          } else {
+            console.log('❌ SETTINGS DOCUMENT DOES NOT EXIST');
+            setPitchNames({});
+          }
+        } catch (settingsError) {
+          console.error('❌ ERROR LOADING PITCH NAMES:', settingsError);
+          setPitchNames({});
+        }
+        
       } catch (err) {
-        console.error('Error loading satellite config:', err);
+        console.error('❌ Error loading satellite config:', err);
         setError('Failed to load satellite configuration');
       } finally {
         setLoading(false);
@@ -387,10 +448,10 @@ const ClubPitchMap = ({
         <div style={{ width: '120px' }}></div>
       </div>
 
-      {/* Main content container with map and small legend */}
+      {/* Main content container with map and TINY legend */}
       <div style={{
         display: 'flex',
-        gap: '16px',
+        gap: '12px',
         alignItems: 'flex-start'
       }}>
         {/* Canvas Container */}
@@ -427,75 +488,113 @@ const ClubPitchMap = ({
           />
         </div>
 
-        {/* SMALL Legend Box - Non-clickable */}
+        {/* Clean Legend - Non-clickable */}
         {satelliteConfig?.pitchBoundaries?.length > 0 && (
           <div style={{
-            width: '180px',
+            minWidth: '200px',
             backgroundColor: 'white',
-            borderRadius: '6px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+            borderRadius: '8px',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
             border: '1px solid #e5e7eb',
-            padding: '8px',
-            fontSize: '11px'
+            padding: '16px'
           }}>
             <div style={{
-              fontSize: '12px',
+              fontSize: '14px',
               fontWeight: '600',
               color: '#374151',
-              marginBottom: '6px',
-              paddingBottom: '4px',
-              borderBottom: '1px solid #e5e7eb'
+              marginBottom: '12px'
             }}>
               Pitch Legend
+              {Object.keys(pitchNames).length === 0 && (
+                <span style={{ fontSize: '10px', color: '#ef4444', marginLeft: '8px' }}>
+                  (Names not loaded)
+                </span>
+              )}
             </div>
             
-            {satelliteConfig.pitchBoundaries.map((pitch, index) => (
-              <div 
-                key={index}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '4px',
-                  marginBottom: '2px',
-                  backgroundColor: '#f9fafb',
-                  borderRadius: '3px',
-                  fontSize: '11px'
-                }}
-              >
-                <span style={{
-                  display: 'inline-block',
-                  width: '20px',
-                  height: '20px',
-                  backgroundColor: '#16a34a',
-                  color: 'white',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  lineHeight: '20px',
-                  fontWeight: 'bold',
-                  fontSize: '10px',
-                  marginRight: '6px',
-                  flexShrink: 0
-                }}>
-                  {pitch.pitchNumber || `${index + 1}`}
-                </span>
-                
-                <span style={{ 
-                  color: '#374151',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {pitch.customName || pitch.name || `Pitch ${index + 1}`}
-                </span>
-              </div>
-            ))}
+            {console.log('🎨 RENDERING LEGEND with pitchNames:', pitchNames)}
+            {console.log('🎨 PitchNames keys:', Object.keys(pitchNames))}
+            
+            {satelliteConfig.pitchBoundaries.map((pitch, index) => {
+              // Try multiple possible key formats to match the pitchNames
+              // This logic is from UnifiedPitchAllocator that works correctly
+              const pitchNumber = pitch.pitchNumber || (index + 1);
+              
+              // Try different key formats - same as UnifiedPitchAllocator
+              const possibleKeys = [
+                `pitch-${pitchNumber}`,     // "pitch-1" (this is what's in Firebase)
+                `pitch${pitchNumber}`,      // "pitch1"
+                `Pitch ${pitchNumber}`,     // "Pitch 1"
+                `Pitch-${pitchNumber}`,     // "Pitch-1"
+                pitchNumber.toString(),     // "1"
+              ];
+              
+              // Find the first key that exists in pitchNames
+              let displayName = null;
+              for (const key of possibleKeys) {
+                if (pitchNames && pitchNames[key]) {
+                  displayName = pitchNames[key];
+                  console.log(`✓ Found custom name for key "${key}": ${displayName}`);
+                  break;
+                }
+              }
+              
+              // Fallback if no custom name found
+              if (!displayName) {
+                displayName = `Pitch ${pitchNumber}`;
+                if (Object.keys(pitchNames).length > 0) {
+                  console.log(`✗ No custom name found for pitch ${pitchNumber}`);
+                  console.log('Tried keys:', possibleKeys);
+                  console.log('Available keys in pitchNames:', Object.keys(pitchNames));
+                }
+              }
+              
+              return (
+                <div 
+                  key={index}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '8px',
+                    marginBottom: '4px',
+                    cursor: 'default',
+                    pointerEvents: 'none'  // Non-clickable
+                  }}
+                >
+                  <div style={{
+                    width: '24px',
+                    height: '24px',
+                    backgroundColor: '#22c55e',
+                    color: 'white',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '12px',
+                    marginRight: '12px'
+                  }}>
+                    {pitchNumber}
+                  </div>
+                  
+                  <div style={{ 
+                    flex: 1,
+                    fontSize: '14px',
+                    color: '#374151'
+                  }}>
+                    {displayName}
+                  </div>
+                </div>
+              );
+            })}
             
             <div style={{
-              marginTop: '6px',
-              padding: '4px',
-              backgroundColor: '#eff6ff',
-              borderRadius: '3px',
-              fontSize: '9px',
+              marginTop: '12px',
+              padding: '8px',
+              backgroundColor: '#f0f9ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: '4px',
+              fontSize: '12px',
               color: '#1e40af',
               textAlign: 'center'
             }}>
