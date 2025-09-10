@@ -1,9 +1,11 @@
+/* global __firebase_config */
 // Mobile-optimized ShareView.jsx with satellite map and clickable pitches
 // Fixed CORS issue using Firebase SDK with proper public access
 // UPDATED: Now fetches custom pitch names from settings
 // REFACTORED: Switched to static Firebase imports to prevent mobile race conditions
 // FIXED: Resolved build error by including full Firebase initialization
 // FIXED: Added robust check for Firebase config to prevent runtime errors on initialization.
+// FIXED: Added ESLint global declaration for __firebase_config to resolve no-undef build error.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
