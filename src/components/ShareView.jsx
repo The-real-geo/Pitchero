@@ -120,7 +120,6 @@ const getPitchDisplayName = (pitchNumber, pitchNames) => {
 
 function ShareView() {
   const { shareId } = useParams();
-  const navigate = useNavigate();
   const [sharedData, setSharedData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
