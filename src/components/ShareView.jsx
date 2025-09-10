@@ -109,7 +109,7 @@ const getPitchDisplayName = (pitchNumber, pitchNames) => {
   // Find the first key that exists in pitchNames
   for (const key of possibleKeys) {
     if (pitchNames && pitchNames[key]) {
-      console.log(`✔ Found custom name for key "${key}": ${pitchNames[key]}`);
+      console.log(`✓ Found custom name for key "${key}": ${pitchNames[key]}`);
       return pitchNames[key];
     }
   }
