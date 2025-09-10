@@ -9,6 +9,9 @@ import { onAuthStateChanged } from 'firebase/auth';
 const ClubPitchMap = ({ 
   onPitchClick 
 }) => {
+  console.log('🔴🔴🔴 CLUBPITCHMAP COMPONENT LOADED - VERSION 2.0 🔴🔴🔴');
+  console.log('Component mounted at:', new Date().toISOString());
+  
   const navigate = useNavigate();
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
