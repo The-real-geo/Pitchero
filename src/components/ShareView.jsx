@@ -1,5 +1,6 @@
 // Mobile-optimized ShareView.jsx with satellite map and clickable pitches
 // Fixed CORS issue using Firebase SDK with proper public access
+// UPDATED: Now fetches custom pitch names from settings
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -46,10 +47,35 @@ const getSharedAllocation = async (shareId) => {
     const clubData = clubDoc.data();
     console.log('Club data:', clubData);
     
-    // Combine the share data with club satellite config
+    // CRITICAL: Load pitch names from settings/general document (same as ClubPitchMap)
+    let pitchNames = {};
+    try {
+      const settingsRef = doc(db, 'clubs', clubId, 'settings', 'general');
+      console.log('🔍 FETCHING PITCH NAMES FROM:', `clubs/${clubId}/settings/general`);
+      const settingsDoc = await getDoc(settingsRef);
+      
+      if (settingsDoc.exists()) {
+        const settingsData = settingsDoc.data();
+        console.log('📋 SETTINGS DATA:', settingsData);
+        
+        if (settingsData.pitchNames) {
+          pitchNames = settingsData.pitchNames;
+          console.log('✅ PITCH NAMES LOADED:', pitchNames);
+        } else {
+          console.log('❌ NO pitchNames FIELD IN SETTINGS');
+        }
+      } else {
+        console.log('❌ SETTINGS DOCUMENT DOES NOT EXIST');
+      }
+    } catch (settingsError) {
+      console.error('❌ ERROR LOADING PITCH NAMES:', settingsError);
+    }
+    
+    // Combine the share data with club satellite config and pitch names
     return {
       ...shareData,
       clubName: clubData.name,
+      pitchNames: pitchNames, // Add pitch names to the returned data
       satelliteConfig: {
         imageUrl: clubData.satelliteConfig?.imageUrl,
         imagePath: clubData.satelliteConfig?.imagePath, // Store the Firebase path for SDK usage
@@ -65,10 +91,31 @@ const getSharedAllocation = async (shareId) => {
 
   } catch (error) {
     console.error('Error fetching shared allocation:', error);
-    
-    // Remove the fallback mock data since you have real data
     throw new Error(error.message || 'Failed to load shared allocation');
   }
+};
+
+// Helper function to get display name for a pitch (same logic as ClubPitchMap)
+const getPitchDisplayName = (pitchNumber, pitchNames) => {
+  // Try different key formats - same as ClubPitchMap
+  const possibleKeys = [
+    `pitch-${pitchNumber}`,     // "pitch-1" (this is what's in Firebase)
+    `pitch${pitchNumber}`,      // "pitch1"
+    `Pitch ${pitchNumber}`,     // "Pitch 1"
+    `Pitch-${pitchNumber}`,     // "Pitch-1"
+    pitchNumber.toString(),     // "1"
+  ];
+  
+  // Find the first key that exists in pitchNames
+  for (const key of possibleKeys) {
+    if (pitchNames && pitchNames[key]) {
+      console.log(`✔ Found custom name for key "${key}": ${pitchNames[key]}`);
+      return pitchNames[key];
+    }
+  }
+  
+  // Fallback if no custom name found
+  return `Pitch ${pitchNumber}`;
 };
 
 function ShareView() {
@@ -212,6 +259,7 @@ function ShareView() {
     const scaleY = canvas.height / sharedData.satelliteConfig.imageHeight;
 
     const allocations = sharedData?.allocations || {};
+    const pitchNames = sharedData?.pitchNames || {};
 
     // Draw pitch boundaries
     if (sharedData.satelliteConfig.pitchBoundaries) {
@@ -236,17 +284,20 @@ function ShareView() {
         ctx.lineWidth = 2;
         ctx.strokeRect(x, y, width, height);
 
-        // Draw pitch number
+        // Get display name for the pitch
+        const displayName = getPitchDisplayName(pitch.pitchNumber, pitchNames);
+
+        // Draw pitch name
         ctx.fillStyle = 'white';
         ctx.strokeStyle = '#1f2937';
         ctx.lineWidth = 3;
-        ctx.font = `bold ${Math.max(16, Math.min(28, width / 6))}px sans-serif`;
+        ctx.font = `bold ${Math.max(14, Math.min(20, width / 8))}px sans-serif`;
         ctx.textAlign = 'center';
         
         // Draw text outline
-        ctx.strokeText(pitch.pitchNumber, x + width / 2, y + height / 2 + 8);
+        ctx.strokeText(displayName, x + width / 2, y + height / 2 + 8);
         // Draw text fill
-        ctx.fillText(pitch.pitchNumber, x + width / 2, y + height / 2 + 8);
+        ctx.fillText(displayName, x + width / 2, y + height / 2 + 8);
 
         // Draw allocation count if has allocations
         if (hasAllocations) {
@@ -255,7 +306,7 @@ function ShareView() {
             return parts.some(part => part === pitchNum || part === `pitch${pitchNum}`);
           }).length;
           
-          ctx.font = `${Math.max(10, Math.min(16, width / 10))}px sans-serif`;
+          ctx.font = `${Math.max(10, Math.min(14, width / 12))}px sans-serif`;
           ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
           ctx.fillText(`${allocCount} slots`, x + width / 2, y + height / 2 + 28);
         }
@@ -307,6 +358,7 @@ function ShareView() {
         
         console.log('=== SHARE DATA DEBUG ===');
         console.log('Full data:', data);
+        console.log('Pitch names:', data.pitchNames);
         
         // Extract pitches from allocation keys
         let availablePitches = [];
@@ -443,6 +495,7 @@ function ShareView() {
   const clubName = sharedData?.clubName || 'Soccer Club';
   const allocationType = sharedData?.type === 'match' ? 'Match Day' : sharedData?.type === 'training' ? 'Training' : 'Pitch';
   const pitches = sharedData?.pitches || [];
+  const pitchNames = sharedData?.pitchNames || {};
   const satelliteConfig = sharedData?.satelliteConfig;
   
   // Extract time range
@@ -709,12 +762,13 @@ function ShareView() {
           </h3>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
             gap: '8px'
           }}>
             {satelliteConfig.pitchBoundaries.map((pitch) => {
               const allocCount = getAllocationsCountForPitch(`pitch${pitch.pitchNumber}`);
               const hasAllocations = allocCount > 0;
+              const displayName = getPitchDisplayName(pitch.pitchNumber, pitchNames);
               
               return (
                 <button
@@ -735,7 +789,7 @@ function ShareView() {
                     textAlign: 'center'
                   }}
                 >
-                  Pitch {pitch.pitchNumber}
+                  {displayName}
                   {hasAllocations && (
                     <div style={{ fontSize: '10px', marginTop: '2px', opacity: 0.8 }}>
                       {allocCount} slots
@@ -767,6 +821,7 @@ function ShareView() {
     };
     
     const pitchId = `pitch${selectedPitch.pitchNumber}`;
+    const displayName = getPitchDisplayName(selectedPitch.pitchNumber, pitchNames);
     
     return (
       <div style={{
@@ -812,7 +867,7 @@ function ShareView() {
             color: '#1f2937',
             margin: 0
           }}>
-            Pitch {selectedPitch.pitchNumber}
+            {displayName}
           </h2>
           
           <span style={{
@@ -901,7 +956,7 @@ function ShareView() {
                               position: 'relative'
                             }}
                           >
-                            {/* Type indicator icon - ADDED HERE */}
+                            {/* Type indicator icon */}
                             {alloc && (
                               <div style={{
                                 position: 'absolute',
