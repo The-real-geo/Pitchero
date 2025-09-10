@@ -284,20 +284,31 @@ function ShareView() {
         ctx.lineWidth = 2;
         ctx.strokeRect(x, y, width, height);
 
-        // Get display name for the pitch
-        const displayName = getPitchDisplayName(pitch.pitchNumber, pitchNames);
-
-        // Draw pitch name
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = '#1f2937';
-        ctx.lineWidth = 3;
-        ctx.font = `bold ${Math.max(14, Math.min(20, width / 8))}px sans-serif`;
+        // Draw pitch NUMBER ONLY (not the name, just the number like "1", "2", "3")
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px sans-serif';
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         
-        // Draw text outline
-        ctx.strokeText(displayName, x + width / 2, y + height / 2 + 8);
-        // Draw text fill
-        ctx.fillText(displayName, x + width / 2, y + height / 2 + 8);
+        // Add background for better visibility
+        const pitchLabel = pitch.pitchNumber || `${index + 1}`;
+        const textMetrics = ctx.measureText(pitchLabel);
+        const padding = 10;
+        
+        ctx.fillStyle = 'rgba(31, 41, 55, 0.8)';
+        ctx.fillRect(
+          x + width / 2 - textMetrics.width / 2 - padding,
+          y + height / 2 - 15,
+          textMetrics.width + padding * 2,
+          30
+        );
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(
+          pitchLabel,
+          x + width / 2,
+          y + height / 2
+        );
 
         // Draw allocation count if has allocations
         if (hasAllocations) {
