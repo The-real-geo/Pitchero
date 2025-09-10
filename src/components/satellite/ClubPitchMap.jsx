@@ -583,8 +583,7 @@ const ClubPitchMap = ({
               );
             })}
             
-            <div style={{
-  marginTop: '12px',
+<div style={{
   padding: '8px',
   backgroundColor: '#f0f9ff',
   border: '1px solid #bfdbfe',
@@ -592,8 +591,8 @@ const ClubPitchMap = ({
   fontSize: '12px',
   color: '#1e40af',
   textAlign: 'center',
-  maxWidth: '250px',  // Add this line
-  margin: '12px auto 0'  // Optional: centers the div if you want
+  maxWidth: '250px',
+  margin: '12px auto 0'  // This already sets marginTop to 12px
 }}>
   Click on a pitch on the map to view the training or game allocations for that specific pitch.
 </div>
