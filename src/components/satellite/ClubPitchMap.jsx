@@ -584,20 +584,19 @@ const ClubPitchMap = ({
             })}
             
             <div style={{
-              marginTop: '12px',
-              padding: '8px',
-              backgroundColor: '#f0f9ff',
-              border: '1px solid #bfdbfe',
-              borderRadius: '4px',
-              fontSize: '12px',
-              color: '#1e40af',
-              textAlign: 'center'
-            }}>
-              Click on a pitch on the map to view the training or game allocations for that specific pitch.
-            </div>
-          </div>
-        )}
-      </div>
+  marginTop: '12px',
+  padding: '8px',
+  backgroundColor: '#f0f9ff',
+  border: '1px solid #bfdbfe',
+  borderRadius: '4px',
+  fontSize: '12px',
+  color: '#1e40af',
+  textAlign: 'center',
+  maxWidth: '250px',  // Add this line
+  margin: '12px auto 0'  // Optional: centers the div if you want
+}}>
+  Click on a pitch on the map to view the training or game allocations for that specific pitch.
+</div>
 
       {/* Bottom instruction if no pitches configured */}
       {(!satelliteConfig?.pitchBoundaries || satelliteConfig.pitchBoundaries.length === 0) && (
