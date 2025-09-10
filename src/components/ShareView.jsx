@@ -42,54 +42,24 @@ const getPitchDisplayName = (pitchNumber, pitchNames, loadingState) => {
   return `Pitch ${pitchNumber}`;
 };
 
-// Function to load pitch names with retry logic
-const loadPitchNames = async (clubId, maxRetries = 3) => {
+// Function to load pitch names - SIMPLE, no retries
+const loadPitchNames = async (clubId) => {
   const { doc, getDoc } = await import('firebase/firestore');
   const { db } = await import('../utils/firebase');
   
-  const attemptLoad = async (attemptNumber) => {
-    try {
-      const settingsRef = doc(db, 'clubs', clubId, 'settings', 'general');
-      console.log(`🔍 Attempt ${attemptNumber}: Loading pitch names from clubs/${clubId}/settings/general`);
-      
-      const settingsDoc = await getDoc(settingsRef);
-      
-      if (settingsDoc.exists()) {
-        const settingsData = settingsDoc.data();
-        if (settingsData.pitchNames) {
-          console.log('✅ Pitch names loaded successfully:', settingsData.pitchNames);
-          return { success: true, data: settingsData.pitchNames };
-        } else {
-          console.log('⚠️ Settings exist but no pitchNames field');
-          return { success: true, data: {} };
-        }
-      } else {
-        console.log('⚠️ Settings document does not exist');
-        return { success: true, data: {} };
-      }
-    } catch (error) {
-      console.error(`❌ Attempt ${attemptNumber} failed:`, error);
-      return { success: false, error };
-    }
-  };
-  
-  // Try loading with retries
-  for (let i = 1; i <= maxRetries; i++) {
-    const result = await attemptLoad(i);
+  try {
+    const settingsRef = doc(db, 'clubs', clubId, 'settings', 'general');
+    const settingsDoc = await getDoc(settingsRef);
     
-    if (result.success) {
-      return result.data;
+    if (settingsDoc.exists()) {
+      const settingsData = settingsDoc.data();
+      return settingsData.pitchNames || {};
     }
-    
-    // If not the last attempt, wait before retrying (exponential backoff)
-    if (i < maxRetries) {
-      const backoffTime = Math.pow(2, i) * 1000;
-      await new Promise(resolve => setTimeout(resolve, backoffTime));
-    }
+    return {};
+  } catch (error) {
+    console.error('Error loading pitch names:', error);
+    return {};
   }
-  
-  console.error('❌ All retry attempts failed');
-  return {};
 };
 
 // Main function to get shared allocation data
@@ -763,35 +733,9 @@ function ShareView() {
             fontWeight: '600',
             color: '#374151',
             marginBottom: '12px',
-            textAlign: 'center',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
+            textAlign: 'center'
           }}>
             Pitch Legend
-            {pitchNamesLoadingState === 'loading' && (
-              <span style={{ 
-                fontSize: '10px', 
-                color: '#f59e0b',
-                backgroundColor: '#fef3c7',
-                padding: '2px 6px',
-                borderRadius: '4px'
-              }}>
-                Loading names...
-              </span>
-            )}
-            {pitchNamesLoadingState === 'error' && (
-              <span style={{ 
-                fontSize: '10px', 
-                color: '#ef4444',
-                backgroundColor: '#fee2e2',
-                padding: '2px 6px',
-                borderRadius: '4px'
-              }}>
-                Names not loaded
-              </span>
-            )}
           </div>
           
           <div style={{
