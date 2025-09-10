@@ -1,6 +1,5 @@
-// Mobile-optimized ShareView.jsx with satellite map and clickable pitches
-// Fixed CORS issue using Firebase SDK with proper public access
-// UPDATED: Now fetches custom pitch names from settings
+// ShareView.jsx - Mobile-optimized with protected pitch names loading
+// Ensures pitch names are properly loaded even on slow connections
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
@@ -16,14 +15,84 @@ function isLightColor(color) {
   return brightness > 155;
 }
 
-// Function to get shared allocation data
+// Helper function to get display name for a pitch with proper fallback
+const getPitchDisplayName = (pitchNumber, pitchNames, loadingState) => {
+  // If still loading, show loading indicator
+  if (loadingState === 'loading') {
+    return `Pitch ${pitchNumber} (...)`;
+  }
+  
+  // Try different key formats
+  const possibleKeys = [
+    `pitch-${pitchNumber}`,     // "pitch-1" (primary format in Firebase)
+    `pitch${pitchNumber}`,      // "pitch1"
+    `Pitch ${pitchNumber}`,     // "Pitch 1"
+    `Pitch-${pitchNumber}`,     // "Pitch-1"
+    pitchNumber.toString(),     // "1"
+  ];
+  
+  // Find the first key that exists in pitchNames
+  for (const key of possibleKeys) {
+    if (pitchNames && pitchNames[key]) {
+      return pitchNames[key];
+    }
+  }
+  
+  // Fallback
+  return `Pitch ${pitchNumber}`;
+};
+
+// Function to load pitch names with retry logic
+const loadPitchNames = async (clubId, maxRetries = 3) => {
+  const { doc, getDoc } = await import('firebase/firestore');
+  const { db } = await import('../utils/firebase');
+  
+  let retryCount = 0;
+  let lastError = null;
+  
+  while (retryCount < maxRetries) {
+    try {
+      const settingsRef = doc(db, 'clubs', clubId, 'settings', 'general');
+      console.log(`🔍 Attempt ${retryCount + 1}: Loading pitch names from clubs/${clubId}/settings/general`);
+      
+      const settingsDoc = await getDoc(settingsRef);
+      
+      if (settingsDoc.exists()) {
+        const settingsData = settingsDoc.data();
+        if (settingsData.pitchNames) {
+          console.log('✅ Pitch names loaded successfully:', settingsData.pitchNames);
+          return settingsData.pitchNames;
+        } else {
+          console.log('⚠️ Settings exist but no pitchNames field');
+          return {};
+        }
+      } else {
+        console.log('⚠️ Settings document does not exist');
+        return {};
+      }
+    } catch (error) {
+      lastError = error;
+      retryCount++;
+      console.error(`❌ Attempt ${retryCount} failed:`, error);
+      
+      if (retryCount < maxRetries) {
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+      }
+    }
+  }
+  
+  console.error('❌ All retry attempts failed:', lastError);
+  return {};
+};
+
+// Main function to get shared allocation data
 const getSharedAllocation = async (shareId) => {
   try {
-    // Import Firebase here (adjust the path to match your project structure)
     const { doc, getDoc } = await import('firebase/firestore');
-    const { db } = await import('../utils/firebase'); // Adjust path as needed
+    const { db } = await import('../utils/firebase');
     
-    // Get the shared allocation data from Firebase
+    // Get the shared allocation data
     const shareDoc = await getDoc(doc(db, 'sharedAllocations', shareId));
     
     if (!shareDoc.exists()) {
@@ -31,9 +100,9 @@ const getSharedAllocation = async (shareId) => {
     }
     
     const shareData = shareDoc.data();
-    console.log('Share data:', shareData);
+    console.log('Share data loaded:', shareData);
     
-    // Get the club data to fetch satelliteConfig and pitchBoundaries
+    // Get the club data
     const clubId = shareData.clubId;
     if (!clubId) {
       throw new Error('Club ID not found in share data');
@@ -45,44 +114,20 @@ const getSharedAllocation = async (shareId) => {
     }
     
     const clubData = clubDoc.data();
-    console.log('Club data:', clubData);
+    console.log('Club data loaded:', clubData);
     
-    // CRITICAL: Load pitch names from settings/general document (same as ClubPitchMap)
-    let pitchNames = {};
-    try {
-      const settingsRef = doc(db, 'clubs', clubId, 'settings', 'general');
-      console.log('🔍 FETCHING PITCH NAMES FROM:', `clubs/${clubId}/settings/general`);
-      const settingsDoc = await getDoc(settingsRef);
-      
-      if (settingsDoc.exists()) {
-        const settingsData = settingsDoc.data();
-        console.log('📋 SETTINGS DATA:', settingsData);
-        
-        if (settingsData.pitchNames) {
-          pitchNames = settingsData.pitchNames;
-          console.log('✅ PITCH NAMES LOADED:', pitchNames);
-        } else {
-          console.log('❌ NO pitchNames FIELD IN SETTINGS');
-        }
-      } else {
-        console.log('❌ SETTINGS DOCUMENT DOES NOT EXIST');
-      }
-    } catch (settingsError) {
-      console.error('❌ ERROR LOADING PITCH NAMES:', settingsError);
-    }
-    
-    // Combine the share data with club satellite config and pitch names
+    // Return data WITHOUT pitch names initially (they'll be loaded separately)
     return {
       ...shareData,
+      clubId,
       clubName: clubData.name,
-      pitchNames: pitchNames, // Add pitch names to the returned data
       satelliteConfig: {
         imageUrl: clubData.satelliteConfig?.imageUrl,
-        imagePath: clubData.satelliteConfig?.imagePath, // Store the Firebase path for SDK usage
+        imagePath: clubData.satelliteConfig?.imagePath,
         imageWidth: clubData.satelliteConfig?.imageWidth,
         imageHeight: clubData.satelliteConfig?.imageHeight,
         pitchBoundaries: clubData.satelliteConfig?.pitchBoundaries?.map((boundary, index) => ({
-          pitchNumber: (index + 1).toString(), // Convert 0-based to 1-based numbering
+          pitchNumber: (index + 1).toString(),
           sizeType: boundary.sizeType || 'large',
           boundaries: boundary.boundaries
         })) || []
@@ -95,47 +140,26 @@ const getSharedAllocation = async (shareId) => {
   }
 };
 
-// Helper function to get display name for a pitch (same logic as ClubPitchMap)
-const getPitchDisplayName = (pitchNumber, pitchNames) => {
-  // Try different key formats - same as ClubPitchMap
-  const possibleKeys = [
-    `pitch-${pitchNumber}`,     // "pitch-1" (this is what's in Firebase)
-    `pitch${pitchNumber}`,      // "pitch1"
-    `Pitch ${pitchNumber}`,     // "Pitch 1"
-    `Pitch-${pitchNumber}`,     // "Pitch-1"
-    pitchNumber.toString(),     // "1"
-  ];
-  
-  // Find the first key that exists in pitchNames
-  for (const key of possibleKeys) {
-    if (pitchNames && pitchNames[key]) {
-      console.log(`✓ Found custom name for key "${key}": ${pitchNames[key]}`);
-      return pitchNames[key];
-    }
-  }
-  
-  // Fallback if no custom name found
-  return `Pitch ${pitchNumber}`;
-};
-
 function ShareView() {
   const { shareId } = useParams();
   const [sharedData, setSharedData] = useState(null);
+  const [pitchNames, setPitchNames] = useState({});
+  const [pitchNamesLoadingState, setPitchNamesLoadingState] = useState('idle'); // idle, loading, loaded, error
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedPitch, setSelectedPitch] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [viewMode, setViewMode] = useState('map'); // 'map' or 'pitch'
   
-  // Canvas and image refs for satellite rendering
+  // Canvas and image refs
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   
-  // Firebase SDK image loading states
+  // Firebase image states
   const [firebaseImageUrl, setFirebaseImageUrl] = useState(null);
-  const [imageLoadingState, setImageLoadingState] = useState('idle'); // 'idle', 'loading', 'loaded', 'error'
+  const [imageLoadingState, setImageLoadingState] = useState('idle');
   const [imageError, setImageError] = useState(null);
 
   // Handle window resize
@@ -148,228 +172,14 @@ function ShareView() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Firebase SDK image loading - Fixed for proper public access
+  // Load shared data first
   useEffect(() => {
-    const loadFirebaseImage = async () => {
-      if (!sharedData?.satelliteConfig?.imageUrl) return;
-      
+    const loadData = async () => {
       try {
-        setImageLoadingState('loading');
-        setImageError(null);
-        
-        let imagePath = sharedData.satelliteConfig.imagePath;
-        
-        // If no imagePath, extract from the imageUrl
-        if (!imagePath && sharedData.satelliteConfig.imageUrl) {
-          const pathMatch = sharedData.satelliteConfig.imageUrl.match(/\/o\/(.+?)\?alt=/);
-          if (pathMatch) {
-            imagePath = decodeURIComponent(pathMatch[1]);
-            console.log('Extracted path from URL:', imagePath);
-          }
-        }
-        
-        // Use Firebase SDK to get public access URL
-        if (imagePath) {
-          console.log('Loading image via Firebase SDK:', imagePath);
-          
-          const { ref, getDownloadURL } = await import('firebase/storage');
-          const { storage } = await import('../utils/firebase'); // Adjust path as needed
-          
-          // Create a reference to the image using the path
-          const imageRef = ref(storage, imagePath);
-          
-          // Get the download URL using Firebase SDK (generates proper public access token)
-          const publicUrl = await getDownloadURL(imageRef);
-          
-          console.log('Firebase SDK generated public URL successfully');
-          setFirebaseImageUrl(publicUrl);
-          setImageLoadingState('loaded');
-          
-        } else {
-          // No path available - this will likely fail due to CORS
-          console.log('No Firebase path available, cannot use SDK - image will likely fail to load');
-          setImageError('No Firebase storage path available');
-          setImageLoadingState('error');
-        }
-        
-      } catch (error) {
-        console.error('Error loading Firebase image:', error);
-        setImageError(error.message || 'Failed to load satellite image');
-        setImageLoadingState('error');
-      }
-    };
-
-    if (sharedData?.satelliteConfig) {
-      loadFirebaseImage();
-    }
-  }, [sharedData]);
-
-  // Calculate canvas size maintaining aspect ratio
-  const calculateCanvasSize = (imgWidth, imgHeight) => {
-    const maxWidth = isMobile ? window.innerWidth - 40 : 1000;
-    const maxHeight = isMobile ? 400 : 600;
-    const aspectRatio = imgWidth / imgHeight;
-    
-    let width = maxWidth;
-    let height = width / aspectRatio;
-    
-    if (height > maxHeight) {
-      height = maxHeight;
-      width = height * aspectRatio;
-    }
-    
-    return { width, height };
-  };
-
-  // Handle image load
-  const handleImageLoad = () => {
-    if (imageRef.current && sharedData?.satelliteConfig) {
-      const size = calculateCanvasSize(
-        sharedData.satelliteConfig.imageWidth, 
-        sharedData.satelliteConfig.imageHeight
-      );
-      setCanvasSize(size);
-      setImageLoaded(true);
-    }
-  };
-
-  // Handle image error
-  const handleImageError = (error) => {
-    console.error('Image failed to load:', error);
-    setImageLoaded(false);
-    setImageLoadingState('error');
-    setImageError('Failed to load satellite image');
-  };
-
-  // Draw the canvas with image and pitch boundaries
-  const drawCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    const image = imageRef.current;
-    if (!canvas || !image || !imageLoaded || !sharedData?.satelliteConfig) return;
-
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw satellite image
-    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-    // Scale factor for coordinates
-    const scaleX = canvas.width / sharedData.satelliteConfig.imageWidth;
-    const scaleY = canvas.height / sharedData.satelliteConfig.imageHeight;
-
-    const allocations = sharedData?.allocations || {};
-    
-    // Draw pitch boundaries
-    if (sharedData.satelliteConfig.pitchBoundaries) {
-      sharedData.satelliteConfig.pitchBoundaries.forEach((pitch, index) => {
-        const x = pitch.boundaries.x1 * scaleX;
-        const y = pitch.boundaries.y1 * scaleY;
-        const width = (pitch.boundaries.x2 - pitch.boundaries.x1) * scaleX;
-        const height = (pitch.boundaries.y2 - pitch.boundaries.y1) * scaleY;
-
-        // Check if this pitch has allocations
-        const pitchNum = pitch.pitchNumber;
-        const hasAllocations = Object.keys(allocations).some(key => {
-          const parts = key.split('-');
-          return parts.some(part => part === pitchNum || part === `pitch${pitchNum}`);
-        });
-
-        // Draw rectangle
-        ctx.fillStyle = hasAllocations ? 'rgba(34, 197, 94, 0.6)' : 'rgba(34, 197, 94, 0.3)';
-        ctx.fillRect(x, y, width, height);
-        
-        ctx.strokeStyle = '#16a34a';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, width, height);
-
-        // Draw pitch NUMBER ONLY (not the name, just the number like "1", "2", "3")
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 24px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        // Add background for better visibility
-        const pitchLabel = pitch.pitchNumber || `${index + 1}`;
-        const textMetrics = ctx.measureText(pitchLabel);
-        const padding = 10;
-        
-        ctx.fillStyle = 'rgba(31, 41, 55, 0.8)';
-        ctx.fillRect(
-          x + width / 2 - textMetrics.width / 2 - padding,
-          y + height / 2 - 15,
-          textMetrics.width + padding * 2,
-          30
-        );
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(
-          pitchLabel,
-          x + width / 2,
-          y + height / 2
-        );
-
-        // Draw allocation count if has allocations
-        if (hasAllocations) {
-          const allocCount = Object.keys(allocations).filter(key => {
-            const parts = key.split('-');
-            return parts.some(part => part === pitchNum || part === `pitch${pitchNum}`);
-          }).length;
-          
-          ctx.font = `${Math.max(10, Math.min(14, width / 12))}px sans-serif`;
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-          ctx.fillText(`${allocCount} slots`, x + width / 2, y + height / 2 + 28);
-        }
-      });
-    }
-  }, [imageLoaded, sharedData]);
-
-  useEffect(() => {
-    if (imageLoaded && canvasRef.current && sharedData) {
-      drawCanvas();
-    }
-  }, [imageLoaded, sharedData, drawCanvas, viewMode]); // Added viewMode dependency
-
-  // Additional effect to redraw canvas when returning to map view
-  useEffect(() => {
-    if (viewMode === 'map' && imageLoaded && canvasRef.current && sharedData) {
-      // Small delay to ensure canvas is properly mounted
-      const timer = setTimeout(() => {
-        drawCanvas();
-      }, 10);
-      return () => clearTimeout(timer);
-    }
-  }, [viewMode, imageLoaded, sharedData, drawCanvas]);
-
-  // Handle canvas click to select pitch
-  const handleCanvasClick = (e) => {
-    if (!canvasRef.current || !sharedData?.satelliteConfig) return;
-
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / canvasSize.width) * sharedData.satelliteConfig.imageWidth;
-    const y = ((e.clientY - rect.top) / canvasSize.height) * sharedData.satelliteConfig.imageHeight;
-
-    // Check which pitch was clicked
-    const clickedPitch = sharedData.satelliteConfig.pitchBoundaries?.find(pitch => {
-      const bounds = pitch.boundaries;
-      return x >= bounds.x1 && x <= bounds.x2 && y >= bounds.y1 && y <= bounds.y2;
-    });
-
-    if (clickedPitch) {
-      setSelectedPitch(clickedPitch);
-      setViewMode('pitch');
-    }
-  };
-
-  useEffect(() => {
-    const loadSharedData = async () => {
-      try {
+        setLoading(true);
         const data = await getSharedAllocation(shareId);
         
-        console.log('=== SHARE DATA DEBUG ===');
-        console.log('Full data:', data);
-        console.log('Pitch names:', data.pitchNames);
-        
-        // Extract pitches from allocation keys
+        // Process allocations and extract pitches
         let availablePitches = [];
         let extractedDate = data?.date;
         
@@ -384,7 +194,6 @@ function ShareView() {
               if (part.match(/^\d{4}/) && part.length >= 8) {
                 dateSet.add(part);
               } else if (index > 0 && !sections.includes(part.toUpperCase())) {
-                // Check if this could be a pitch
                 let pitchId = part;
                 if (/^\d+$/.test(pitchId)) {
                   pitchId = `pitch${pitchId}`;
@@ -436,15 +245,247 @@ function ShareView() {
       }
     };
     
-    loadSharedData();
+    loadData();
   }, [shareId]);
 
+  // Load pitch names separately AFTER shared data is loaded
+  useEffect(() => {
+    const loadNames = async () => {
+      if (!sharedData?.clubId) return;
+      
+      setPitchNamesLoadingState('loading');
+      
+      try {
+        const names = await loadPitchNames(sharedData.clubId);
+        setPitchNames(names);
+        setPitchNamesLoadingState('loaded');
+        console.log('✅ Pitch names state updated:', names);
+      } catch (error) {
+        console.error('❌ Failed to load pitch names:', error);
+        setPitchNamesLoadingState('error');
+        setPitchNames({});
+      }
+    };
+    
+    loadNames();
+  }, [sharedData?.clubId]);
+
+  // Firebase SDK image loading
+  useEffect(() => {
+    const loadFirebaseImage = async () => {
+      if (!sharedData?.satelliteConfig?.imageUrl) return;
+      
+      try {
+        setImageLoadingState('loading');
+        setImageError(null);
+        
+        let imagePath = sharedData.satelliteConfig.imagePath;
+        
+        if (!imagePath && sharedData.satelliteConfig.imageUrl) {
+          const pathMatch = sharedData.satelliteConfig.imageUrl.match(/\/o\/(.+?)\?alt=/);
+          if (pathMatch) {
+            imagePath = decodeURIComponent(pathMatch[1]);
+          }
+        }
+        
+        if (imagePath) {
+          const { ref, getDownloadURL } = await import('firebase/storage');
+          const { storage } = await import('../utils/firebase');
+          
+          const imageRef = ref(storage, imagePath);
+          const publicUrl = await getDownloadURL(imageRef);
+          
+          setFirebaseImageUrl(publicUrl);
+          setImageLoadingState('loaded');
+        } else {
+          setImageError('No Firebase storage path available');
+          setImageLoadingState('error');
+        }
+        
+      } catch (error) {
+        console.error('Error loading Firebase image:', error);
+        setImageError(error.message || 'Failed to load satellite image');
+        setImageLoadingState('error');
+      }
+    };
+
+    if (sharedData?.satelliteConfig) {
+      loadFirebaseImage();
+    }
+  }, [sharedData]);
+
+  // Calculate canvas size
+  const calculateCanvasSize = (imgWidth, imgHeight) => {
+    const maxWidth = isMobile ? window.innerWidth - 40 : 1000;
+    const maxHeight = isMobile ? 400 : 600;
+    const aspectRatio = imgWidth / imgHeight;
+    
+    let width = maxWidth;
+    let height = width / aspectRatio;
+    
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * aspectRatio;
+    }
+    
+    return { width, height };
+  };
+
+  // Handle image load
+  const handleImageLoad = () => {
+    if (imageRef.current && sharedData?.satelliteConfig) {
+      const size = calculateCanvasSize(
+        sharedData.satelliteConfig.imageWidth, 
+        sharedData.satelliteConfig.imageHeight
+      );
+      setCanvasSize(size);
+      setImageLoaded(true);
+    }
+  };
+
+  // Handle image error
+  const handleImageError = (error) => {
+    console.error('Image failed to load:', error);
+    setImageLoaded(false);
+    setImageLoadingState('error');
+    setImageError('Failed to load satellite image');
+  };
+
+  // Draw canvas
+  const drawCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    const image = imageRef.current;
+    if (!canvas || !image || !imageLoaded || !sharedData?.satelliteConfig) return;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    const scaleX = canvas.width / sharedData.satelliteConfig.imageWidth;
+    const scaleY = canvas.height / sharedData.satelliteConfig.imageHeight;
+
+    const allocations = sharedData?.allocations || {};
+    
+    if (sharedData.satelliteConfig.pitchBoundaries) {
+      sharedData.satelliteConfig.pitchBoundaries.forEach((pitch, index) => {
+        const x = pitch.boundaries.x1 * scaleX;
+        const y = pitch.boundaries.y1 * scaleY;
+        const width = (pitch.boundaries.x2 - pitch.boundaries.x1) * scaleX;
+        const height = (pitch.boundaries.y2 - pitch.boundaries.y1) * scaleY;
+
+        const pitchNum = pitch.pitchNumber;
+        const hasAllocations = Object.keys(allocations).some(key => {
+          const parts = key.split('-');
+          return parts.some(part => part === pitchNum || part === `pitch${pitchNum}`);
+        });
+
+        ctx.fillStyle = hasAllocations ? 'rgba(34, 197, 94, 0.6)' : 'rgba(34, 197, 94, 0.3)';
+        ctx.fillRect(x, y, width, height);
+        
+        ctx.strokeStyle = '#16a34a';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, width, height);
+
+        // Draw pitch number
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        const pitchLabel = pitch.pitchNumber || `${index + 1}`;
+        const textMetrics = ctx.measureText(pitchLabel);
+        const padding = 10;
+        
+        ctx.fillStyle = 'rgba(31, 41, 55, 0.8)';
+        ctx.fillRect(
+          x + width / 2 - textMetrics.width / 2 - padding,
+          y + height / 2 - 15,
+          textMetrics.width + padding * 2,
+          30
+        );
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(pitchLabel, x + width / 2, y + height / 2);
+
+        if (hasAllocations) {
+          const allocCount = Object.keys(allocations).filter(key => {
+            const parts = key.split('-');
+            return parts.some(part => part === pitchNum || part === `pitch${pitchNum}`);
+          }).length;
+          
+          ctx.font = `${Math.max(10, Math.min(14, width / 12))}px sans-serif`;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.fillText(`${allocCount} slots`, x + width / 2, y + height / 2 + 28);
+        }
+      });
+    }
+  }, [imageLoaded, sharedData]);
+
+  useEffect(() => {
+    if (imageLoaded && canvasRef.current && sharedData) {
+      drawCanvas();
+    }
+  }, [imageLoaded, sharedData, drawCanvas, viewMode]);
+
+  useEffect(() => {
+    if (viewMode === 'map' && imageLoaded && canvasRef.current && sharedData) {
+      const timer = setTimeout(() => {
+        drawCanvas();
+      }, 10);
+      return () => clearTimeout(timer);
+    }
+  }, [viewMode, imageLoaded, sharedData, drawCanvas]);
+
+  // Handle canvas click
+  const handleCanvasClick = (e) => {
+    if (!canvasRef.current || !sharedData?.satelliteConfig) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / canvasSize.width) * sharedData.satelliteConfig.imageWidth;
+    const y = ((e.clientY - rect.top) / canvasSize.height) * sharedData.satelliteConfig.imageHeight;
+
+    const clickedPitch = sharedData.satelliteConfig.pitchBoundaries?.find(pitch => {
+      const bounds = pitch.boundaries;
+      return x >= bounds.x1 && x <= bounds.x2 && y >= bounds.y1 && y <= bounds.y2;
+    });
+
+    if (clickedPitch) {
+      setSelectedPitch(clickedPitch);
+      setViewMode('pitch');
+    }
+  };
+
+  // Loading state
   if (loading) {
-    return <div>Loading allocation…</div>;
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        fontSize: '16px',
+        color: '#6b7280'
+      }}>
+        Loading allocation...
+      </div>
+    );
   }
 
+  // Error state
   if (error) {
-    return <div>Error: {error}</div>;
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        fontSize: '16px',
+        color: '#dc2626'
+      }}>
+        Error: {error}
+      </div>
+    );
   }
 
   const allocations = sharedData?.allocations || {};
@@ -452,7 +493,6 @@ function ShareView() {
   const clubName = sharedData?.clubName || 'Soccer Club';
   const allocationType = sharedData?.type === 'match' ? 'Match Day' : sharedData?.type === 'training' ? 'Training' : 'Pitch';
   const pitches = sharedData?.pitches || [];
-  const pitchNames = sharedData?.pitchNames || {};
   const satelliteConfig = sharedData?.satelliteConfig;
   
   // Extract time range
@@ -499,7 +539,7 @@ function ShareView() {
     }
   }
 
-  // Allocation lookup
+  // Allocation lookup functions
   const findAllocation = (timeSlot, pitchId, section) => {
     const pitchNum = pitchId.replace(/\D/g, '');
     
@@ -552,7 +592,7 @@ function ShareView() {
     return count;
   };
 
-  // Render satellite map view with canvas
+  // Render map view
   const renderMapView = () => (
     <div style={{
       backgroundColor: 'white',
@@ -582,7 +622,6 @@ function ShareView() {
         display: 'flex',
         justifyContent: 'center'
       }}>
-        {/* Canvas for satellite map */}
         {firebaseImageUrl && satelliteConfig && imageLoadingState === 'loaded' ? (
           <>
             <canvas
@@ -598,7 +637,6 @@ function ShareView() {
               onClick={handleCanvasClick}
             />
             
-            {/* Loading state */}
             {!imageLoaded && (
               <div style={{
                 width: '100%',
@@ -613,7 +651,6 @@ function ShareView() {
               </div>
             )}
             
-            {/* Hidden image element for loading */}
             <img
               ref={imageRef}
               src={firebaseImageUrl}
@@ -624,7 +661,6 @@ function ShareView() {
             />
           </>
         ) : imageLoadingState === 'loading' ? (
-          /* Loading state */
           <div style={{
             width: '100%',
             height: isMobile ? '300px' : '400px',
@@ -637,7 +673,6 @@ function ShareView() {
             Loading satellite view...
           </div>
         ) : imageLoadingState === 'error' ? (
-          /* Error state */
           <div style={{
             width: '100%',
             height: isMobile ? '300px' : '400px',
@@ -657,7 +692,6 @@ function ShareView() {
             )}
           </div>
         ) : (
-          /* Fallback if no satellite image */
           <div style={{
             width: '100%',
             paddingTop: '60%',
@@ -700,7 +734,7 @@ function ShareView() {
         </p>
       </div>
 
-      {/* Pitch Legend - Exact same logic as ClubPitchMap */}
+      {/* Pitch Legend */}
       {satelliteConfig?.pitchBoundaries?.length > 0 && (
         <div style={{
           backgroundColor: 'white',
@@ -715,18 +749,36 @@ function ShareView() {
             fontWeight: '600',
             color: '#374151',
             marginBottom: '12px',
-            textAlign: 'center'
+            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
           }}>
             Pitch Legend
-            {Object.keys(pitchNames).length === 0 && (
-              <span style={{ fontSize: '10px', color: '#ef4444', marginLeft: '8px' }}>
-                (Names not loaded)
+            {pitchNamesLoadingState === 'loading' && (
+              <span style={{ 
+                fontSize: '10px', 
+                color: '#f59e0b',
+                backgroundColor: '#fef3c7',
+                padding: '2px 6px',
+                borderRadius: '4px'
+              }}>
+                Loading names...
+              </span>
+            )}
+            {pitchNamesLoadingState === 'error' && (
+              <span style={{ 
+                fontSize: '10px', 
+                color: '#ef4444',
+                backgroundColor: '#fee2e2',
+                padding: '2px 6px',
+                borderRadius: '4px'
+              }}>
+                Names not loaded
               </span>
             )}
           </div>
-          
-          {console.log('🎨 SHAREVIEW LEGEND - pitchNames:', pitchNames)}
-          {console.log('🎨 SHAREVIEW LEGEND - PitchNames keys:', Object.keys(pitchNames))}
           
           <div style={{
             display: 'grid',
@@ -736,39 +788,8 @@ function ShareView() {
             margin: '0 auto'
           }}>
             {satelliteConfig.pitchBoundaries.map((pitch, index) => {
-              // Try multiple possible key formats to match the pitchNames
-              // This logic is EXACTLY from ClubPitchMap that works correctly
               const pitchNumber = pitch.pitchNumber || (index + 1);
-              
-              // Try different key formats - same as ClubPitchMap
-              const possibleKeys = [
-                `pitch-${pitchNumber}`,     // "pitch-1" (this is what's in Firebase)
-                `pitch${pitchNumber}`,      // "pitch1"
-                `Pitch ${pitchNumber}`,     // "Pitch 1"
-                `Pitch-${pitchNumber}`,     // "Pitch-1"
-                pitchNumber.toString(),     // "1"
-              ];
-              
-              // Find the first key that exists in pitchNames
-              let displayName = null;
-              for (const key of possibleKeys) {
-                if (pitchNames && pitchNames[key]) {
-                  displayName = pitchNames[key];
-                  console.log(`✓ SHAREVIEW Found custom name for key "${key}": ${displayName}`);
-                  break;
-                }
-              }
-              
-              // Fallback if no custom name found
-              if (!displayName) {
-                displayName = `Pitch ${pitchNumber}`;
-                if (Object.keys(pitchNames).length > 0) {
-                  console.log(`✗ SHAREVIEW No custom name found for pitch ${pitchNumber}`);
-                  console.log('Tried keys:', possibleKeys);
-                  console.log('Available keys in pitchNames:', Object.keys(pitchNames));
-                }
-              }
-              
+              const displayName = getPitchDisplayName(pitchNumber, pitchNames, pitchNamesLoadingState);
               const allocCount = getAllocationsCountForPitch(`pitch${pitchNumber}`);
               const hasAllocations = allocCount > 0;
               
@@ -782,7 +803,8 @@ function ShareView() {
                     backgroundColor: hasAllocations ? '#f0f9ff' : '#f9fafb',
                     borderRadius: '6px',
                     border: hasAllocations ? '1px solid #bfdbfe' : '1px solid #e5e7eb',
-                    cursor: 'default'
+                    cursor: 'default',
+                    transition: 'all 0.3s ease'
                   }}
                 >
                   <div style={{
@@ -840,7 +862,7 @@ function ShareView() {
         </div>
       )}
 
-      {/* Pitch List for mobile when no satellite */}
+      {/* Pitch Buttons for mobile */}
       {(isMobile || imageLoadingState !== 'loaded') && satelliteConfig?.pitchBoundaries && (
         <div style={{
           backgroundColor: 'white',
@@ -865,7 +887,7 @@ function ShareView() {
             {satelliteConfig.pitchBoundaries.map((pitch) => {
               const allocCount = getAllocationsCountForPitch(`pitch${pitch.pitchNumber}`);
               const hasAllocations = allocCount > 0;
-              const displayName = getPitchDisplayName(pitch.pitchNumber, pitchNames);
+              const displayName = getPitchDisplayName(pitch.pitchNumber, pitchNames, pitchNamesLoadingState);
               
               return (
                 <button
@@ -883,7 +905,8 @@ function ShareView() {
                     fontWeight: '600',
                     color: hasAllocations ? '#15803d' : '#6b7280',
                     cursor: 'pointer',
-                    textAlign: 'center'
+                    textAlign: 'center',
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   {displayName}
@@ -901,7 +924,7 @@ function ShareView() {
     </div>
   );
 
-  // Render pitch allocations view
+  // Render pitch view
   const renderPitchView = () => {
     if (!selectedPitch) return null;
     
@@ -918,7 +941,7 @@ function ShareView() {
     };
     
     const pitchId = `pitch${selectedPitch.pitchNumber}`;
-    const displayName = getPitchDisplayName(selectedPitch.pitchNumber, pitchNames);
+    const displayName = getPitchDisplayName(selectedPitch.pitchNumber, pitchNames, pitchNamesLoadingState);
     
     return (
       <div style={{
@@ -928,7 +951,6 @@ function ShareView() {
         overflow: 'hidden',
         marginTop: '16px'
       }}>
-        {/* Header with Back Button */}
         <div style={{
           backgroundColor: '#f3f4f6',
           padding: '12px',
@@ -978,7 +1000,6 @@ function ShareView() {
           </span>
         </div>
         
-        {/* Allocations Grid */}
         <div style={{ padding: '4px' }}>
           {timeSlots.map((s) => {
             const hasAllocations = hasAllocationsForTimeSlot(s, pitchId);
@@ -1053,7 +1074,6 @@ function ShareView() {
                               position: 'relative'
                             }}
                           >
-                            {/* Type indicator icon */}
                             {alloc && (
                               <div style={{
                                 position: 'absolute',
@@ -1188,6 +1208,21 @@ function ShareView() {
               </div>
             )}
           </div>
+          
+          {/* Loading indicator for pitch names */}
+          {pitchNamesLoadingState === 'loading' && (
+            <div style={{
+              marginTop: '8px',
+              padding: '6px 12px',
+              backgroundColor: '#fef3c7',
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: '#92400e',
+              display: 'inline-block'
+            }}>
+              Loading custom pitch names...
+            </div>
+          )}
         </div>
 
         {/* Main Content */}
