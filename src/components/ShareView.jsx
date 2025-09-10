@@ -753,6 +753,146 @@ function ShareView() {
         </p>
       </div>
 
+      {/* Pitch Legend - Exact same logic as ClubPitchMap */}
+      {satelliteConfig?.pitchBoundaries?.length > 0 && (
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #e5e7eb',
+          padding: '16px',
+          marginTop: '16px'
+        }}>
+          <div style={{
+            fontSize: isMobile ? '14px' : '16px',
+            fontWeight: '600',
+            color: '#374151',
+            marginBottom: '12px',
+            textAlign: 'center'
+          }}>
+            Pitch Legend
+            {Object.keys(pitchNames).length === 0 && (
+              <span style={{ fontSize: '10px', color: '#ef4444', marginLeft: '8px' }}>
+                (Names not loaded)
+              </span>
+            )}
+          </div>
+          
+          {console.log('🎨 SHAREVIEW LEGEND - pitchNames:', pitchNames)}
+          {console.log('🎨 SHAREVIEW LEGEND - PitchNames keys:', Object.keys(pitchNames))}
+          
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '8px',
+            maxWidth: '800px',
+            margin: '0 auto'
+          }}>
+            {satelliteConfig.pitchBoundaries.map((pitch, index) => {
+              // Try multiple possible key formats to match the pitchNames
+              // This logic is EXACTLY from ClubPitchMap that works correctly
+              const pitchNumber = pitch.pitchNumber || (index + 1);
+              
+              // Try different key formats - same as ClubPitchMap
+              const possibleKeys = [
+                `pitch-${pitchNumber}`,     // "pitch-1" (this is what's in Firebase)
+                `pitch${pitchNumber}`,      // "pitch1"
+                `Pitch ${pitchNumber}`,     // "Pitch 1"
+                `Pitch-${pitchNumber}`,     // "Pitch-1"
+                pitchNumber.toString(),     // "1"
+              ];
+              
+              // Find the first key that exists in pitchNames
+              let displayName = null;
+              for (const key of possibleKeys) {
+                if (pitchNames && pitchNames[key]) {
+                  displayName = pitchNames[key];
+                  console.log(`✓ SHAREVIEW Found custom name for key "${key}": ${displayName}`);
+                  break;
+                }
+              }
+              
+              // Fallback if no custom name found
+              if (!displayName) {
+                displayName = `Pitch ${pitchNumber}`;
+                if (Object.keys(pitchNames).length > 0) {
+                  console.log(`✗ SHAREVIEW No custom name found for pitch ${pitchNumber}`);
+                  console.log('Tried keys:', possibleKeys);
+                  console.log('Available keys in pitchNames:', Object.keys(pitchNames));
+                }
+              }
+              
+              const allocCount = getAllocationsCountForPitch(`pitch${pitchNumber}`);
+              const hasAllocations = allocCount > 0;
+              
+              return (
+                <div 
+                  key={index}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '8px',
+                    backgroundColor: hasAllocations ? '#f0f9ff' : '#f9fafb',
+                    borderRadius: '6px',
+                    border: hasAllocations ? '1px solid #bfdbfe' : '1px solid #e5e7eb',
+                    cursor: 'default'
+                  }}
+                >
+                  <div style={{
+                    width: '28px',
+                    height: '28px',
+                    backgroundColor: '#22c55e',
+                    color: 'white',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    marginRight: '12px'
+                  }}>
+                    {pitchNumber}
+                  </div>
+                  
+                  <div style={{ flex: 1 }}>
+                    <div style={{ 
+                      fontSize: isMobile ? '13px' : '14px',
+                      color: '#374151',
+                      fontWeight: '500'
+                    }}>
+                      {displayName}
+                    </div>
+                    {hasAllocations && (
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#6b7280',
+                        marginTop: '2px'
+                      }}>
+                        {allocCount} allocations
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          <div style={{
+            padding: '8px',
+            backgroundColor: '#f0f9ff',
+            border: '1px solid #bfdbfe',
+            borderRadius: '4px',
+            fontSize: isMobile ? '11px' : '12px',
+            color: '#1e40af',
+            textAlign: 'center',
+            margin: '12px auto 0',
+            maxWidth: '400px'
+          }}>
+            Tap on a pitch on the map to view the training or game allocations for that specific pitch.
+          </div>
+        </div>
+      )}
+
       {/* Pitch List for mobile when no satellite */}
       {(isMobile || imageLoadingState !== 'loaded') && satelliteConfig?.pitchBoundaries && (
         <div style={{
