@@ -897,9 +897,32 @@ function ShareView() {
                               textAlign: 'center',
                               backgroundColor: alloc ? (alloc.colour || alloc.color) + '90' : 'rgba(255,255,255,0.1)',
                               borderColor: alloc ? (alloc.colour || alloc.color) : 'rgba(255,255,255,0.5)',
-                              color: alloc ? (isLightColor(alloc.colour || alloc.color) ? '#000' : '#fff') : '#374151'
+                              color: alloc ? (isLightColor(alloc.colour || alloc.color) ? '#000' : '#fff') : '#374151',
+                              position: 'relative'
                             }}
                           >
+                            {/* Type indicator icon - ADDED HERE */}
+                            {alloc && (
+                              <div style={{
+                                position: 'absolute',
+                                top: '2px',
+                                right: '2px',
+                                width: isMobile ? '12px' : '14px',
+                                height: isMobile ? '12px' : '14px',
+                                backgroundColor: alloc.type === 'training' ? '#3b82f6' : '#ef4444',
+                                color: 'white',
+                                fontSize: isMobile ? '7px' : '8px',
+                                fontWeight: 'bold',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '2px',
+                                zIndex: 20
+                              }}>
+                                {alloc.type === 'training' ? 'T' : 'M'}
+                              </div>
+                            )}
+                            
                             <div style={{
                               fontSize: isMobile ? '10px' : '12px',
                               opacity: 0.75,
