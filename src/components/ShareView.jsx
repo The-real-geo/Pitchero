@@ -3,7 +3,7 @@
 // UPDATED: Now fetches custom pitch names from settings
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
