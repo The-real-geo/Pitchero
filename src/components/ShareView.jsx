@@ -178,7 +178,7 @@ function ShareView() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load shared data first
+  // Load shared data and pitch names together
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -243,6 +243,33 @@ function ShareView() {
         
         setSharedData(updatedData);
         
+        // Load pitch names immediately after setting shared data
+        if (data?.clubId) {
+          console.log('🚀 Loading pitch names for clubId:', data.clubId);
+          setPitchNamesLoadingState('loading');
+          
+          try {
+            const names = await loadPitchNames(data.clubId);
+            console.log('📦 Received pitch names:', names);
+            console.log('📦 Keys in pitch names:', Object.keys(names));
+            console.log('📦 Is empty?:', Object.keys(names).length === 0);
+            
+            if (names && Object.keys(names).length > 0) {
+              setPitchNames(names);
+              setPitchNamesLoadingState('loaded');
+              console.log('✅ Pitch names successfully set in state');
+            } else {
+              console.log('⚠️ Pitch names object is empty or null');
+              setPitchNames({});
+              setPitchNamesLoadingState('loaded'); // Still mark as loaded even if empty
+            }
+          } catch (error) {
+            console.error('❌ Failed to load pitch names:', error);
+            setPitchNamesLoadingState('error');
+            setPitchNames({});
+          }
+        }
+        
       } catch (err) {
         console.error('Error loading shared data:', err);
         setError(err.message || 'Failed to load shared allocation');
@@ -254,32 +281,11 @@ function ShareView() {
     loadData();
   }, [shareId]);
 
-  // Load pitch names separately AFTER shared data is loaded
-  useEffect(() => {
-    const loadNames = async () => {
-      if (!sharedData?.clubId) return;
-      
-      setPitchNamesLoadingState('loading');
-      
-      try {
-        const names = await loadPitchNames(sharedData.clubId);
-        setPitchNames(names);
-        setPitchNamesLoadingState('loaded');
-        console.log('✅ Pitch names state updated:', names);
-      } catch (error) {
-        console.error('❌ Failed to load pitch names:', error);
-        setPitchNamesLoadingState('error');
-        setPitchNames({});
-      }
-    };
-    
-    loadNames();
-  }, [sharedData?.clubId]);
-
-  // Firebase SDK image loading
+  // Firebase SDK image loading - now loads AFTER pitch names
   useEffect(() => {
     const loadFirebaseImage = async () => {
-      if (!sharedData?.satelliteConfig?.imageUrl) return;
+      // Only load image after pitch names have been attempted
+      if (!sharedData?.satelliteConfig?.imageUrl || pitchNamesLoadingState === 'idle') return;
       
       try {
         setImageLoadingState('loading');
@@ -315,10 +321,10 @@ function ShareView() {
       }
     };
 
-    if (sharedData?.satelliteConfig) {
+    if (sharedData?.satelliteConfig && pitchNamesLoadingState !== 'idle') {
       loadFirebaseImage();
     }
-  }, [sharedData]);
+  }, [sharedData, pitchNamesLoadingState]);
 
   // Calculate canvas size
   const calculateCanvasSize = (imgWidth, imgHeight) => {
