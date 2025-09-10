@@ -40,7 +40,7 @@ const ClubPitchMap = ({
 
   // Load user and club data
   useEffect(() => {
-    console.log('🔐 Starting auth state listener');
+    console.log('🔍 Starting auth state listener');
     
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       console.log('👤 Auth state changed, currentUser:', currentUser?.uid || 'null');
@@ -82,7 +82,7 @@ const ClubPitchMap = ({
 
   // Load satellite configuration when clubId is available
   useEffect(() => {
-    console.log('📍 useEffect for satellite config triggered, clubId is:', clubId);
+    console.log('🔍 useEffect for satellite config triggered, clubId is:', clubId);
     
     const loadSatelliteConfig = async () => {
       if (!clubId) {
@@ -91,7 +91,7 @@ const ClubPitchMap = ({
       }
 
       console.log('🚀 STARTING TO LOAD SATELLITE CONFIG - VERSION 5.0');
-      console.log('🔍 Club ID:', clubId);
+      console.log('🔑 Club ID:', clubId);
 
       try {
         setLoading(true);
@@ -529,7 +529,7 @@ const ClubPitchMap = ({
               for (const key of possibleKeys) {
                 if (pitchNames && pitchNames[key]) {
                   displayName = pitchNames[key];
-                  console.log(`✓ Found custom name for key "${key}": ${displayName}`);
+                  console.log(`✔ Found custom name for key "${key}": ${displayName}`);
                   break;
                 }
               }
@@ -583,19 +583,22 @@ const ClubPitchMap = ({
               );
             })}
             
-<div style={{
-  padding: '8px',
-  backgroundColor: '#f0f9ff',
-  border: '1px solid #bfdbfe',
-  borderRadius: '4px',
-  fontSize: '12px',
-  color: '#1e40af',
-  textAlign: 'center',
-  maxWidth: '250px',
-  margin: '12px auto 0'  // This already sets marginTop to 12px
-}}>
-  Click on a pitch on the map to view the training or game allocations for that specific pitch.
-</div>
+            <div style={{
+              padding: '8px',
+              backgroundColor: '#f0f9ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: '#1e40af',
+              textAlign: 'center',
+              maxWidth: '250px',
+              margin: '12px auto 0'
+            }}>
+              Click on a pitch on the map to view the training or game allocations for that specific pitch.
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Bottom instruction if no pitches configured */}
       {(!satelliteConfig?.pitchBoundaries || satelliteConfig.pitchBoundaries.length === 0) && (
