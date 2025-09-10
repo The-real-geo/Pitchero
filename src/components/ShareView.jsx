@@ -1,19 +1,13 @@
-// ShareView.jsx - Cleaned-up version with proper pitch names re-rendering (mobile fix)
+// ShareView.jsx - Cleaned-up version with proper pitch names re-rendering (using canonical pitch-N keys)
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 
-// Helper: get pitch name with fallback
+// Helper: get pitch name with fallback (DB always stores as pitch-N)
 const getPitchDisplayName = (pitchNumber, pitchNames) => {
-  const possibleKeys = [
-    `pitch-${pitchNumber}`,
-    `pitch${pitchNumber}`,
-    `Pitch ${pitchNumber}`,
-    `Pitch-${pitchNumber}`,
-    pitchNumber.toString(),
-  ];
-  for (const key of possibleKeys) {
-    if (pitchNames && pitchNames[key]) return pitchNames[key];
+  const key = `pitch-${pitchNumber}`;
+  if (pitchNames && pitchNames[key]) {
+    return pitchNames[key];
   }
   return `Pitch ${pitchNumber}`;
 };
@@ -219,7 +213,7 @@ function ShareView() {
           const name = getPitchDisplayName(p.pitchNumber, pitchNames);
           // Force re-render when pitchNames change
           return (
-            <div key={`${p.pitchNumber}-${JSON.stringify(pitchNames)}`}>
+            <div key={`pitch-${p.pitchNumber}-${Object.keys(pitchNames).join(',')}`}>
               {name}
             </div>
           );
