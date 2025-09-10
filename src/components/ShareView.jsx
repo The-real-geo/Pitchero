@@ -953,7 +953,7 @@ function ShareView() {
     };
     
     const pitchId = `pitch${selectedPitch.pitchNumber}`;
-    const displayName = getPitchDisplayName(selectedPitch.pitchNumber, pitchNames || pitchNamesRef.current, pitchNamesLoadingState, pitchNamesRef);
+    const displayName = getPitchDisplayName(selectedPitch.pitchNumber, pitchNames, pitchNamesLoadingState, pitchNamesRef);
     
     return (
       <div style={{
