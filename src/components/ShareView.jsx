@@ -1,52 +1,13 @@
-/* global __firebase_config */
 // Mobile-optimized ShareView.jsx with satellite map and clickable pitches
 // Fixed CORS issue using Firebase SDK with proper public access
 // UPDATED: Now fetches custom pitch names from settings
-// REFACTORED: Switched to static Firebase imports to prevent mobile race conditions
-// FIXED: Resolved build error by including full Firebase initialization
-// FIXED: Added robust check for Firebase config to prevent runtime errors on initialization.
-// FIXED: Added ESLint global declaration for __firebase_config to resolve no-undef build error.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 
-// Firebase SDK imports
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { getStorage, ref, getDownloadURL } from 'firebase/storage';
-
-// --- Firebase Initialization ---
-// This section handles the Firebase setup. The build error occurred because
-// the '../utils/firebase' file doesn't exist in this environment.
-// We now initialize Firebase directly in this file.
-let db, storage;
-try {
-  // Use the globally provided Firebase config, only if it exists and is not empty.
-  if (typeof __firebase_config !== 'undefined' && __firebase_config && __firebase_config !== '{}') {
-    const firebaseConfig = JSON.parse(__firebase_config);
-    // A simple validation to ensure the config is not empty and has a key property.
-    if (firebaseConfig && firebaseConfig.apiKey) {
-        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        db = getFirestore(app);
-        storage = getStorage(app);
-    } else {
-        throw new Error("Firebase config is invalid or missing required fields.");
-    }
-  } else {
-    throw new Error("Firebase config (__firebase_config) is not available.");
-  }
-} catch (e) {
-  console.error("Failed to initialize Firebase:", e.message);
-  // Ensure db and storage are null if initialization fails, so downstream checks work.
-  db = null;
-  storage = null;
-}
-
-
 const sections = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 function isLightColor(color) {
-  if (!color) return false;
   const hex = color.replace('#', '');
   const r = parseInt(hex.substr(0, 2), 16);
   const g = parseInt(hex.substr(2, 2), 16);
@@ -57,11 +18,11 @@ function isLightColor(color) {
 
 // Function to get shared allocation data
 const getSharedAllocation = async (shareId) => {
-  // Ensure Firebase was initialized before proceeding
-  if (!db) {
-      throw new Error("Firebase is not initialized. Cannot fetch data.");
-  }
   try {
+    // Import Firebase here (adjust the path to match your project structure)
+    const { doc, getDoc } = await import('firebase/firestore');
+    const { db } = await import('../utils/firebase'); // Adjust path as needed
+    
     // Get the shared allocation data from Firebase
     const shareDoc = await getDoc(doc(db, 'sharedAllocations', shareId));
     
@@ -190,7 +151,7 @@ function ShareView() {
   // Firebase SDK image loading - Fixed for proper public access
   useEffect(() => {
     const loadFirebaseImage = async () => {
-      if (!sharedData?.satelliteConfig?.imageUrl || !storage) return;
+      if (!sharedData?.satelliteConfig?.imageUrl) return;
       
       try {
         setImageLoadingState('loading');
@@ -211,11 +172,14 @@ function ShareView() {
         if (imagePath) {
           console.log('Loading image via Firebase SDK:', imagePath);
           
+          const { ref, getDownloadURL } = await import('firebase/storage');
+          const { storage } = await import('../utils/firebase'); // Adjust path as needed
+          
           // Create a reference to the image using the path
-          const storageRef = ref(storage, imagePath);
+          const imageRef = ref(storage, imagePath);
           
           // Get the download URL using Firebase SDK (generates proper public access token)
-          const publicUrl = await getDownloadURL(storageRef);
+          const publicUrl = await getDownloadURL(imageRef);
           
           console.log('Firebase SDK generated public URL successfully');
           setFirebaseImageUrl(publicUrl);
@@ -772,8 +736,39 @@ function ShareView() {
             margin: '0 auto'
           }}>
             {satelliteConfig.pitchBoundaries.map((pitch, index) => {
+              // Try multiple possible key formats to match the pitchNames
+              // This logic is EXACTLY from ClubPitchMap that works correctly
               const pitchNumber = pitch.pitchNumber || (index + 1);
-              const displayName = getPitchDisplayName(pitchNumber, pitchNames);
+              
+              // Try different key formats - same as ClubPitchMap
+              const possibleKeys = [
+                `pitch-${pitchNumber}`,     // "pitch-1" (this is what's in Firebase)
+                `pitch${pitchNumber}`,      // "pitch1"
+                `Pitch ${pitchNumber}`,     // "Pitch 1"
+                `Pitch-${pitchNumber}`,     // "Pitch-1"
+                pitchNumber.toString(),     // "1"
+              ];
+              
+              // Find the first key that exists in pitchNames
+              let displayName = null;
+              for (const key of possibleKeys) {
+                if (pitchNames && pitchNames[key]) {
+                  displayName = pitchNames[key];
+                  console.log(`✓ SHAREVIEW Found custom name for key "${key}": ${displayName}`);
+                  break;
+                }
+              }
+              
+              // Fallback if no custom name found
+              if (!displayName) {
+                displayName = `Pitch ${pitchNumber}`;
+                if (Object.keys(pitchNames).length > 0) {
+                  console.log(`✗ SHAREVIEW No custom name found for pitch ${pitchNumber}`);
+                  console.log('Tried keys:', possibleKeys);
+                  console.log('Available keys in pitchNames:', Object.keys(pitchNames));
+                }
+              }
+              
               const allocCount = getAllocationsCountForPitch(`pitch${pitchNumber}`);
               const hasAllocations = allocCount > 0;
               
@@ -1203,4 +1198,3 @@ function ShareView() {
 }
 
 export default ShareView;
-
