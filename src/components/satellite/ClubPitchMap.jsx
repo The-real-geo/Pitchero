@@ -80,7 +80,7 @@ const ClubPitchMap = ({
     return () => unsubscribe();
   }, []);
 
-  // Load satellite configuration AND PITCH NAMES when clubId is available
+  // Load satellite configuration when clubId is available
   useEffect(() => {
     console.log('📍 useEffect for satellite config triggered, clubId is:', clubId);
     
