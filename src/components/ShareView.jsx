@@ -127,7 +127,6 @@ function ShareView() {
   const [selectedPitch, setSelectedPitch] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [viewMode, setViewMode] = useState('map'); // 'map' or 'pitch'
-  const [pitchNamesLoaded, setPitchNamesLoaded] = useState(false);
   
   // Canvas and image refs for satellite rendering
   const canvasRef = useRef(null);
