@@ -1,18 +1,19 @@
-// ShareView.jsx - Fixed resolver & syntax issue corrected
+// ShareView.jsx - Restored design & layout with fixes
+// - Pitch legend shows custom DB names
+// - Canvas rectangles show only pitch numbers
+// - Efficiency improvements: memoized lookups, simplified resolver
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 
-// Resolve pitch name based on Firestore keys (canonical pitch-N)
+// Resolve pitch name for legend using Firestore keys
 function resolvePitchName(pitchNumber, pitchNames) {
   if (!pitchNumber) return "Pitch ?";
 
-  // Direct match first
   if (pitchNames[pitchNumber]) {
     return pitchNames[pitchNumber];
   }
 
-  // Canonical form: pitch-N
   const key = `pitch-${pitchNumber}`;
   if (pitchNames[key]) {
     return pitchNames[key];
@@ -65,7 +66,7 @@ async function getSharedAllocation(shareId) {
   };
 }
 
-export default function ShareView() {
+function ShareView() {
   const { shareId } = useParams();
 
   const [sharedData, setSharedData] = useState(null);
@@ -122,7 +123,7 @@ export default function ShareView() {
         const url = await getDownloadURL(ref(storage, imagePath));
         setImgUrl(url);
       } catch (_) {
-        // Silent
+        // Silent fail
       }
     })();
   }, [sharedData]);
@@ -173,14 +174,15 @@ export default function ShareView() {
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, w, h);
 
-      const label = resolvePitchName(p.pitchNumber, pitchNames);
-      ctx.fillStyle = '#111827';
-      ctx.font = 'bold 16px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      // Show pitch number only inside rectangle
+      const label = p.pitchNumber;
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 18px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(label, x + w / 2, y + h / 2);
     });
-  }, [sharedData, imgLoaded, pitchNames]);
+  }, [sharedData, imgLoaded]);
 
   useEffect(() => {
     if (imgLoaded) draw();
@@ -192,45 +194,58 @@ export default function ShareView() {
   const sc = sharedData?.satelliteConfig;
 
   return (
-    <div style={{ padding: isMobile ? 12 : 24, background: '#f9fafb', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-      <h1 style={{ margin: '0 0 12px', fontSize: isMobile ? 20 : 28 }}>{sharedData?.clubName} – Allocations</h1>
+    <div className="shareview-container" style={{ padding: isMobile ? 12 : 24, background: '#f9fafb', minHeight: '100vh' }}>
+      <h1 style={{ margin: '0 0 12px', fontSize: isMobile ? 20 : 28, fontWeight: 'bold', textAlign: 'center' }}>
+        {sharedData?.clubName} Facility Overview
+      </h1>
 
-      <div style={{ background: '#fff', borderRadius: 8, padding: 12, boxShadow: '0 1px 3px rgba(0,0,0,.08)' }}>
-        {imgUrl ? (
-          <>
-            <canvas
-              ref={canvasRef}
-              width={canvasSize.width}
-              height={canvasSize.height}
-              style={{ maxWidth: '100%', height: 'auto', display: 'block', margin: '0 auto' }}
-            />
-            <img
-              ref={imgRef}
-              src={imgUrl}
-              onLoad={onImgLoad}
-              alt="Satellite"
-              style={{ display: 'none' }}
-            />
-          </>
-        ) : (
-          <div style={{ height: 320, display: 'grid', placeItems: 'center', color: '#6b7280' }}>Loading satellite…</div>
-        )}
-      </div>
+      <div className="shareview-main" style={{ display: 'flex', gap: 16, flexDirection: isMobile ? 'column' : 'row' }}>
+        {/* Map Canvas */}
+        <div className="shareview-map" style={{ flex: 1, background: '#fff', borderRadius: 8, padding: 12, boxShadow: '0 1px 3px rgba(0,0,0,.08)' }}>
+          {imgUrl ? (
+            <>
+              <canvas
+                ref={canvasRef}
+                width={canvasSize.width}
+                height={canvasSize.height}
+                style={{ maxWidth: '100%', height: 'auto', display: 'block', margin: '0 auto' }}
+              />
+              <img
+                ref={imgRef}
+                src={imgUrl}
+                onLoad={onImgLoad}
+                alt="Satellite"
+                style={{ display: 'none' }}
+              />
+            </>
+          ) : (
+            <div style={{ height: 320, display: 'grid', placeItems: 'center', color: '#6b7280' }}>Loading satellite…</div>
+          )}
+        </div>
 
-      {/* Pitch Legend */}
-      <div style={{ marginTop: 16, background: '#fff', borderRadius: 8, padding: 16, boxShadow: '0 1px 3px rgba(0,0,0,.08)' }}>
-        <h2 style={{ fontSize: isMobile ? 16 : 18, margin: '0 0 8px' }}>Pitch Legend</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
-          {(sc?.pitchBoundaries || []).map((p) => {
-            const name = resolvePitchName(p.pitchNumber, pitchNames);
-            return (
-              <div key={`legend-${p.pitchNumber}-${pitchNamesVersion}`} style={{ padding: 8, border: '1px solid #e5e7eb', borderRadius: 6, background: '#f9fafb' }}>
-                {name}
-              </div>
-            );
-          })}
+        {/* Pitch Legend */}
+        <div className="shareview-legend" style={{ width: isMobile ? '100%' : 260, background: '#fff', borderRadius: 8, padding: 16, boxShadow: '0 1px 3px rgba(0,0,0,.08)' }}>
+          <h2 style={{ fontSize: 18, margin: '0 0 12px', fontWeight: 'bold' }}>Pitch Legend</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(sc?.pitchBoundaries || []).map((p) => {
+              const name = resolvePitchName(p.pitchNumber, pitchNames);
+              return (
+                <div key={`legend-${p.pitchNumber}-${pitchNamesVersion}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, border: '1px solid #e5e7eb', borderRadius: 6, background: '#f9fafb' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 4, background: '#16a34a', color: '#fff', fontWeight: 'bold', fontSize: 14 }}>
+                    {p.pitchNumber}
+                  </span>
+                  <span>{name}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 12, fontSize: 13, color: '#4b5563', background: '#f0f9ff', padding: 8, borderRadius: 4 }}>
+            Click on a pitch on the map to view the training or game allocations for that specific pitch.
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
+export default ShareView;
