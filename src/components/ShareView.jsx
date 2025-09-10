@@ -259,8 +259,7 @@ function ShareView() {
     const scaleY = canvas.height / sharedData.satelliteConfig.imageHeight;
 
     const allocations = sharedData?.allocations || {};
-    const pitchNames = sharedData?.pitchNames || {};
-
+    
     // Draw pitch boundaries
     if (sharedData.satelliteConfig.pitchBoundaries) {
       sharedData.satelliteConfig.pitchBoundaries.forEach((pitch, index) => {
