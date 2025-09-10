@@ -30,12 +30,7 @@ const ClubPitchMap = ({
   // TEST USEEFFECT
   useEffect(() => {
     console.log('🔥🔥🔥 BASIC useEffect IS RUNNING! 🔥🔥🔥');
-    console.log('Initial states:', { 
-      clubId, 
-      loading, 
-      pitchNamesKeys: Object.keys(pitchNames),
-      hasPitchNames: Object.keys(pitchNames).length > 0 
-    });
+    console.log('Component has mounted successfully');
   }, []);
 
   // Handle navigation back to menu
