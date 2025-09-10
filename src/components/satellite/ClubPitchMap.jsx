@@ -9,9 +9,9 @@ import { onAuthStateChanged } from 'firebase/auth';
 const ClubPitchMap = ({ 
   onPitchClick 
 }) => {
-  console.log('🔴🔴🔴 CLUBPITCHMAP COMPONENT LOADED - VERSION 3.0 🔴🔴🔴');
+  console.log('🔴🔴🔴 CLUBPITCHMAP COMPONENT LOADED - VERSION 4.0 🔴🔴🔴');
   console.log('Component mounted at:', new Date().toISOString());
-  console.log('🟢 TEST: This is version 3.0 with pitch names fix');
+  console.log('🟢 TEST: Version 4.0 - Testing if useEffect runs');
   
   const navigate = useNavigate();
   const canvasRef = useRef(null);
