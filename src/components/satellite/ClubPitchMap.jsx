@@ -593,7 +593,7 @@ const ClubPitchMap = ({
               color: '#1e40af',
               textAlign: 'center'
             }}>
-              Click pitch on map to view
+              Click on a pitch on the map to view the training or game allocations for that specific pitch.
             </div>
           </div>
         )}
