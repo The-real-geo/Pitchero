@@ -153,6 +153,17 @@ function ShareView() {
     const loadData = async () => {
       try {
         setLoading(true);
+        // CRITICAL: Reset pitch names FIRST to prevent data leakage
+        setPitchNames({});
+        setPitchNamesLoadingState('idle');
+        setSelectedPitch(null);
+        setViewMode('map');
+        setSharedData(null);
+        setFirebaseImageUrl(null);
+        setImageLoadingState('idle');
+        setImageError(null);
+        setImageLoaded(false);
+        
         const data = await getSharedAllocation(shareId);
         
         // Process allocations and extract pitches
