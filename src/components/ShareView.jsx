@@ -1011,6 +1011,143 @@ function ShareView() {
                       borderRadius: '8px'
                     }}></div>
                     
+                    {/* Soccer field markings */}
+                    <svg style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      pointerEvents: 'none',
+                      zIndex: 5
+                    }}>
+                      {/* Halfway line */}
+                      <line 
+                        x1="0" 
+                        y1="50%" 
+                        x2="100%" 
+                        y2="50%" 
+                        stroke="white" 
+                        strokeWidth="2" 
+                        opacity="0.8"
+                      />
+                      
+                      {/* Center circle */}
+                      <circle 
+                        cx="50%" 
+                        cy="50%" 
+                        r="15%" 
+                        fill="none" 
+                        stroke="white" 
+                        strokeWidth="2" 
+                        opacity="0.8"
+                      />
+                      <circle 
+                        cx="50%" 
+                        cy="50%" 
+                        r="2%" 
+                        fill="white" 
+                        opacity="0.8"
+                      />
+                      
+                      {/* Top penalty box */}
+                      <rect 
+                        x="25%" 
+                        y="0" 
+                        width="50%" 
+                        height="18%" 
+                        fill="none" 
+                        stroke="white" 
+                        strokeWidth="2" 
+                        opacity="0.8"
+                      />
+                      
+                      {/* Top goal area */}
+                      <rect 
+                        x="37.5%" 
+                        y="0" 
+                        width="25%" 
+                        height="8%" 
+                        fill="none" 
+                        stroke="white" 
+                        strokeWidth="2" 
+                        opacity="0.8"
+                      />
+                      
+                      {/* Bottom penalty box */}
+                      <rect 
+                        x="25%" 
+                        y="82%" 
+                        width="50%" 
+                        height="18%" 
+                        fill="none" 
+                        stroke="white" 
+                        strokeWidth="2" 
+                        opacity="0.8"
+                      />
+                      
+                      {/* Bottom goal area */}
+                      <rect 
+                        x="37.5%" 
+                        y="92%" 
+                        width="25%" 
+                        height="8%" 
+                        fill="none" 
+                        stroke="white" 
+                        strokeWidth="2" 
+                        opacity="0.8"
+                      />
+                      
+                      {/* Penalty spots */}
+                      <circle 
+                        cx="50%" 
+                        cy="12%" 
+                        r="1%" 
+                        fill="white" 
+                        opacity="0.8"
+                      />
+                      <circle 
+                        cx="50%" 
+                        cy="88%" 
+                        r="1%" 
+                        fill="white" 
+                        opacity="0.8"
+                      />
+                      
+                      {/* Corner arcs */}
+                      <path 
+                        d="M 0,5 Q 5,0 10,0" 
+                        fill="none" 
+                        stroke="white" 
+                        strokeWidth="2" 
+                        opacity="0.8"
+                      />
+                      <path 
+                        d="M 100%,5 Q 95%,0 90%,0" 
+                        fill="none" 
+                        stroke="white" 
+                        strokeWidth="2" 
+                        opacity="0.8"
+                        transform="translate(-5, 0)"
+                      />
+                      <path 
+                        d="M 0,95% Q 5,100% 10,100%" 
+                        fill="none" 
+                        stroke="white" 
+                        strokeWidth="2" 
+                        opacity="0.8"
+                        transform="translate(0, -5)"
+                      />
+                      <path 
+                        d="M 100%,95% Q 95%,100% 90%,100%" 
+                        fill="none" 
+                        stroke="white" 
+                        strokeWidth="2" 
+                        opacity="0.8"
+                        transform="translate(-5, -5)"
+                      />
+                    </svg>
+                    
                     <div style={{
                       position: 'relative',
                       display: 'grid',
