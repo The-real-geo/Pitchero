@@ -323,6 +323,23 @@ const UnifiedPitchAllocator = () => {
         if (data.pitchNames) {
           console.log('Updating pitch names:', data.pitchNames);
           setPitchNames(data.pitchNames);
+          
+          // Extract available pitches from pitch names
+          const pitchKeys = Object.keys(data.pitchNames);
+          const normalizedPitches = pitchKeys.map(key => {
+            // Normalize the key format: pitch-1 -> pitch1, pitch1 -> pitch1
+            return key.replace('pitch-', 'pitch');
+          }).sort((a, b) => {
+            // Sort by pitch number
+            const numA = parseInt(a.replace('pitch', ''));
+            const numB = parseInt(b.replace('pitch', ''));
+            return numA - numB;
+          });
+          
+          if (normalizedPitches.length > 0) {
+            setAvailablePitches(normalizedPitches);
+            console.log('Available pitches from settings:', normalizedPitches);
+          }
         }
         if (data.showGrassArea) setShowGrassArea(data.showGrassArea);
       }
@@ -415,16 +432,6 @@ const UnifiedPitchAllocator = () => {
                   clubId: userData.clubId,
                   name: clubName
                 });
-                
-                // Extract available pitches from satellite configuration
-                if (clubData.satelliteConfig?.pitchBoundaries) {
-                  const pitches = clubData.satelliteConfig.pitchBoundaries.map((boundary, index) => {
-                    const pitchNumber = boundary.pitchNumber || (index + 1).toString();
-                    return `pitch${pitchNumber}`;
-                  });
-                  setAvailablePitches(pitches);
-                  console.log('Available pitches:', pitches);
-                }
               } else {
                 console.log('Club document not found for ID:', userData.clubId);
                 // Fallback if club document doesn't exist
@@ -509,7 +516,10 @@ const UnifiedPitchAllocator = () => {
 
   // Navigate to next/previous pitch
   const changePitch = (direction) => {
-    if (availablePitches.length === 0) return;
+    if (availablePitches.length === 0) {
+      console.log('No available pitches to navigate');
+      return;
+    }
     
     const currentIndex = availablePitches.findIndex(p => {
       // Find current pitch in the available pitches array
@@ -517,8 +527,20 @@ const UnifiedPitchAllocator = () => {
       return pNum === pitchId || p === normalizedPitchId;
     });
     
+    console.log('Navigation debug:', {
+      availablePitches,
+      currentPitchId: pitchId,
+      normalizedPitchId,
+      currentIndex,
+      direction
+    });
+    
     let newIndex;
-    if (direction === 'next') {
+    if (currentIndex === -1) {
+      // If current pitch not found, go to first or last based on direction
+      newIndex = direction === 'next' ? 0 : availablePitches.length - 1;
+      console.log('Current pitch not in list, defaulting to:', newIndex);
+    } else if (direction === 'next') {
       // Go to next pitch, wrap around to first if at the end
       newIndex = (currentIndex + 1) % availablePitches.length;
     } else {
@@ -528,6 +550,7 @@ const UnifiedPitchAllocator = () => {
     
     const newPitch = availablePitches[newIndex];
     const newPitchNumber = newPitch.replace('pitch', '');
+    console.log('Navigating to:', `/allocate/pitch${newPitchNumber}`);
     navigate(`/allocate/pitch${newPitchNumber}`);
   };
 
@@ -1890,7 +1913,14 @@ const UnifiedPitchAllocator = () => {
               fontSize: '13px',
               color: '#6b7280'
             }}>
-              Pitch {pitchId} of {availablePitches.length}
+              {(() => {
+                const currentIndex = availablePitches.findIndex(p => {
+                  const pNum = p.replace('pitch', '');
+                  return pNum === pitchId || p === normalizedPitchId;
+                });
+                const displayIndex = currentIndex === -1 ? 1 : currentIndex + 1;
+                return `Pitch ${displayIndex} of ${availablePitches.length}`;
+              })()}
             </div>
           )}
         </div>
