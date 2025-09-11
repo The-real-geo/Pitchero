@@ -47,6 +47,7 @@ const UnifiedPitchAllocator = () => {
   const [teams, setTeams] = useState([]);
   const [pitchNames, setPitchNames] = useState({});
   const [showGrassArea, setShowGrassArea] = useState({});
+  const [availablePitches, setAvailablePitches] = useState([]); // Track available pitches
   
   // Allocation state
   const [allocations, setAllocations] = useState({});
@@ -414,6 +415,16 @@ const UnifiedPitchAllocator = () => {
                   clubId: userData.clubId,
                   name: clubName
                 });
+                
+                // Extract available pitches from satellite configuration
+                if (clubData.satelliteConfig?.pitchBoundaries) {
+                  const pitches = clubData.satelliteConfig.pitchBoundaries.map((boundary, index) => {
+                    const pitchNumber = boundary.pitchNumber || (index + 1).toString();
+                    return `pitch${pitchNumber}`;
+                  });
+                  setAvailablePitches(pitches);
+                  console.log('Available pitches:', pitches);
+                }
               } else {
                 console.log('Club document not found for ID:', userData.clubId);
                 // Fallback if club document doesn't exist
@@ -495,6 +506,30 @@ const UnifiedPitchAllocator = () => {
   }
 
   const isAdmin = userRole === 'admin';
+
+  // Navigate to next/previous pitch
+  const changePitch = (direction) => {
+    if (availablePitches.length === 0) return;
+    
+    const currentIndex = availablePitches.findIndex(p => {
+      // Find current pitch in the available pitches array
+      const pNum = p.replace('pitch', '');
+      return pNum === pitchId || p === normalizedPitchId;
+    });
+    
+    let newIndex;
+    if (direction === 'next') {
+      // Go to next pitch, wrap around to first if at the end
+      newIndex = (currentIndex + 1) % availablePitches.length;
+    } else {
+      // Go to previous pitch, wrap around to last if at the beginning
+      newIndex = currentIndex === 0 ? availablePitches.length - 1 : currentIndex - 1;
+    }
+    
+    const newPitch = availablePitches[newIndex];
+    const newPitchNumber = newPitch.replace('pitch', '');
+    navigate(`/allocate/pitch${newPitchNumber}`);
+  };
 
   // Logout handler
   const handleLogout = async () => {
