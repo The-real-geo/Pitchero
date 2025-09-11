@@ -830,7 +830,7 @@ const UnifiedPitchAllocator = () => {
     linkElement.click();
   };
 
-  // Import allocations
+  // Import allocations with comprehensive warnings
   const importAllocations = async () => {
     if (userRole !== 'admin') {
       alert('Only administrators can import allocations');
@@ -854,7 +854,32 @@ const UnifiedPitchAllocator = () => {
           return;
         }
         
-        if (!window.confirm(`Import allocations from ${data.date}? This will merge with existing allocations.`)) {
+        // Count existing allocations that would be affected
+        const existingCount = Object.keys(allocations).length;
+        const importCount = Object.keys(data.allocations).length;
+        
+        // Show warning confirmation
+        const confirmMessage = `⚠️ WARNING: Importing will OVERWRITE allocations!\n\n` +
+          `This action will:\n` +
+          `• Import ${importCount} allocation(s) from ${data.date}\n` +
+          `• Merge with ${existingCount} existing allocation(s)\n` +
+          `• Potentially create scheduling conflicts\n` +
+          `• Overwrite any conflicting time slots\n\n` +
+          `Your current allocations CANNOT be recovered after import.\n\n` +
+          `Are you absolutely sure you want to import these allocations?`;
+        
+        if (!window.confirm(confirmMessage)) {
+          return;
+        }
+        
+        // Second confirmation for extra safety
+        const finalConfirm = window.confirm(
+          '🔴 FINAL CONFIRMATION\n\n' +
+          'Click OK to permanently import and merge these allocations.\n' +
+          'Click Cancel to keep your current allocations unchanged.'
+        );
+        
+        if (!finalConfirm) {
           return;
         }
         
