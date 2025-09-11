@@ -47,7 +47,6 @@ const UnifiedPitchAllocator = () => {
   const [teams, setTeams] = useState([]);
   const [pitchNames, setPitchNames] = useState({});
   const [showGrassArea, setShowGrassArea] = useState({});
-  const [availablePitches, setAvailablePitches] = useState([]); // Track available pitches
   
   // Allocation state
   const [allocations, setAllocations] = useState({});
@@ -323,23 +322,6 @@ const UnifiedPitchAllocator = () => {
         if (data.pitchNames) {
           console.log('Updating pitch names:', data.pitchNames);
           setPitchNames(data.pitchNames);
-          
-          // Extract available pitches from pitch names
-          const pitchKeys = Object.keys(data.pitchNames);
-          const normalizedPitches = pitchKeys.map(key => {
-            // Normalize the key format: pitch-1 -> pitch1, pitch1 -> pitch1
-            return key.replace('pitch-', 'pitch');
-          }).sort((a, b) => {
-            // Sort by pitch number
-            const numA = parseInt(a.replace('pitch', ''));
-            const numB = parseInt(b.replace('pitch', ''));
-            return numA - numB;
-          });
-          
-          if (normalizedPitches.length > 0) {
-            setAvailablePitches(normalizedPitches);
-            console.log('Available pitches from settings:', normalizedPitches);
-          }
         }
         if (data.showGrassArea) setShowGrassArea(data.showGrassArea);
       }
@@ -513,46 +495,6 @@ const UnifiedPitchAllocator = () => {
   }
 
   const isAdmin = userRole === 'admin';
-
-  // Navigate to next/previous pitch
-  const changePitch = (direction) => {
-    if (availablePitches.length === 0) {
-      console.log('No available pitches to navigate');
-      return;
-    }
-    
-    const currentIndex = availablePitches.findIndex(p => {
-      // Find current pitch in the available pitches array
-      const pNum = p.replace('pitch', '');
-      return pNum === pitchId || p === normalizedPitchId;
-    });
-    
-    console.log('Navigation debug:', {
-      availablePitches,
-      currentPitchId: pitchId,
-      normalizedPitchId,
-      currentIndex,
-      direction
-    });
-    
-    let newIndex;
-    if (currentIndex === -1) {
-      // If current pitch not found, go to first or last based on direction
-      newIndex = direction === 'next' ? 0 : availablePitches.length - 1;
-      console.log('Current pitch not in list, defaulting to:', newIndex);
-    } else if (direction === 'next') {
-      // Go to next pitch, wrap around to first if at the end
-      newIndex = (currentIndex + 1) % availablePitches.length;
-    } else {
-      // Go to previous pitch, wrap around to last if at the beginning
-      newIndex = currentIndex === 0 ? availablePitches.length - 1 : currentIndex - 1;
-    }
-    
-    const newPitch = availablePitches[newIndex];
-    const newPitchNumber = newPitch.replace('pitch', '');
-    console.log('Navigating to:', `/allocate/pitch${newPitchNumber}`);
-    navigate(`/allocate/pitch${newPitchNumber}`);
-  };
 
   // Logout handler
   const handleLogout = async () => {
@@ -1800,8 +1742,7 @@ const UnifiedPitchAllocator = () => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            width: '100%',
-            gap: '12px'
+            width: '100%'
           }}>
             {/* Previous Day - Left side */}
             <button
@@ -1813,39 +1754,17 @@ const UnifiedPitchAllocator = () => {
                 borderRadius: '10px',
                 cursor: 'pointer',
                 fontSize: '14px',
-                height: '42px',
-                whiteSpace: 'nowrap'
+                height: '42px'
               }}
             >
-              ← Previous Day
-            </button>
-            
-            {/* Previous Pitch */}
-            <button
-              onClick={() => changePitch('previous')}
-              disabled={availablePitches.length <= 1}
-              style={{
-                padding: '10px 16px',
-                backgroundColor: availablePitches.length <= 1 ? '#e5e7eb' : '#f3f4f6',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                cursor: availablePitches.length <= 1 ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                height: '42px',
-                opacity: availablePitches.length <= 1 ? 0.5 : 1,
-                whiteSpace: 'nowrap'
-              }}
-              title={availablePitches.length <= 1 ? 'No other pitches available' : 'Go to previous pitch'}
-            >
-              ↑ Previous Pitch
+              Previous Day
             </button>
             
             {/* Center content */}
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
-              minWidth: '150px'
+              alignItems: 'center'
             }}>
               <input
                 type="date"
@@ -1867,26 +1786,6 @@ const UnifiedPitchAllocator = () => {
               </span>
             </div>
             
-            {/* Next Pitch */}
-            <button
-              onClick={() => changePitch('next')}
-              disabled={availablePitches.length <= 1}
-              style={{
-                padding: '10px 16px',
-                backgroundColor: availablePitches.length <= 1 ? '#e5e7eb' : '#f3f4f6',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                cursor: availablePitches.length <= 1 ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                height: '42px',
-                opacity: availablePitches.length <= 1 ? 0.5 : 1,
-                whiteSpace: 'nowrap'
-              }}
-              title={availablePitches.length <= 1 ? 'No other pitches available' : 'Go to next pitch'}
-            >
-              Next Pitch ↓
-            </button>
-            
             {/* Next Day - Right side */}
             <button
               onClick={() => changeDate(1)}
@@ -1897,32 +1796,12 @@ const UnifiedPitchAllocator = () => {
                 borderRadius: '6px',
                 cursor: 'pointer',
                 fontSize: '14px',
-                height: '42px',
-                whiteSpace: 'nowrap'
+                height: '42px'
               }}
             >
-              Next Day →
+              Next Day
             </button>
           </div>
-          
-          {/* Show current pitch position if multiple pitches available */}
-          {availablePitches.length > 1 && (
-            <div style={{
-              textAlign: 'center',
-              marginTop: '12px',
-              fontSize: '13px',
-              color: '#6b7280'
-            }}>
-              {(() => {
-                const currentIndex = availablePitches.findIndex(p => {
-                  const pNum = p.replace('pitch', '');
-                  return pNum === pitchId || p === normalizedPitchId;
-                });
-                const displayIndex = currentIndex === -1 ? 1 : currentIndex + 1;
-                return `Pitch ${displayIndex} of ${availablePitches.length}`;
-              })()}
-            </div>
-          )}
         </div>
 
         {/* Add New Allocation Form - Only show for admins */}
