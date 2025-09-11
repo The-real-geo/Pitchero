@@ -1742,7 +1742,8 @@ const UnifiedPitchAllocator = () => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            width: '100%'
+            width: '100%',
+            gap: '12px'
           }}>
             {/* Previous Day - Left side */}
             <button
@@ -1754,17 +1755,39 @@ const UnifiedPitchAllocator = () => {
                 borderRadius: '10px',
                 cursor: 'pointer',
                 fontSize: '14px',
-                height: '42px'
+                height: '42px',
+                whiteSpace: 'nowrap'
               }}
             >
-              Previous Day
+              ← Previous Day
+            </button>
+            
+            {/* Previous Pitch */}
+            <button
+              onClick={() => changePitch('previous')}
+              disabled={availablePitches.length <= 1}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: availablePitches.length <= 1 ? '#e5e7eb' : '#f3f4f6',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                cursor: availablePitches.length <= 1 ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                height: '42px',
+                opacity: availablePitches.length <= 1 ? 0.5 : 1,
+                whiteSpace: 'nowrap'
+              }}
+              title={availablePitches.length <= 1 ? 'No other pitches available' : 'Go to previous pitch'}
+            >
+              ↑ Previous Pitch
             </button>
             
             {/* Center content */}
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center'
+              alignItems: 'center',
+              minWidth: '150px'
             }}>
               <input
                 type="date"
@@ -1786,6 +1809,26 @@ const UnifiedPitchAllocator = () => {
               </span>
             </div>
             
+            {/* Next Pitch */}
+            <button
+              onClick={() => changePitch('next')}
+              disabled={availablePitches.length <= 1}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: availablePitches.length <= 1 ? '#e5e7eb' : '#f3f4f6',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                cursor: availablePitches.length <= 1 ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                height: '42px',
+                opacity: availablePitches.length <= 1 ? 0.5 : 1,
+                whiteSpace: 'nowrap'
+              }}
+              title={availablePitches.length <= 1 ? 'No other pitches available' : 'Go to next pitch'}
+            >
+              Next Pitch ↓
+            </button>
+            
             {/* Next Day - Right side */}
             <button
               onClick={() => changeDate(1)}
@@ -1796,12 +1839,25 @@ const UnifiedPitchAllocator = () => {
                 borderRadius: '6px',
                 cursor: 'pointer',
                 fontSize: '14px',
-                height: '42px'
+                height: '42px',
+                whiteSpace: 'nowrap'
               }}
             >
-              Next Day
+              Next Day →
             </button>
           </div>
+          
+          {/* Show current pitch position if multiple pitches available */}
+          {availablePitches.length > 1 && (
+            <div style={{
+              textAlign: 'center',
+              marginTop: '12px',
+              fontSize: '13px',
+              color: '#6b7280'
+            }}>
+              Pitch {pitchId} of {availablePitches.length}
+            </div>
+          )}
         </div>
 
         {/* Add New Allocation Form - Only show for admins */}
