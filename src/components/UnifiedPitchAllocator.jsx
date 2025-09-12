@@ -55,6 +55,10 @@ const UnifiedPitchAllocator = () => {
   const [deletingAllocation, setDeletingAllocation] = useState(false);
   const [deletingKeys, setDeletingKeys] = useState(new Set());
   
+  // Sidebar navigation state
+  const [satelliteConfig, setSatelliteConfig] = useState(null);
+  const [allPitchAllocations, setAllPitchAllocations] = useState({});
+  
   // Form state - following existing allocator patterns
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [allocationType, setAllocationType] = useState('training');
@@ -130,6 +134,36 @@ const UnifiedPitchAllocator = () => {
     });
     return uniqueAllocations.size;
   }, [filteredAllocations]);
+
+  // Helper function to get allocation count for a specific pitch (for sidebar)
+  const getAllocationsCountForPitch = useCallback((pitchId) => {
+    let count = 0;
+    Object.keys(allPitchAllocations).forEach(key => {
+      if (key.includes(`-${pitchId}-`)) {
+        count++;
+      }
+    });
+    return count;
+  }, [allPitchAllocations]);
+
+  // Helper function to get pitch display name (for sidebar)
+  const getPitchDisplayName = useCallback((pitchNumber, names) => {
+    const possibleKeys = [
+      `pitch-${pitchNumber}`,
+      `pitch${pitchNumber}`,
+      `Pitch ${pitchNumber}`,
+      `Pitch-${pitchNumber}`,
+      pitchNumber.toString(),
+    ];
+    
+    for (const key of possibleKeys) {
+      if (names && names[key]) {
+        return names[key];
+      }
+    }
+    
+    return `Pitch ${pitchNumber}`;
+  }, []);
 
   // Get the current pitch name with better fallback logic
   const currentPitchName = useMemo(() => {
@@ -379,6 +413,61 @@ const UnifiedPitchAllocator = () => {
     }
   }, [date, normalizedPitchId, clubInfo?.clubId]);
 
+  // Load satellite config and all pitch allocations for sidebar
+  useEffect(() => {
+    const loadSatelliteAndAllocations = async () => {
+      if (!clubInfo?.clubId || !date) return;
+
+      try {
+        // Load satellite config from club document
+        const clubRef = doc(db, 'clubs', clubInfo.clubId);
+        const clubDoc = await getDoc(clubRef);
+        
+        if (clubDoc.exists()) {
+          const clubData = clubDoc.data();
+          if (clubData.satelliteConfig) {
+            setSatelliteConfig(clubData.satelliteConfig);
+          }
+        }
+
+        // Load allocations for all pitches to get counts
+        const trainingDocRef = doc(db, 'trainingAllocations', `${clubInfo.clubId}-${date}`);
+        const matchDocRef = doc(db, 'matchAllocations', `${clubInfo.clubId}-${date}`);
+        
+        const [trainingDoc, matchDoc] = await Promise.all([
+          getDoc(trainingDocRef),
+          getDoc(matchDocRef)
+        ]);
+        
+        let allAllocations = {};
+        
+        if (trainingDoc.exists()) {
+          const trainingData = trainingDoc.data();
+          Object.entries(trainingData).forEach(([key, value]) => {
+            if (typeof value === 'object') {
+              allAllocations[key] = { ...value, type: 'training' };
+            }
+          });
+        }
+        
+        if (matchDoc.exists()) {
+          const matchData = matchDoc.data();
+          Object.entries(matchData).forEach(([key, value]) => {
+            if (typeof value === 'object') {
+              allAllocations[key] = { ...value, type: 'game' };
+            }
+          });
+        }
+        
+        setAllPitchAllocations(allAllocations);
+      } catch (error) {
+        console.error('Error loading satellite config and allocations:', error);
+      }
+    };
+
+    loadSatelliteAndAllocations();
+  }, [clubInfo?.clubId, date]);
+
   // Load user and club data
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -611,6 +700,11 @@ const UnifiedPitchAllocator = () => {
       }
       
       console.log('Allocations saved successfully');
+      
+      // Reload all pitch allocations to update sidebar
+      const updatedAllAllocations = { ...allPitchAllocations, ...newAllocations };
+      setAllPitchAllocations(updatedAllAllocations);
+      
     } catch (error) {
       console.error('Error saving allocation:', error);
       alert(`Failed to save allocation: ${error.message}`);
@@ -688,6 +782,15 @@ const UnifiedPitchAllocator = () => {
 
       // OPTIMISTIC UPDATE - IMMEDIATELY update local state
       setAllocations(prev => {
+        const updated = { ...prev };
+        keysToRemove.forEach(keyToRemove => {
+          delete updated[keyToRemove];
+        });
+        return updated;
+      });
+
+      // Update all pitch allocations for sidebar
+      setAllPitchAllocations(prev => {
         const updated = { ...prev };
         keysToRemove.forEach(keyToRemove => {
           delete updated[keyToRemove];
@@ -797,6 +900,17 @@ const UnifiedPitchAllocator = () => {
           await deleteDoc(matchDocRef);
         }
       }
+      
+      // Update all pitch allocations for sidebar
+      setAllPitchAllocations(prev => {
+        const updated = {};
+        Object.entries(prev).forEach(([key, value]) => {
+          if (!key.includes(`-${normalizedPitchId}-`)) {
+            updated[key] = value;
+          }
+        });
+        return updated;
+      });
       
       alert('All allocations cleared successfully');
     } catch (error) {
@@ -1445,15 +1559,144 @@ const UnifiedPitchAllocator = () => {
       minHeight: '100vh',
       backgroundColor: '#f9fafb',
       fontFamily: 'system-ui, sans-serif',
-      display: 'grid',          // grid makes centering reliable
-      justifyItems: 'center',   // centers horizontally
-      alignContent: 'start',    // keep content top-aligned
-      padding: '24px'
+      display: 'flex',
+      padding: '24px',
+      gap: '24px'
     }}>
+      {/* Left Sidebar - Pitch Quick Navigation */}
+      {satelliteConfig?.pitchBoundaries && (
+        <div style={{
+          width: '250px',
+          flexShrink: 0
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            padding: '16px',
+            position: 'sticky',
+            top: '24px'
+          }}>
+            <h3 style={{
+              fontSize: '16px',
+              fontWeight: '600',
+              color: '#374151',
+              marginBottom: '16px',
+              textAlign: 'center'
+            }}>
+              Quick Pitch Navigation
+            </h3>
+            
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              {satelliteConfig.pitchBoundaries.map((pitch) => {
+                const pitchNum = pitch.pitchNumber || pitch.id || (satelliteConfig.pitchBoundaries.indexOf(pitch) + 1);
+                const pitchIdToCheck = `pitch${pitchNum}`;
+                const allocCount = getAllocationsCountForPitch(pitchIdToCheck);
+                const hasAllocations = allocCount > 0;
+                const displayName = getPitchDisplayName(pitchNum, pitchNames);
+                const isCurrentPitch = normalizedPitchId === pitchIdToCheck;
+                
+                return (
+                  <button
+                    key={pitchNum}
+                    onClick={() => {
+                      // Navigate to the selected pitch
+                      navigate(`/allocator/${pitchNum}`);
+                    }}
+                    style={{
+                      padding: '12px 8px',
+                      backgroundColor: isCurrentPitch 
+                        ? '#3b82f6' 
+                        : hasAllocations 
+                          ? '#dcfce7' 
+                          : '#f3f4f6',
+                      border: isCurrentPitch
+                        ? '2px solid #1e40af'
+                        : hasAllocations 
+                          ? '2px solid #16a34a' 
+                          : '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: isCurrentPitch
+                        ? 'white'
+                        : hasAllocations 
+                          ? '#15803d' 
+                          : '#6b7280',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                  >
+                    {isCurrentPitch && (
+                      <div style={{
+                        position: 'absolute',
+                        left: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        fontSize: '10px'
+                      }}>
+                        ▶
+                      </div>
+                    )}
+                    <div>{displayName}</div>
+                    {allocCount > 0 && (
+                      <div style={{ 
+                        fontSize: '11px', 
+                        marginTop: '4px', 
+                        opacity: isCurrentPitch ? 0.9 : 0.8 
+                      }}>
+                        {allocCount} allocation{allocCount !== 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <div style={{
+              marginTop: '16px',
+              paddingTop: '16px',
+              borderTop: '1px solid #e5e7eb'
+            }}>
+              <button
+                onClick={() => navigate('/club-pitch-map')}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  backgroundColor: '#f3f4f6',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  color: '#374151',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#e5e7eb';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f3f4f6';
+                }}
+              >
+                🗺️ Back to Map View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content - Your existing content wrapped in a flex-grow container */}
       <div style={{ 
-        width: 'min(1400px, 100%)',  // explicit width so it doesn't flex to full width
-        marginInline: 'auto',
-        flex: '0 0 auto'              // protects against parent flex layouts
+        flex: 1,
+        maxWidth: '1400px',
+        margin: '0 auto'
       }}>
         {/* Header with club info and allocation count */}
         <div style={{
