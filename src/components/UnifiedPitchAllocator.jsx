@@ -1831,7 +1831,7 @@ useEffect(() => {
                 e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
               }}
             >
-              🗺️ Back to Map View
+              🗺️ Pitch Layout
             </button>
             
             <button
