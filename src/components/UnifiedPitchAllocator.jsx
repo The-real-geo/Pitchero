@@ -588,7 +588,6 @@ const UnifiedPitchAllocator = () => {
   // Logout handler
   const handleLogout = async () => {
     try {
-      setMenuOpen(false); // Close menu before logout
       await signOut(auth);
       navigate('/login');
     } catch (error) {
