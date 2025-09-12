@@ -922,7 +922,6 @@ const UnifiedPitchAllocator = () => {
   };
 
   // Export allocations
-  // eslint-disable-next-line no-unused-vars
   const exportAllocations = () => {
     const exportData = {
       club: clubInfo.name,
@@ -944,7 +943,6 @@ const UnifiedPitchAllocator = () => {
   };
 
   // Import allocations with comprehensive warnings
-  // eslint-disable-next-line no-unused-vars
   const importAllocations = async () => {
     if (userRole !== 'admin') {
       alert('Only administrators can import allocations');
@@ -973,12 +971,12 @@ const UnifiedPitchAllocator = () => {
         const importCount = Object.keys(data.allocations).length;
         
         // Show warning confirmation
-        const confirmMessage = `âš ï¸ WARNING: Importing will OVERWRITE allocations!\n\n` +
+        const confirmMessage = `⚠️ WARNING: Importing will OVERWRITE allocations!\n\n` +
           `This action will:\n` +
-          `â€¢ Import ${importCount} allocation(s) from ${data.date}\n` +
-          `â€¢ Merge with ${existingCount} existing allocation(s)\n` +
-          `â€¢ Potentially create scheduling conflicts\n` +
-          `â€¢ Overwrite any conflicting time slots\n\n` +
+          `• Import ${importCount} allocation(s) from ${data.date}\n` +
+          `• Merge with ${existingCount} existing allocation(s)\n` +
+          `• Potentially create scheduling conflicts\n` +
+          `• Overwrite any conflicting time slots\n\n` +
           `Your current allocations CANNOT be recovered after import.\n\n` +
           `Are you absolutely sure you want to import these allocations?`;
         
@@ -988,7 +986,7 @@ const UnifiedPitchAllocator = () => {
         
         // Second confirmation for extra safety
         const finalConfirm = window.confirm(
-          'ðŸ"´ FINAL CONFIRMATION\n\n' +
+          '🔴 FINAL CONFIRMATION\n\n' +
           'Click OK to permanently import and merge these allocations.\n' +
           'Click Cancel to keep your current allocations unchanged.'
         );
@@ -1560,31 +1558,139 @@ const UnifiedPitchAllocator = () => {
       backgroundColor: '#f9fafb',
       fontFamily: 'system-ui, sans-serif',
       display: 'flex',
-      padding: '24px',
-      gap: '24px'
+      gap: '0'
     }}>
       {/* Left Sidebar - Pitch Quick Navigation */}
       {satelliteConfig?.pitchBoundaries && (
         <div style={{
           width: '250px',
-          flexShrink: 0
+          flexShrink: 0,
+          backgroundColor: '#243665',
+          height: '100vh',
+          position: 'sticky',
+          top: 0,
+          left: 0,
+          display: 'flex',
+          flexDirection: 'column'
         }}>
+          {/* User Info Section at the top */}
           <div style={{
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            padding: '16px',
-            position: 'sticky',
-            top: '24px'
+            padding: '20px 16px',
+            borderBottom: '1px solid rgba(255,255,255,0.1)',
+            backgroundColor: 'rgba(0,0,0,0.1)'
+          }}>
+            <div style={{
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: 'white',
+              marginBottom: '12px'
+            }}>
+              {clubInfo?.name || 'Loading...'}
+            </div>
+            <div style={{
+              fontSize: '13px',
+              color: 'rgba(255,255,255,0.9)',
+              marginBottom: '4px'
+            }}>
+              {user?.email || 'Not logged in'}
+            </div>
+            <div style={{
+              fontSize: '12px',
+              color: 'rgba(255,255,255,0.7)',
+              padding: '4px 8px',
+              backgroundColor: userRole === 'admin' ? '#10b981' : '#6b7280',
+              borderRadius: '4px',
+              display: 'inline-block',
+              marginTop: '4px'
+            }}>
+              {userRole === 'admin' ? 'Administrator' : userRole === 'viewer' ? 'Viewer' : 'User'}
+            </div>
+          </div>
+
+          {/* Import/Export Buttons - Only show for admins */}
+          {isAdmin && (
+            <div style={{
+              padding: '16px',
+              borderBottom: '1px solid rgba(255,255,255,0.1)'
+            }}>
+              <button
+                onClick={importAllocations}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease',
+                  marginBottom: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                }}
+              >
+                📥 Import Allocations
+              </button>
+              
+              <button
+                onClick={exportAllocations}
+                disabled={Object.keys(allocations).length === 0}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  backgroundColor: Object.keys(allocations).length === 0 
+                    ? 'rgba(100,100,100,0.3)' 
+                    : 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  color: Object.keys(allocations).length === 0 
+                    ? 'rgba(255,255,255,0.5)' 
+                    : 'white',
+                  cursor: Object.keys(allocations).length === 0 
+                    ? 'not-allowed' 
+                    : 'pointer',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (Object.keys(allocations).length > 0) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (Object.keys(allocations).length > 0) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                  }
+                }}
+              >
+                📤 Export Allocations
+              </button>
+            </div>
+          )}
+          
+          {/* Scrollable pitch navigation section */}
+          <div style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '16px'
           }}>
             <h3 style={{
-              fontSize: '16px',
+              fontSize: '14px',
               fontWeight: '600',
-              color: '#374151',
+              color: 'rgba(255,255,255,0.8)',
               marginBottom: '16px',
-              textAlign: 'center'
+              textAlign: 'center',
+              textTransform: 'uppercase',
+              letterSpacing: '1px'
             }}>
-              Quick Pitch Navigation
+              Pitch Navigation
             </h3>
             
             <div style={{
@@ -1610,27 +1716,39 @@ const UnifiedPitchAllocator = () => {
                     style={{
                       padding: '12px 8px',
                       backgroundColor: isCurrentPitch 
-                        ? '#3b82f6' 
+                        ? 'rgba(255,255,255,0.2)' 
                         : hasAllocations 
-                          ? '#dcfce7' 
-                          : '#f3f4f6',
+                          ? 'rgba(255,255,255,0.05)' 
+                          : 'transparent',
                       border: isCurrentPitch
-                        ? '2px solid #1e40af'
+                        ? '2px solid rgba(255,255,255,0.5)'
                         : hasAllocations 
-                          ? '2px solid #16a34a' 
-                          : '1px solid #d1d5db',
+                          ? '1px solid rgba(255,255,255,0.2)' 
+                          : '1px solid rgba(255,255,255,0.1)',
                       borderRadius: '6px',
                       fontSize: '14px',
                       fontWeight: '600',
                       color: isCurrentPitch
                         ? 'white'
                         : hasAllocations 
-                          ? '#15803d' 
-                          : '#6b7280',
+                          ? 'rgba(255,255,255,0.9)' 
+                          : 'rgba(255,255,255,0.6)',
                       cursor: 'pointer',
                       textAlign: 'center',
                       transition: 'all 0.2s ease',
                       position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isCurrentPitch) {
+                        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isCurrentPitch) {
+                        e.currentTarget.style.backgroundColor = hasAllocations 
+                          ? 'rgba(255,255,255,0.05)' 
+                          : 'transparent';
+                      }
                     }}
                   >
                     {isCurrentPitch && (
@@ -1641,7 +1759,7 @@ const UnifiedPitchAllocator = () => {
                         transform: 'translateY(-50%)',
                         fontSize: '10px'
                       }}>
-                        â–¶
+                        ▶
                       </div>
                     )}
                     <div>{displayName}</div>
@@ -1649,7 +1767,7 @@ const UnifiedPitchAllocator = () => {
                       <div style={{ 
                         fontSize: '11px', 
                         marginTop: '4px', 
-                        opacity: isCurrentPitch ? 0.9 : 0.8 
+                        opacity: 0.8 
                       }}>
                         {allocCount} allocation{allocCount !== 1 ? 's' : ''}
                       </div>
@@ -1658,61 +1776,62 @@ const UnifiedPitchAllocator = () => {
                 );
               })}
             </div>
+          </div>
+          
+          {/* Bottom navigation buttons */}
+          <div style={{
+            padding: '16px',
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+            backgroundColor: 'rgba(0,0,0,0.1)'
+          }}>
+            <button
+              onClick={() => navigate('/club-pitch-map')}
+              style={{
+                width: '100%',
+                padding: '10px',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: 'white',
+                cursor: 'pointer',
+                fontWeight: '500',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+              }}
+            >
+              🗺️ Back to Map View
+            </button>
             
-            <div style={{
-              marginTop: '16px',
-              paddingTop: '16px',
-              borderTop: '1px solid #e5e7eb'
-            }}>
-              <button
-                onClick={() => navigate('/club-pitch-map')}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  backgroundColor: '#f3f4f6',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  color: '#374151',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#e5e7eb';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f3f4f6';
-                }}
-              >
-                🗺️ Back to Map View
-              </button>
-              
-              <button
-                onClick={handleLogout}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  backgroundColor: '#fee2e2',
-                  border: '1px solid #fca5a5',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  color: '#dc2626',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease',
-                  marginTop: '8px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#fecaca';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#fee2e2';
-                }}
-              >
-                🚪 Logout
-              </button>
-            </div>
+            <button
+              onClick={handleLogout}
+              style={{
+                width: '100%',
+                padding: '10px',
+                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: '#fca5a5',
+                cursor: 'pointer',
+                fontWeight: '500',
+                transition: 'all 0.2s ease',
+                marginTop: '8px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+              }}
+            >
+              🚪 Logout
+            </button>
           </div>
         </div>
       )}
@@ -1722,7 +1841,9 @@ const UnifiedPitchAllocator = () => {
         flex: 1,
         padding: '24px',
         maxWidth: '1400px',
-        margin: '0 auto'
+        margin: '0 auto',
+        overflowY: 'auto',
+        height: '100vh'
       }}>
         {/* Header with club info and allocation count */}
         <div style={{
