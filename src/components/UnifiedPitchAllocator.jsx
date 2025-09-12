@@ -584,7 +584,7 @@ useEffect(() => {
     initialExpanded[slot] = true; // Start with all slots expanded
   });
   setExpandedSlots(initialExpanded);
-}, [slots, showBusinessHours, date]);
+}, [slots, showBusinessHours, date]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Early return for loading state - placed AFTER all hooks
   if (loading) {
@@ -2383,6 +2383,77 @@ useEffect(() => {
                       >
                         Collapse All
                       </button>
+                      {isWeekday(date) && (
+  <>
+    <div style={{
+      borderTop: '1px solid #e5e7eb',
+      margin: '0'
+    }}></div>
+    
+    <div style={{ padding: '8px' }}>
+      <button
+        onClick={() => {
+          setShowBusinessHours(!showBusinessHours);
+          setFilterMenuOpen(false);
+        }}
+        style={{
+          width: '100%',
+          padding: '10px 12px',
+          backgroundColor: showBusinessHours ? '#f0fdf4' : 'white',
+          color: showBusinessHours ? '#15803d' : '#374151',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '14px',
+          fontWeight: '500',
+          textAlign: 'left',
+          transition: 'background-color 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}
+        onMouseEnter={(e) => {
+          if (!showBusinessHours) {
+            e.currentTarget.style.backgroundColor = '#f3f4f6';
+          }
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = showBusinessHours ? '#f0fdf4' : 'white';
+        }}
+      >
+        <span style={{
+          width: '16px',
+          height: '16px',
+          border: '2px solid',
+          borderColor: showBusinessHours ? '#15803d' : '#6b7280',
+          borderRadius: '3px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: showBusinessHours ? '#15803d' : 'white'
+        }}>
+          {showBusinessHours && (
+            <span style={{ color: 'white', fontSize: '12px', fontWeight: 'bold' }}>✓</span>
+          )}
+        </span>
+        <span>Show Business Hours</span>
+      </button>
+      <div style={{
+        fontSize: '11px',
+        color: '#6b7280',
+        paddingLeft: '28px',
+        paddingTop: '4px',
+        paddingBottom: '4px'
+      }}>
+        Mon-Fri 8am-5pm
+      </div>
+    </div>
+    
+    <div style={{
+      borderTop: '1px solid #e5e7eb',
+      margin: '0'
+    }}></div>
+  </>
+)}
                     </div>
                     
                     {/* Divider */}
