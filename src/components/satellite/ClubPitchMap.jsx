@@ -482,75 +482,10 @@ const ClubPitchMap = ({
             </div>
           </div>
           
-          {/* Scrollable pitch navigation section */}
+          {/* Spacer to push bottom buttons down */}
           <div style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '16px'
-          }}>
-            <h3 style={{
-              fontSize: '14px',
-              fontWeight: '600',
-              color: 'rgba(255,255,255,0.8)',
-              marginBottom: '16px',
-              textAlign: 'center',
-              textTransform: 'uppercase',
-              letterSpacing: '1px'
-            }}>
-              Pitch Navigation
-            </h3>
-            
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              {satelliteConfig.pitchBoundaries.map((pitch, index) => {
-                const pitchNum = pitch.pitchNumber || (index + 1);
-                const displayName = getPitchDisplayName(pitchNum);
-                
-                return (
-                  <button
-                    key={pitchNum}
-                    onClick={() => {
-                      // Navigate to the selected pitch allocator
-                      navigate(`/allocator/${pitchNum}`);
-                    }}
-                    style={{
-                      padding: '12px 8px',
-                      backgroundColor: 'transparent',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: 'rgba(255,255,255,0.6)',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                      e.currentTarget.style.color = 'rgba(255,255,255,0.9)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
-                    }}
-                  >
-                    <div>{displayName}</div>
-                    <div style={{ 
-                      fontSize: '11px', 
-                      marginTop: '4px', 
-                      opacity: 0.8 
-                    }}>
-                      Click to view allocations
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+            flex: 1
+          }}></div>
           
           {/* Bottom navigation buttons */}
           <div style={{
@@ -558,30 +493,6 @@ const ClubPitchMap = ({
             borderTop: '1px solid rgba(255,255,255,0.1)',
             backgroundColor: 'rgba(0,0,0,0.1)'
           }}>
-            <button
-              onClick={() => navigate('/menu')}
-              style={{
-                width: '100%',
-                padding: '10px',
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '6px',
-                fontSize: '14px',
-                color: 'white',
-                cursor: 'pointer',
-                fontWeight: '500',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-              }}
-            >
-              🏠 Back to Menu
-            </button>
-            
             <button
               onClick={() => navigate('/settings')}
               style={{
@@ -594,8 +505,7 @@ const ClubPitchMap = ({
                 color: 'white',
                 cursor: 'pointer',
                 fontWeight: '500',
-                transition: 'all 0.2s ease',
-                marginTop: '8px'
+                transition: 'all 0.2s ease'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
