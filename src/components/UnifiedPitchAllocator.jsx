@@ -69,7 +69,6 @@ const UnifiedPitchAllocator = () => {
   const [duration, setDuration] = useState(30);
 
   // Menu and UI state
-  const [menuOpen, setMenuOpen] = useState(false);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [expandedSlots, setExpandedSlots] = useState({});
   const [filterType, setFilterType] = useState('all'); // 'all', 'training', 'game'
