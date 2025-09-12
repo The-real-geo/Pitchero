@@ -1333,37 +1333,63 @@ function ShareView() {
 
         {/* Allocation Information Notification */}
         <div style={{
-          backgroundColor: '#16a34a',
-          border: '2px solid #15803d',
-          borderRadius: '8px',
           padding: isMobile ? '12px' : '16px',
+          backgroundColor: '#f0f9ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: '4px',
+          fontSize: isMobile ? '12px' : '14px',
+          color: '#1e40af',
+          textAlign: 'center',
           marginBottom: '16px',
-          color: 'white',
-          fontSize: isMobile ? '13px' : '15px',
-          lineHeight: 1.5
+          maxWidth: '800px',
+          margin: '0 auto 16px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-            <span style={{ fontSize: isMobile ? '18px' : '20px', flexShrink: 0 }}>ℹ️</span>
-            <div>
-              <div style={{ marginBottom: '8px' }}>
-                Below is a representation of the {viewMode === 'pitch' && selectedPitch ? 
-                  getPitchDisplayName(selectedPitch.pitchNumber, pitchNames, pitchNamesLoadingState) : 
-                  'pitch'} and the area allocated to each team in 15 minute intervals.
-              </div>
-              <div style={{ 
-                display: 'flex', 
-                gap: '16px', 
-                fontSize: isMobile ? '12px' : '14px',
-                fontWeight: '600'
+          <div style={{ marginBottom: '8px' }}>
+            Below is a representation of the {viewMode === 'pitch' && selectedPitch ? 
+              getPitchDisplayName(selectedPitch.pitchNumber, pitchNames, pitchNamesLoadingState) : 
+              'pitch'} and the area allocated to each team in 15 minute intervals.
+          </div>
+          <div style={{ 
+            display: 'flex', 
+            gap: '20px', 
+            justifyContent: 'center',
+            alignItems: 'center',
+            fontSize: isMobile ? '12px' : '13px'
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                width: isMobile ? '16px' : '18px',
+                height: isMobile ? '16px' : '18px',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                fontSize: isMobile ? '10px' : '11px',
+                fontWeight: 'bold',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '2px'
               }}>
-                <span>
-                  (T) indicates Training
-                </span>
-                <span>
-                  (M) indicates Match
-                </span>
-              </div>
-            </div>
+                T
+              </span>
+              indicates Training
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                width: isMobile ? '16px' : '18px',
+                height: isMobile ? '16px' : '18px',
+                backgroundColor: '#ef4444',
+                color: 'white',
+                fontSize: isMobile ? '10px' : '11px',
+                fontWeight: 'bold',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '2px'
+              }}>
+                M
+              </span>
+              indicates Match
+            </span>
           </div>
         </div>
 
