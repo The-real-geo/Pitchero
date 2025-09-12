@@ -351,20 +351,7 @@ const ClubPitchMap = ({
         <p style={{ color: '#856404' }}>
           The satellite config is not loading. Please check Firebase configuration.
         </p>
-        <button
-          onClick={handleBackToMenu}
-          style={{
-            marginTop: '16px',
-            padding: '10px 20px',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer'
-          }}
-        >
-          ← Back to Menu
-        </button>
+        
       </div>
     );
   }
