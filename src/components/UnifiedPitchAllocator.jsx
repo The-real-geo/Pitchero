@@ -575,7 +575,7 @@ const getSlotsToDisplay = () => {
     loadAllocations();
   }, [loadAllocations]);
 
-  / Initialize expanded slots on mount
+  // Initialize expanded slots on mount
 useEffect(() => {
   const initialExpanded = {};
   const slotsToShow = getSlotsToDisplay();
