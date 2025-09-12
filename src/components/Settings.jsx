@@ -547,288 +547,218 @@ function Settings() {
   // Loading state
   if (isLoadingSettings) {
     return (
-      <div style={{
-        padding: '24px',
-        backgroundColor: '#f9fafb',
-        minHeight: '100vh',
-        fontFamily: 'system-ui, sans-serif'
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <SettingsSkeleton />
+      <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+        {/* NavigationSidebar with loading state */}
+        <NavigationSidebar 
+          satelliteConfig={clubInfo?.satelliteConfig}
+          clubInfo={clubInfo}
+          user={user}
+          userRole={userRole}
+        />
+        
+        {/* Loading skeleton for main content */}
+        <div style={{
+          flex: 1,
+          padding: '24px',
+          fontFamily: 'system-ui, sans-serif'
+        }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <SettingsSkeleton />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{
-      padding: '24px',
-      backgroundColor: '#f9fafb',
-      minHeight: '100vh',
-      fontFamily: 'system-ui, sans-serif'
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '32px'
-        }}>
-          <div>
-            <h1 style={{
-              fontSize: '32px',
-              fontWeight: 'bold',
-              color: '#1f2937',
-              margin: '0'
-            }}>
-              Settings
-            </h1>
-            {clubInfo && (
-              <p style={{
-                fontSize: '14px',
-                color: '#6b7280',
-                marginTop: '4px'
-              }}>
-                {clubInfo.name} • {user?.email} • Role: {userRole}
-              </p>
-            )}
-          </div>
-          <button
-            onClick={() => navigate('/menu')}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-            aria-label="Back to Menu"
-          >
-            ← Back to Menu
-          </button>
-        </div>
-
-        {/* Status indicators */}
-        {isSavingSettings && (
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+      {/* Navigation Sidebar */}
+      <NavigationSidebar 
+        satelliteConfig={clubInfo?.satelliteConfig}
+        clubInfo={clubInfo}
+        user={user}
+        userRole={userRole}
+      />
+      
+      {/* Main Settings Content */}
+      <div style={{
+        flex: 1,
+        padding: '24px',
+        fontFamily: 'system-ui, sans-serif',
+        overflowY: 'auto'
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          {/* Header */}
           <div style={{
-            backgroundColor: '#dbeafe',
-            border: '1px solid #3b82f6',
-            borderRadius: '8px',
-            padding: '12px',
-            marginBottom: '20px',
             display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            gap: '8px'
-          }}
-          role="status"
-          aria-live="polite"
-          >
-            <div style={{
-              animation: 'spin 1s linear infinite',
-              width: '16px',
-              height: '16px',
-              border: '2px solid #93c5fd',
-              borderTop: '2px solid #3b82f6',
-              borderRadius: '50%'
-            }}></div>
-            <span style={{ color: '#1e40af', fontSize: '14px' }}>
-              Saving settings to cloud...
-            </span>
-          </div>
-        )}
-
-        {successMessage && (
-          <div style={{
-            backgroundColor: '#d1fae5',
-            border: '1px solid #34d399',
-            borderRadius: '8px',
-            padding: '12px',
-            marginBottom: '20px',
-            color: '#065f46',
-            fontSize: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-          role="status"
-          aria-live="polite"
-          >
-            ✓ {successMessage}
-          </div>
-        )}
-
-        {hasUnsavedChanges && !isSavingSettings && (
-          <div style={{
-            backgroundColor: '#fef3c7',
-            border: '1px solid #fde68a',
-            borderRadius: '8px',
-            padding: '12px',
-            marginBottom: '20px',
-            color: '#d97706',
-            fontSize: '14px'
-          }}
-          role="status"
-          >
-            ⚠️ You have unsaved changes. They will be saved automatically.
-          </div>
-        )}
-
-        {/* Error Messages */}
-        {errors.submit && (
-          <div style={{
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '8px',
-            padding: '16px',
-            marginBottom: '20px',
-            color: '#dc2626'
-          }}
-          role="alert"
-          >
-            {errors.submit}
-          </div>
-        )}
-
-        {errors.load && (
-          <div style={{
-            backgroundColor: '#fef3c7',
-            border: '1px solid #fde68a',
-            borderRadius: '8px',
-            padding: '16px',
-            marginBottom: '20px',
-            color: '#d97706'
-          }}
-          role="alert"
-          >
-            {errors.load}
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div style={{
-          display: 'flex',
-          gap: '12px',
-          marginBottom: '32px',
-          flexWrap: 'wrap'
-        }}>
-          <button
-            onClick={handleExport}
-            disabled={isSavingSettings}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: isSavingSettings ? '#9ca3af' : '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              opacity: isSavingSettings ? 0.6 : 1
-            }}
-            aria-label="Export Settings"
-            aria-busy={isSavingSettings}
-          >
-            📤 Export Settings
-          </button>
-          <button
-            onClick={() => setShowImportModal(true)}
-            disabled={isSavingSettings}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: isSavingSettings ? '#9ca3af' : '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              opacity: isSavingSettings ? 0.6 : 1
-            }}
-            aria-label="Import Settings"
-            aria-busy={isSavingSettings}
-          >
-            📥 Import Settings
-          </button>
-          <button
-            onClick={resetToDefaults}
-            disabled={isSavingSettings}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: isSavingSettings ? '#9ca3af' : '#ef4444',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              opacity: isSavingSettings ? 0.6 : 1
-            }}
-            aria-label="Reset to Defaults"
-            aria-busy={isSavingSettings}
-          >
-            🔄 Reset to Defaults
-          </button>
-        </div>
-
-        {/* Teams Configuration */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          marginBottom: '24px'
-        }}>
-          <h2 style={{
-            fontSize: '20px',
-            fontWeight: '600',
-            color: '#1f2937',
-            marginBottom: '20px'
+            marginBottom: '32px'
           }}>
-            Teams Configuration
-          </h2>
+            <div>
+              <h1 style={{
+                fontSize: '32px',
+                fontWeight: 'bold',
+                color: '#1f2937',
+                margin: '0'
+              }}>
+                Settings
+              </h1>
+              {clubInfo && (
+                <p style={{
+                  fontSize: '14px',
+                  color: '#6b7280',
+                  marginTop: '4px'
+                }}>
+                  {clubInfo.name} • {user?.email} • Role: {userRole}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => navigate('/menu')}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#6b7280',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+              aria-label="Back to Menu"
+            >
+              ← Back to Menu
+            </button>
+          </div>
 
-          {/* Add Team Form */}
+          {/* Status indicators */}
+          {isSavingSettings && (
+            <div style={{
+              backgroundColor: '#dbeafe',
+              border: '1px solid #3b82f6',
+              borderRadius: '8px',
+              padding: '12px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            role="status"
+            aria-live="polite"
+            >
+              <div style={{
+                animation: 'spin 1s linear infinite',
+                width: '16px',
+                height: '16px',
+                border: '2px solid #93c5fd',
+                borderTop: '2px solid #3b82f6',
+                borderRadius: '50%'
+              }}></div>
+              <span style={{ color: '#1e40af', fontSize: '14px' }}>
+                Saving settings to cloud...
+              </span>
+            </div>
+          )}
+
+          {successMessage && (
+            <div style={{
+              backgroundColor: '#d1fae5',
+              border: '1px solid #34d399',
+              borderRadius: '8px',
+              padding: '12px',
+              marginBottom: '20px',
+              color: '#065f46',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            role="status"
+            aria-live="polite"
+            >
+              ✓ {successMessage}
+            </div>
+          )}
+
+          {hasUnsavedChanges && !isSavingSettings && (
+            <div style={{
+              backgroundColor: '#fef3c7',
+              border: '1px solid #fde68a',
+              borderRadius: '8px',
+              padding: '12px',
+              marginBottom: '20px',
+              color: '#d97706',
+              fontSize: '14px'
+            }}
+            role="status"
+            >
+              ⚠️ You have unsaved changes. They will be saved automatically.
+            </div>
+          )}
+
+          {/* Error Messages */}
+          {errors.submit && (
+            <div style={{
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '20px',
+              color: '#dc2626'
+            }}
+            role="alert"
+            >
+              {errors.submit}
+            </div>
+          )}
+
+          {errors.load && (
+            <div style={{
+              backgroundColor: '#fef3c7',
+              border: '1px solid #fde68a',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '20px',
+              color: '#d97706'
+            }}
+            role="alert"
+            >
+              {errors.load}
+            </div>
+          )}
+
+          {/* Action Buttons */}
           <div style={{
             display: 'flex',
             gap: '12px',
-            marginBottom: '20px',
+            marginBottom: '32px',
             flexWrap: 'wrap'
           }}>
-            <input
-              type="text"
-              placeholder="Enter team name..."
-              value={newTeamName}
-              onChange={(e) => {
-                setNewTeamName(e.target.value);
-                setErrors({ ...errors, teamName: '' });
-              }}
-              onKeyPress={(e) => e.key === 'Enter' && handleAddTeam()}
-              style={{
-                flex: 1,
-                minWidth: '200px',
-                padding: '8px 12px',
-                border: errors.teamName ? '1px solid #ef4444' : '1px solid #d1d5db',
-                borderRadius: '6px',
-                fontSize: '14px'
-              }}
-              aria-label="New team name"
-              aria-invalid={!!errors.teamName}
-              aria-describedby={errors.teamName ? "team-error" : undefined}
-              maxLength={SETTINGS_CONFIG.MAX_TEAM_NAME_LENGTH}
-            />
-            <ColorPicker
-              color={newTeamColor}
-              onChange={setNewTeamColor}
-            />
             <button
-              onClick={handleAddTeam}
+              onClick={handleExport}
               disabled={isSavingSettings}
               style={{
-                padding: '8px 20px',
+                padding: '10px 20px',
+                backgroundColor: isSavingSettings ? '#9ca3af' : '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: isSavingSettings ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                opacity: isSavingSettings ? 0.6 : 1
+              }}
+              aria-label="Export Settings"
+              aria-busy={isSavingSettings}
+            >
+              📤 Export Settings
+            </button>
+            <button
+              onClick={() => setShowImportModal(true)}
+              disabled={isSavingSettings}
+              style={{
+                padding: '10px 20px',
                 backgroundColor: isSavingSettings ? '#9ca3af' : '#3b82f6',
                 color: 'white',
                 border: 'none',
@@ -838,618 +768,709 @@ function Settings() {
                 fontWeight: '500',
                 opacity: isSavingSettings ? 0.6 : 1
               }}
-              aria-label="Add new team"
+              aria-label="Import Settings"
               aria-busy={isSavingSettings}
             >
-              Add Team
+              📥 Import Settings
+            </button>
+            <button
+              onClick={resetToDefaults}
+              disabled={isSavingSettings}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: isSavingSettings ? '#9ca3af' : '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: isSavingSettings ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                opacity: isSavingSettings ? 0.6 : 1
+              }}
+              aria-label="Reset to Defaults"
+              aria-busy={isSavingSettings}
+            >
+              🔄 Reset to Defaults
             </button>
           </div>
 
-          {errors.teamName && (
-            <div 
-              id="team-error"
-              style={{
-                color: '#ef4444',
-                fontSize: '14px',
-                marginTop: '-16px',
-                marginBottom: '16px'
-              }}
-              role="alert"
-            >
-              {errors.teamName}
-            </div>
-          )}
-
-          {/* Teams List */}
+          {/* Teams Configuration */}
           <div style={{
-            display: 'grid',
-            gap: '8px'
-          }}>
-            {teams.map((team, index) => (
-              <div
-                key={`${team.name}-${index}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px',
-                  backgroundColor: '#f9fafb',
-                  borderRadius: '8px',
-                  border: '1px solid #e5e7eb'
-                }}
-              >
-                <div
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    backgroundColor: team.color,
-                    borderRadius: '4px',
-                    border: '1px solid #d1d5db',
-                    flexShrink: 0
-                  }}
-                  aria-label={`Team color: ${team.color}`}
-                />
-                <span style={{
-                  flex: 1,
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  {team.name}
-                </span>
-                <ColorPicker
-                  color={team.color}
-                  onChange={(color) => updateTeamColor(index, color)}
-                />
-                <button
-                  onClick={() => removeTeam(index)}
-                  disabled={isSavingSettings}
-                  style={{
-                    padding: '6px 12px',
-                    backgroundColor: isSavingSettings ? '#9ca3af' : '#ef4444',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    opacity: isSavingSettings ? 0.6 : 1
-                  }}
-                  aria-label={`Remove team ${team.name}`}
-                  aria-busy={isSavingSettings}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div style={{
-            marginTop: '16px',
-            padding: '12px',
-            backgroundColor: '#f0f9ff',
-            borderRadius: '6px',
-            fontSize: '13px',
-            color: '#0369a1'
-          }}>
-            💡 Total teams configured: {teams.length}
-          </div>
-        </div>
-
-        {/* Pitch Configuration */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '20px',
-            flexWrap: 'wrap',
-            gap: '12px'
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+            marginBottom: '24px'
           }}>
             <h2 style={{
               fontSize: '20px',
               fontWeight: '600',
               color: '#1f2937',
-              margin: '0'
+              marginBottom: '20px'
             }}>
-              Pitch Configuration {configuredPitches.length > 0 && `(${configuredPitches.length} pitch${configuredPitches.length !== 1 ? 'es' : ''})`}
+              Teams Configuration
             </h2>
-            <button
-              onClick={() => navigate('/satellite')}
-              disabled={isSavingSettings}
-              style={{
-                padding: '16px 24px',
-                backgroundColor: isSavingSettings ? '#9ca3af' : '#7c3aed',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-                fontSize: '18px',
-                fontWeight: '600',
-                transition: 'background-color 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                opacity: isSavingSettings ? 0.6 : 1
-              }}
-              onMouseOver={(e) => !isSavingSettings && (e.currentTarget.style.backgroundColor = '#6d28d9')}
-              onMouseOut={(e) => !isSavingSettings && (e.currentTarget.style.backgroundColor = '#7c3aed')}
-              aria-label="Go to Satellite Overview"
-            >
-              📡 Satellite Overview
-            </button>
+
+            {/* Add Team Form */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginBottom: '20px',
+              flexWrap: 'wrap'
+            }}>
+              <input
+                type="text"
+                placeholder="Enter team name..."
+                value={newTeamName}
+                onChange={(e) => {
+                  setNewTeamName(e.target.value);
+                  setErrors({ ...errors, teamName: '' });
+                }}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddTeam()}
+                style={{
+                  flex: 1,
+                  minWidth: '200px',
+                  padding: '8px 12px',
+                  border: errors.teamName ? '1px solid #ef4444' : '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '14px'
+                }}
+                aria-label="New team name"
+                aria-invalid={!!errors.teamName}
+                aria-describedby={errors.teamName ? "team-error" : undefined}
+                maxLength={SETTINGS_CONFIG.MAX_TEAM_NAME_LENGTH}
+              />
+              <ColorPicker
+                color={newTeamColor}
+                onChange={setNewTeamColor}
+              />
+              <button
+                onClick={handleAddTeam}
+                disabled={isSavingSettings}
+                style={{
+                  padding: '8px 20px',
+                  backgroundColor: isSavingSettings ? '#9ca3af' : '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: isSavingSettings ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  opacity: isSavingSettings ? 0.6 : 1
+                }}
+                aria-label="Add new team"
+                aria-busy={isSavingSettings}
+              >
+                Add Team
+              </button>
+            </div>
+
+            {errors.teamName && (
+              <div 
+                id="team-error"
+                style={{
+                  color: '#ef4444',
+                  fontSize: '14px',
+                  marginTop: '-16px',
+                  marginBottom: '16px'
+                }}
+                role="alert"
+              >
+                {errors.teamName}
+              </div>
+            )}
+
+            {/* Teams List */}
+            <div style={{
+              display: 'grid',
+              gap: '8px'
+            }}>
+              {teams.map((team, index) => (
+                <div
+                  key={`${team.name}-${index}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      backgroundColor: team.color,
+                      borderRadius: '4px',
+                      border: '1px solid #d1d5db',
+                      flexShrink: 0
+                    }}
+                    aria-label={`Team color: ${team.color}`}
+                  />
+                  <span style={{
+                    flex: 1,
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151'
+                  }}>
+                    {team.name}
+                  </span>
+                  <ColorPicker
+                    color={team.color}
+                    onChange={(color) => updateTeamColor(index, color)}
+                  />
+                  <button
+                    onClick={() => removeTeam(index)}
+                    disabled={isSavingSettings}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: isSavingSettings ? '#9ca3af' : '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: isSavingSettings ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      opacity: isSavingSettings ? 0.6 : 1
+                    }}
+                    aria-label={`Remove team ${team.name}`}
+                    aria-busy={isSavingSettings}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{
+              marginTop: '16px',
+              padding: '12px',
+              backgroundColor: '#f0f9ff',
+              borderRadius: '6px',
+              fontSize: '13px',
+              color: '#0369a1'
+            }}>
+              💡 Total teams configured: {teams.length}
+            </div>
           </div>
 
-          {/* Check if there are configured pitches */}
-          {configuredPitches.length === 0 ? (
+          {/* Pitch Configuration */}
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
             <div style={{
-              padding: '32px',
-              backgroundColor: '#fef3c7',
-              borderRadius: '8px',
-              textAlign: 'center'
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px',
+              flexWrap: 'wrap',
+              gap: '12px'
             }}>
-              <p style={{
-                fontSize: '16px',
-                color: '#92400e',
-                marginBottom: '16px'
+              <h2 style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#1f2937',
+                margin: '0'
               }}>
-                No pitches have been configured yet.
-              </p>
-              <p style={{
-                fontSize: '14px',
-                color: '#92400e',
-                marginBottom: '24px'
-              }}>
-                Click the "Satellite Overview" button above to set up your facility's pitches.
-              </p>
+                Pitch Configuration {configuredPitches.length > 0 && `(${configuredPitches.length} pitch${configuredPitches.length !== 1 ? 'es' : ''})`}
+              </h2>
+              <button
+                onClick={() => navigate('/satellite')}
+                disabled={isSavingSettings}
+                style={{
+                  padding: '16px 24px',
+                  backgroundColor: isSavingSettings ? '#9ca3af' : '#7c3aed',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: isSavingSettings ? 'not-allowed' : 'pointer',
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  transition: 'background-color 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  opacity: isSavingSettings ? 0.6 : 1
+                }}
+                onMouseOver={(e) => !isSavingSettings && (e.currentTarget.style.backgroundColor = '#6d28d9')}
+                onMouseOut={(e) => !isSavingSettings && (e.currentTarget.style.backgroundColor = '#7c3aed')}
+                aria-label="Go to Satellite Overview"
+              >
+                📡 Satellite Overview
+              </button>
             </div>
-          ) : (
-            <>
-              {/* Scrollable container for many pitches */}
+
+            {/* Check if there are configured pitches */}
+            {configuredPitches.length === 0 ? (
               <div style={{
-                maxHeight: '600px',
-                overflowY: 'auto',
-                paddingRight: '8px'
+                padding: '32px',
+                backgroundColor: '#fef3c7',
+                borderRadius: '8px',
+                textAlign: 'center'
               }}>
-                {configuredPitches.map((pitch) => {
-                  const pitchId = normalizePitchId(pitch.id);
-                  return (
-                    <div
-                      key={pitchId}
-                      style={{
-                        marginBottom: '24px',
-                        padding: '16px',
-                        backgroundColor: '#f9fafb',
-                        borderRadius: '8px',
-                        border: '1px solid #e5e7eb'
-                      }}
-                    >
-                      {/* Pitch Name - only editable by admin */}
-                      <div style={{ marginBottom: '16px' }}>
-                        <label 
-                          htmlFor={`pitch-name-${pitchId}`}
-                          style={{
+                <p style={{
+                  fontSize: '16px',
+                  color: '#92400e',
+                  marginBottom: '16px'
+                }}>
+                  No pitches have been configured yet.
+                </p>
+                <p style={{
+                  fontSize: '14px',
+                  color: '#92400e',
+                  marginBottom: '24px'
+                }}>
+                  Click the "Satellite Overview" button above to set up your facility's pitches.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Scrollable container for many pitches */}
+                <div style={{
+                  maxHeight: '600px',
+                  overflowY: 'auto',
+                  paddingRight: '8px'
+                }}>
+                  {configuredPitches.map((pitch) => {
+                    const pitchId = normalizePitchId(pitch.id);
+                    return (
+                      <div
+                        key={pitchId}
+                        style={{
+                          marginBottom: '24px',
+                          padding: '16px',
+                          backgroundColor: '#f9fafb',
+                          borderRadius: '8px',
+                          border: '1px solid #e5e7eb'
+                        }}
+                      >
+                        {/* Pitch Name - only editable by admin */}
+                        <div style={{ marginBottom: '16px' }}>
+                          <label 
+                            htmlFor={`pitch-name-${pitchId}`}
+                            style={{
+                              display: 'block',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              color: '#374151',
+                              marginBottom: '8px'
+                            }}
+                          >
+                            Pitch Name
+                          </label>
+                          {isAdmin ? (
+                            <input
+                              id={`pitch-name-${pitchId}`}
+                              type="text"
+                              value={localPitchNames[pitchId] || ''}
+                              onChange={(e) => handlePitchNameChange(pitchId, e.target.value)}
+                              onBlur={() => handlePitchNameBlur(pitchId)}
+                              disabled={isSavingSettings}
+                              style={{
+                                width: '100%',
+                                padding: '8px 12px',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '6px',
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                opacity: isSavingSettings ? 0.6 : 1
+                              }}
+                              placeholder={`Pitch ${pitch.number}`}
+                              aria-label={`Name for pitch ${pitch.number}`}
+                            />
+                          ) : (
+                            <div style={{
+                              padding: '8px 12px',
+                              backgroundColor: '#f3f4f6',
+                              borderRadius: '6px',
+                              fontSize: '16px',
+                              fontWeight: '600',
+                              color: '#374151'
+                            }}>
+                              {pitchNames[pitchId] || `Pitch ${pitch.number}`}
+                            </div>
+                          )}
+                          {isAdmin && (
+                            <p style={{
+                              fontSize: '12px',
+                              color: '#6b7280',
+                              marginTop: '4px',
+                              fontStyle: 'italic'
+                            }}>
+                              Admin only: You can customize this pitch name
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Orientation */}
+                        <div style={{ marginBottom: '16px' }}>
+                          <label style={{
                             display: 'block',
                             fontSize: '14px',
                             fontWeight: '500',
                             color: '#374151',
                             marginBottom: '8px'
-                          }}
-                        >
-                          Pitch Name
-                        </label>
-                        {isAdmin ? (
-                          <input
-                            id={`pitch-name-${pitchId}`}
-                            type="text"
-                            value={localPitchNames[pitchId] || ''}
-                            onChange={(e) => handlePitchNameChange(pitchId, e.target.value)}
-                            onBlur={() => handlePitchNameBlur(pitchId)}
-                            disabled={isSavingSettings}
-                            style={{
-                              width: '100%',
-                              padding: '8px 12px',
-                              border: '1px solid #d1d5db',
-                              borderRadius: '6px',
-                              fontSize: '14px',
-                              fontWeight: '600',
-                              opacity: isSavingSettings ? 0.6 : 1
-                            }}
-                            placeholder={`Pitch ${pitch.number}`}
-                            aria-label={`Name for pitch ${pitch.number}`}
-                          />
-                        ) : (
-                          <div style={{
-                            padding: '8px 12px',
-                            backgroundColor: '#f3f4f6',
-                            borderRadius: '6px',
-                            fontSize: '16px',
-                            fontWeight: '600',
-                            color: '#374151'
                           }}>
-                            {pitchNames[pitchId] || `Pitch ${pitch.number}`}
+                            Orientation
+                          </label>
+                          <div 
+                            style={{ display: 'flex', gap: '12px' }}
+                            role="radiogroup"
+                            aria-label={`Orientation for pitch ${pitch.number}`}
+                          >
+                            <button
+                              onClick={() => updatePitchOrientation(pitchId, 'portrait')}
+                              disabled={isSavingSettings}
+                              style={{
+                                padding: '8px 16px',
+                                backgroundColor: pitchOrientations[pitchId] === 'portrait' ? '#3b82f6' : '#e5e7eb',
+                                color: pitchOrientations[pitchId] === 'portrait' ? 'white' : '#374151',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: isSavingSettings ? 'not-allowed' : 'pointer',
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                opacity: isSavingSettings ? 0.6 : 1
+                              }}
+                              role="radio"
+                              aria-checked={pitchOrientations[pitchId] === 'portrait'}
+                            >
+                              Portrait
+                            </button>
+                            <button
+                              onClick={() => updatePitchOrientation(pitchId, 'landscape')}
+                              disabled={isSavingSettings}
+                              style={{
+                                padding: '8px 16px',
+                                backgroundColor: pitchOrientations[pitchId] === 'landscape' ? '#3b82f6' : '#e5e7eb',
+                                color: pitchOrientations[pitchId] === 'landscape' ? 'white' : '#374151',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: isSavingSettings ? 'not-allowed' : 'pointer',
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                opacity: isSavingSettings ? 0.6 : 1
+                              }}
+                              role="radio"
+                              aria-checked={pitchOrientations[pitchId] === 'landscape'}
+                            >
+                              Landscape
+                            </button>
                           </div>
-                        )}
-                        {isAdmin && (
+                        </div>
+
+                        {/* Grass Area Option */}
+                        <div>
+                          <label style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            color: '#374151',
+                            cursor: isSavingSettings ? 'not-allowed' : 'pointer'
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={showGrassArea[pitchId] || false}
+                              onChange={(e) => updateGrassAreaVisibility(pitchId, e.target.checked)}
+                              disabled={isSavingSettings}
+                              style={{ cursor: isSavingSettings ? 'not-allowed' : 'pointer' }}
+                              aria-label={`Show grass area for training on pitch ${pitch.number}`}
+                            />
+                            Show grass area for training
+                          </label>
                           <p style={{
                             fontSize: '12px',
                             color: '#6b7280',
                             marginTop: '4px',
-                            fontStyle: 'italic'
+                            marginLeft: '24px'
                           }}>
-                            Admin only: You can customize this pitch name
+                            Enable an additional grass training area for this pitch
                           </p>
-                        )}
-                      </div>
-
-                      {/* Orientation */}
-                      <div style={{ marginBottom: '16px' }}>
-                        <label style={{
-                          display: 'block',
-                          fontSize: '14px',
-                          fontWeight: '500',
-                          color: '#374151',
-                          marginBottom: '8px'
-                        }}>
-                          Orientation
-                        </label>
-                        <div 
-                          style={{ display: 'flex', gap: '12px' }}
-                          role="radiogroup"
-                          aria-label={`Orientation for pitch ${pitch.number}`}
-                        >
-                          <button
-                            onClick={() => updatePitchOrientation(pitchId, 'portrait')}
-                            disabled={isSavingSettings}
-                            style={{
-                              padding: '8px 16px',
-                              backgroundColor: pitchOrientations[pitchId] === 'portrait' ? '#3b82f6' : '#e5e7eb',
-                              color: pitchOrientations[pitchId] === 'portrait' ? 'white' : '#374151',
-                              border: 'none',
-                              borderRadius: '6px',
-                              cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-                              fontSize: '14px',
-                              fontWeight: '500',
-                              opacity: isSavingSettings ? 0.6 : 1
-                            }}
-                            role="radio"
-                            aria-checked={pitchOrientations[pitchId] === 'portrait'}
-                          >
-                            Portrait
-                          </button>
-                          <button
-                            onClick={() => updatePitchOrientation(pitchId, 'landscape')}
-                            disabled={isSavingSettings}
-                            style={{
-                              padding: '8px 16px',
-                              backgroundColor: pitchOrientations[pitchId] === 'landscape' ? '#3b82f6' : '#e5e7eb',
-                              color: pitchOrientations[pitchId] === 'landscape' ? 'white' : '#374151',
-                              border: 'none',
-                              borderRadius: '6px',
-                              cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-                              fontSize: '14px',
-                              fontWeight: '500',
-                              opacity: isSavingSettings ? 0.6 : 1
-                            }}
-                            role="radio"
-                            aria-checked={pitchOrientations[pitchId] === 'landscape'}
-                          >
-                            Landscape
-                          </button>
                         </div>
                       </div>
-
-                      {/* Grass Area Option */}
-                      <div>
-                        <label style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          fontSize: '14px',
-                          fontWeight: '500',
-                          color: '#374151',
-                          cursor: isSavingSettings ? 'not-allowed' : 'pointer'
-                        }}>
-                          <input
-                            type="checkbox"
-                            checked={showGrassArea[pitchId] || false}
-                            onChange={(e) => updateGrassAreaVisibility(pitchId, e.target.checked)}
-                            disabled={isSavingSettings}
-                            style={{ cursor: isSavingSettings ? 'not-allowed' : 'pointer' }}
-                            aria-label={`Show grass area for training on pitch ${pitch.number}`}
-                          />
-                          Show grass area for training
-                        </label>
-                        <p style={{
-                          fontSize: '12px',
-                          color: '#6b7280',
-                          marginTop: '4px',
-                          marginLeft: '24px'
-                        }}>
-                          Enable an additional grass training area for this pitch
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              
-              {/* Info about configured pitches */}
+                    );
+                  })}
+                </div>
+                
+                {/* Info about configured pitches */}
+                <div style={{
+                  marginTop: '16px',
+                  padding: '12px',
+                  backgroundColor: '#f0f9ff',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  color: '#0369a1'
+                }}>
+                  💡 {configuredPitches.length} pitch{configuredPitches.length !== 1 ? 'es' : ''} configured. 
+                  {configuredPitches.length < SETTINGS_CONFIG.MAX_PITCHES && ` You can configure up to ${SETTINGS_CONFIG.MAX_PITCHES} pitches total.`}
+                </div>
+              </>
+            )}
+            
+            {!isAdmin && configuredPitches.length > 0 && (
               <div style={{
                 marginTop: '16px',
                 padding: '12px',
-                backgroundColor: '#f0f9ff',
+                backgroundColor: '#fef3c7',
                 borderRadius: '6px',
                 fontSize: '13px',
-                color: '#0369a1'
+                color: '#d97706'
               }}>
-                💡 {configuredPitches.length} pitch{configuredPitches.length !== 1 ? 'es' : ''} configured. 
-                {configuredPitches.length < SETTINGS_CONFIG.MAX_PITCHES && ` You can configure up to ${SETTINGS_CONFIG.MAX_PITCHES} pitches total.`}
-              </div>
-            </>
-          )}
-          
-          {!isAdmin && configuredPitches.length > 0 && (
-            <div style={{
-              marginTop: '16px',
-              padding: '12px',
-              backgroundColor: '#fef3c7',
-              borderRadius: '6px',
-              fontSize: '13px',
-              color: '#d97706'
-            }}>
-              ⚠️ Note: Only administrators can change pitch names. Contact your admin if you need to update them.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Import Modal */}
-      {showImportModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}
-        role="dialog"
-        aria-labelledby="import-modal-title"
-        aria-modal="true"
-        >
-          <div style={{
-            backgroundColor: 'white',
-            padding: '24px',
-            borderRadius: '12px',
-            width: '90%',
-            maxWidth: '600px',
-            maxHeight: '80vh',
-            overflow: 'auto'
-          }}>
-            <h3 
-              id="import-modal-title"
-              style={{
-                fontSize: '18px',
-                fontWeight: '600',
-                color: '#1f2937',
-                marginBottom: '16px'
-              }}
-            >
-              Import Settings
-            </h3>
-            
-            <textarea
-              value={importData}
-              onChange={(e) => setImportData(e.target.value)}
-              placeholder="Paste your settings JSON here..."
-              style={{
-                width: '100%',
-                height: '300px',
-                padding: '12px',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                fontSize: '13px',
-                fontFamily: 'monospace',
-                resize: 'vertical'
-              }}
-              aria-label="Import settings JSON"
-            />
-            
-            {errors.import && (
-              <div 
-                style={{
-                  marginTop: '12px',
-                  color: '#ef4444',
-                  fontSize: '14px'
-                }}
-                role="alert"
-              >
-                {errors.import}
+                ⚠️ Note: Only administrators can change pitch names. Contact your admin if you need to update them.
               </div>
             )}
-            
-            <div style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '12px',
-              marginTop: '20px'
-            }}>
-              <button
-                onClick={() => {
-                  setShowImportModal(false);
-                  setImportData('');
-                  setErrors({ ...errors, import: '' });
-                }}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#e5e7eb',
-                  color: '#374151',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={processImport}
-                disabled={!importData || isSavingSettings}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: (!importData || isSavingSettings) ? '#9ca3af' : '#3b82f6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: (!importData || isSavingSettings) ? 'not-allowed' : 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  opacity: (!importData || isSavingSettings) ? 0.6 : 1
-                }}
-                aria-busy={isSavingSettings}
-              >
-                Import
-              </button>
-            </div>
           </div>
         </div>
-      )}
 
-      {/* Export Modal */}
-      {showExportModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}
-        role="dialog"
-        aria-labelledby="export-modal-title"
-        aria-modal="true"
-        >
+        {/* Import Modal */}
+        {showImportModal && (
           <div style={{
-            backgroundColor: 'white',
-            padding: '24px',
-            borderRadius: '12px',
-            width: '90%',
-            maxWidth: '600px',
-            maxHeight: '80vh',
-            overflow: 'auto'
-          }}>
-            <h3 
-              id="export-modal-title"
-              style={{
-                fontSize: '18px',
-                fontWeight: '600',
-                color: '#1f2937',
-                marginBottom: '16px'
-              }}
-            >
-              Export Settings
-            </h3>
-            
-            <textarea
-              value={exportData}
-              readOnly
-              style={{
-                width: '100%',
-                height: '300px',
-                padding: '12px',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                fontSize: '13px',
-                fontFamily: 'monospace',
-                resize: 'vertical',
-                backgroundColor: '#f9fafb'
-              }}
-              aria-label="Exported settings JSON"
-            />
-            
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          role="dialog"
+          aria-labelledby="import-modal-title"
+          aria-modal="true"
+          >
             <div style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '12px',
-              marginTop: '20px',
-              flexWrap: 'wrap'
+              backgroundColor: 'white',
+              padding: '24px',
+              borderRadius: '12px',
+              width: '90%',
+              maxWidth: '600px',
+              maxHeight: '80vh',
+              overflow: 'auto'
             }}>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(exportData);
-                  showSuccess('Settings copied to clipboard!');
-                }}
+              <h3 
+                id="import-modal-title"
                 style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500'
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#1f2937',
+                  marginBottom: '16px'
                 }}
               >
-                📋 Copy to Clipboard
-              </button>
-              <button
-                onClick={downloadExport}
+                Import Settings
+              </h3>
+              
+              <textarea
+                value={importData}
+                onChange={(e) => setImportData(e.target.value)}
+                placeholder="Paste your settings JSON here..."
                 style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
+                  width: '100%',
+                  height: '300px',
+                  padding: '12px',
+                  border: '1px solid #d1d5db',
                   borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500'
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  resize: 'vertical'
                 }}
-              >
-                💾 Download JSON
-              </button>
-              <button
-                onClick={() => setShowExportModal(false)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#e5e7eb',
-                  color: '#374151',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500'
-                }}
-              >
-                Close
-              </button>
+                aria-label="Import settings JSON"
+              />
+              
+              {errors.import && (
+                <div 
+                  style={{
+                    marginTop: '12px',
+                    color: '#ef4444',
+                    fontSize: '14px'
+                  }}
+                  role="alert"
+                >
+                  {errors.import}
+                </div>
+              )}
+              
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px',
+                marginTop: '20px'
+              }}>
+                <button
+                  onClick={() => {
+                    setShowImportModal(false);
+                    setImportData('');
+                    setErrors({ ...errors, import: '' });
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#e5e7eb',
+                    color: '#374151',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={processImport}
+                  disabled={!importData || isSavingSettings}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: (!importData || isSavingSettings) ? '#9ca3af' : '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: (!importData || isSavingSettings) ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    opacity: (!importData || isSavingSettings) ? 0.6 : 1
+                  }}
+                  aria-busy={isSavingSettings}
+                >
+                  Import
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Global styles */}
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+        )}
+
+        {/* Export Modal */}
+        {showExportModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          role="dialog"
+          aria-labelledby="export-modal-title"
+          aria-modal="true"
+          >
+            <div style={{
+              backgroundColor: 'white',
+              padding: '24px',
+              borderRadius: '12px',
+              width: '90%',
+              maxWidth: '600px',
+              maxHeight: '80vh',
+              overflow: 'auto'
+            }}>
+              <h3 
+                id="export-modal-title"
+                style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#1f2937',
+                  marginBottom: '16px'
+                }}
+              >
+                Export Settings
+              </h3>
+              
+              <textarea
+                value={exportData}
+                readOnly
+                style={{
+                  width: '100%',
+                  height: '300px',
+                  padding: '12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  resize: 'vertical',
+                  backgroundColor: '#f9fafb'
+                }}
+                aria-label="Exported settings JSON"
+              />
+              
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px',
+                marginTop: '20px',
+                flexWrap: 'wrap'
+              }}>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(exportData);
+                    showSuccess('Settings copied to clipboard!');
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  📋 Copy to Clipboard
+                </button>
+                <button
+                  onClick={downloadExport}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  💾 Download JSON
+                </button>
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#e5e7eb',
+                    color: '#374151',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Global styles */}
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
     </div>
   );
 }
