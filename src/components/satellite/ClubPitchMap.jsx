@@ -1,17 +1,18 @@
 // src/components/satellite/ClubPitchMap.jsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, LogOut, Home, Map, Calendar } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { auth, db } from '../../utils/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
+import NavigationSidebar from '../NavigationSidebar'; // Import the NavigationSidebar component
 
 const ClubPitchMap = ({ 
   onPitchClick 
 }) => {
   console.log('🔴🔴🔴 CLUBPITCHMAP COMPONENT LOADED - VERSION 5.0 🔴🔴🔴');
   console.log('Component mounted at:', new Date().toISOString());
-  console.log('🟢 VERSION 5.0 - With pitch names fix and side navigation');
+  console.log('🟢 VERSION 5.0 - With pitch names fix and NavigationSidebar');
   
   const navigate = useNavigate();
   const canvasRef = useRef(null);
@@ -26,30 +27,17 @@ const ClubPitchMap = ({
   const [clubName, setClubName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // States for NavigationSidebar props
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [clubInfo, setClubInfo] = useState(null);
 
   // TEST USEEFFECT
   useEffect(() => {
     console.log('🔥🔥🔥 BASIC useEffect IS RUNNING! 🔥🔥🔥');
     console.log('Component has mounted successfully');
   }, []);
-
-  // Handle navigation
-  const handleBackToMenu = () => {
-    navigate('/menu');
-  };
-
-  const handleSettings = () => {
-    navigate('/settings');
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      navigate('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
 
   // Load user and club data
   useEffect(() => {
@@ -59,6 +47,7 @@ const ClubPitchMap = ({
       console.log('👤 Auth state changed, currentUser:', currentUser?.uid || 'null');
       
       if (currentUser) {
+        setUser(currentUser);
         try {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
           console.log('📄 User doc exists:', userDoc.exists());
@@ -66,6 +55,8 @@ const ClubPitchMap = ({
           if (userDoc.exists()) {
             const userData = userDoc.data();
             console.log('📊 User data clubId:', userData.clubId);
+            
+            setUserRole(userData.role || 'user');
             
             if (userData.clubId) {
               setClubId(userData.clubId);
@@ -116,6 +107,13 @@ const ClubPitchMap = ({
         if (clubDoc.exists()) {
           const clubData = clubDoc.data();
           setClubName(clubData.name || 'Club');
+          
+          // Set clubInfo for NavigationSidebar
+          setClubInfo({
+            id: clubId,
+            name: clubData.name || 'Club',
+            ...clubData
+          });
           
           if (clubData.satelliteConfig) {
             setSatelliteConfig(clubData.satelliteConfig);
@@ -289,213 +287,31 @@ const ClubPitchMap = ({
     }
   };
 
-  // Side Navigation Component
-  const SideNavigation = () => (
-    <div style={{
-      position: 'fixed',
-      left: 0,
-      top: 0,
-      height: '100vh',
-      width: '240px',
-      backgroundColor: '#1f2937',
-      boxShadow: '2px 0 10px rgba(0, 0, 0, 0.1)',
-      display: 'flex',
-      flexDirection: 'column',
-      zIndex: 1000
-    }}>
-      {/* Club Name Header */}
-      <div style={{
-        padding: '24px 20px',
-        borderBottom: '1px solid #374151'
-      }}>
-        <h3 style={{
-          color: '#ffffff',
-          fontSize: '18px',
-          fontWeight: '600',
-          margin: 0
-        }}>
-          {clubName || 'Club'}
-        </h3>
-      </div>
-
-      {/* Navigation Items */}
-      <nav style={{
-        flex: 1,
-        padding: '20px 0'
-      }}>
-        <button
-          onClick={handleBackToMenu}
-          style={{
-            width: '100%',
-            padding: '12px 20px',
-            backgroundColor: 'transparent',
-            color: '#d1d5db',
-            border: 'none',
-            borderRadius: '0',
-            cursor: 'pointer',
-            fontSize: '15px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            transition: 'all 0.2s',
-            textAlign: 'left'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#374151';
-            e.currentTarget.style.color = '#ffffff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = '#d1d5db';
-          }}
-        >
-          <Home size={20} />
-          Menu
-        </button>
-
-        <button
-          style={{
-            width: '100%',
-            padding: '12px 20px',
-            backgroundColor: '#374151',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '0',
-            cursor: 'pointer',
-            fontSize: '15px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            textAlign: 'left'
-          }}
-        >
-          <Map size={20} />
-          Pitch Map
-        </button>
-
-        <button
-          onClick={() => navigate('/allocator')}
-          style={{
-            width: '100%',
-            padding: '12px 20px',
-            backgroundColor: 'transparent',
-            color: '#d1d5db',
-            border: 'none',
-            borderRadius: '0',
-            cursor: 'pointer',
-            fontSize: '15px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            transition: 'all 0.2s',
-            textAlign: 'left'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#374151';
-            e.currentTarget.style.color = '#ffffff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = '#d1d5db';
-          }}
-        >
-          <Calendar size={20} />
-          Allocations
-        </button>
-      </nav>
-
-      {/* Bottom Actions */}
-      <div style={{
-        borderTop: '1px solid #374151',
-        padding: '20px 0'
-      }}>
-        <button
-          onClick={handleSettings}
-          style={{
-            width: '100%',
-            padding: '12px 20px',
-            backgroundColor: 'transparent',
-            color: '#d1d5db',
-            border: 'none',
-            borderRadius: '0',
-            cursor: 'pointer',
-            fontSize: '15px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            transition: 'all 0.2s',
-            textAlign: 'left'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#374151';
-            e.currentTarget.style.color = '#ffffff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = '#d1d5db';
-          }}
-        >
-          <Settings size={20} />
-          Settings
-        </button>
-
-        <button
-          onClick={handleLogout}
-          style={{
-            width: '100%',
-            padding: '12px 20px',
-            backgroundColor: 'transparent',
-            color: '#ef4444',
-            border: 'none',
-            borderRadius: '0',
-            cursor: 'pointer',
-            fontSize: '15px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            transition: 'all 0.2s',
-            textAlign: 'left'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#374151';
-            e.currentTarget.style.color = '#f87171';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = '#ef4444';
-          }}
-        >
-          <LogOut size={20} />
-          Log Out
-        </button>
-      </div>
-    </div>
-  );
-
   // Loading state
   if (loading) {
     return (
-      <>
-        <SideNavigation />
-        <div style={{
-          marginLeft: '240px',
-          padding: '48px',
+      <div style={{ display: 'flex' }}>
+        <NavigationSidebar 
+          satelliteConfig={satelliteConfig}
+          clubInfo={clubInfo}
+          user={user}
+          userRole={userRole}
+          currentPage="pitch-map"
+        />
+        <div style={{ 
+          flex: 1, 
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          minHeight: '100vh'
+          minHeight: '100vh',
+          backgroundColor: '#f3f4f6'
         }}>
           <div style={{
             textAlign: 'center',
-            backgroundColor: '#f9fafb',
+            backgroundColor: 'white',
             borderRadius: '12px',
             padding: '48px',
-            maxWidth: '600px'
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
           }}>
             <div style={{
               animation: 'spin 1s linear infinite',
@@ -520,29 +336,35 @@ const ClubPitchMap = ({
             `}</style>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <>
-        <SideNavigation />
-        <div style={{
-          marginLeft: '250px',
-          padding: '48px',
+      <div style={{ display: 'flex' }}>
+        <NavigationSidebar 
+          satelliteConfig={satelliteConfig}
+          clubInfo={clubInfo}
+          user={user}
+          userRole={userRole}
+          currentPage="pitch-map"
+        />
+        <div style={{ 
+          flex: 1,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          minHeight: '100vh'
+          minHeight: '100vh',
+          backgroundColor: '#f3f4f6'
         }}>
           <div style={{
             textAlign: 'center',
             backgroundColor: '#fef2f2',
             borderRadius: '12px',
             padding: '48px',
-            maxWidth: '600px'
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
           }}>
             <Settings size={64} color="#ef4444" style={{ marginBottom: '16px' }} />
             <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#dc2626', marginBottom: '8px' }}>
@@ -553,29 +375,35 @@ const ClubPitchMap = ({
             </p>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   // No satellite config
   if (!satelliteConfig) {
     return (
-      <>
-        <SideNavigation />
-        <div style={{
-          marginLeft: '250px',
-          padding: '48px',
+      <div style={{ display: 'flex' }}>
+        <NavigationSidebar 
+          satelliteConfig={satelliteConfig}
+          clubInfo={clubInfo}
+          user={user}
+          userRole={userRole}
+          currentPage="pitch-map"
+        />
+        <div style={{ 
+          flex: 1,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          minHeight: '100vh'
+          minHeight: '100vh',
+          backgroundColor: '#f3f4f6'
         }}>
           <div style={{
             textAlign: 'center',
             backgroundColor: '#fff3cd',
             borderRadius: '12px',
             padding: '48px',
-            maxWidth: '800px'
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
           }}>
             <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#856404', marginBottom: '16px' }}>
               No Satellite Configuration
@@ -585,29 +413,35 @@ const ClubPitchMap = ({
             </p>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   // No satellite image configured
   if (!satelliteConfig?.imageUrl) {
     return (
-      <>
-        <SideNavigation />
-        <div style={{
-          marginLeft: '250px',
-          padding: '48px',
+      <div style={{ display: 'flex' }}>
+        <NavigationSidebar 
+          satelliteConfig={satelliteConfig}
+          clubInfo={clubInfo}
+          user={user}
+          userRole={userRole}
+          currentPage="pitch-map"
+        />
+        <div style={{ 
+          flex: 1,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          minHeight: '100vh'
+          minHeight: '100vh',
+          backgroundColor: '#f3f4f6'
         }}>
           <div style={{
             textAlign: 'center',
-            backgroundColor: '#f9fafb',
+            backgroundColor: 'white',
             borderRadius: '12px',
             padding: '48px',
-            maxWidth: '600px'
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
           }}>
             <Settings size={64} color="#9ca3af" style={{ marginBottom: '16px' }} />
             <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
@@ -618,19 +452,25 @@ const ClubPitchMap = ({
             </p>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   // Main render with map and legend
   return (
-    <>
-      <SideNavigation />
+    <div style={{ display: 'flex' }}>
+      <NavigationSidebar 
+        satelliteConfig={satelliteConfig}
+        clubInfo={clubInfo}
+        user={user}
+        userRole={userRole}
+        currentPage="pitch-map"
+      />
       <div style={{ 
-        marginLeft: '240px',
+        flex: 1,
         padding: '24px',
-        minHeight: '100vh',
-        backgroundColor: '#f9fafb'
+        backgroundColor: '#f3f4f6',
+        minHeight: '100vh'
       }}>
         {/* Header */}
         <div style={{
@@ -647,7 +487,7 @@ const ClubPitchMap = ({
           </h2>
         </div>
 
-        {/* Main content container with map and TINY legend */}
+        {/* Main content container with map and legend */}
         <div style={{
           display: 'flex',
           gap: '12px',
@@ -824,7 +664,7 @@ const ClubPitchMap = ({
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 };
 
