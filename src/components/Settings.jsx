@@ -485,6 +485,7 @@ function Settings() {
       showSuccess('Settings reset to defaults');
     }
   };
+  /* eslint-enable no-unused-vars */
 
   // Import/Export functions
   // eslint-disable-next-line no-unused-vars
