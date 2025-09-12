@@ -3,7 +3,9 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
-import { db } from "../firebase"; // adjust import path if needed
+import { auth,db } from '../utils/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { useParams, useNavigate } from 'react-router-dom';
 
 // Utility for time slots
 const timeSlots = () => {
