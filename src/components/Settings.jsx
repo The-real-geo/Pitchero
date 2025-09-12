@@ -734,7 +734,7 @@ function Settings() {
                 color: 'rgba(255,255,255,0.7)',
                 textAlign: 'center'
               }}>
-                To allocate teams to pitches, visit a pitch from the Map View
+                To allocate training sessions & matches go to Pitch allocations.
               </p>
             </div>
           )}
@@ -769,7 +769,7 @@ function Settings() {
                 e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
               }}
             >
-              🗺️ Go to Map View
+              Pitch Allocations
             </button>
           )}
           
@@ -795,7 +795,7 @@ function Settings() {
               e.currentTarget.style.backgroundColor = 'rgba(124, 58, 237, 0.2)';
             }}
           >
-            📡 Satellite Overview
+            Create/Edit pitch layout
           </button>
           
           <button
@@ -854,7 +854,7 @@ function Settings() {
                   color: '#6b7280',
                   marginTop: '4px'
                 }}>
-                  Configure teams and pitch settings for {clubInfo.name}
+                  On this page, you can configure club settings. Admin users can add/edit teams and create pitches or edit the pitch names for {clubInfo.name}
                 </p>
               )}
             </div>
