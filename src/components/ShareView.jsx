@@ -485,6 +485,8 @@ function ShareView() {
   const date = sharedData?.date || new Date().toISOString().split('T')[0];
   const clubName = sharedData?.clubName || 'Soccer Club';
   const allocationType = sharedData?.type === 'match' ? 'Match Day' : sharedData?.type === 'training' ? 'Training' : 'Pitch';
+  const isMatch = sharedData?.type === 'match';
+  const isTraining = sharedData?.type === 'training';
   const pitches = sharedData?.pitches || [];
   const satelliteConfig = sharedData?.satelliteConfig;
   
@@ -1329,6 +1331,42 @@ function ShareView() {
               Loading custom pitch names...
             </div>
           )}
+        </div>
+
+        {/* Allocation Information Notification */}
+        <div style={{
+          backgroundColor: '#16a34a',
+          border: '2px solid #15803d',
+          borderRadius: '8px',
+          padding: isMobile ? '12px' : '16px',
+          marginBottom: '16px',
+          color: 'white',
+          fontSize: isMobile ? '13px' : '15px',
+          lineHeight: 1.5
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+            <span style={{ fontSize: isMobile ? '18px' : '20px', flexShrink: 0 }}>ℹ️</span>
+            <div>
+              <div style={{ marginBottom: '8px' }}>
+                Below is a representation of the {viewMode === 'pitch' && selectedPitch ? 
+                  getPitchDisplayName(selectedPitch.pitchNumber, pitchNames, pitchNamesLoadingState) : 
+                  'pitch'} and the area allocated to each team in 15 minute intervals.
+              </div>
+              <div style={{ 
+                display: 'flex', 
+                gap: '16px', 
+                fontSize: isMobile ? '12px' : '14px',
+                fontWeight: '600'
+              }}>
+                <span>
+                  (T) indicates Training
+                </span>
+                <span>
+                  (M) indicates Match
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Main Content */}
