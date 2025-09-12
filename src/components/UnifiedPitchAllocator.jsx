@@ -412,6 +412,25 @@ const UnifiedPitchAllocator = () => {
     }
   }, [date, normalizedPitchId, clubInfo?.clubId]);
 
+  // Filter slots to hide business hours on weekdays by default  
+  const displaySlots = useMemo(() => {
+    if (showBusinessHours || !isWeekday(date)) {
+      return slots; // Show all slots on weekends or when toggled on
+    }
+    
+    // Filter out 08:00 to 16:45 on weekdays
+    return slots.filter(slot => {
+      const hour = parseInt(slot.split(':')[0]);
+      const minutes = parseInt(slot.split(':')[1]);
+      
+      // Hide slots from 8:00am to 4:45pm (show from 5:00pm onwards)
+      if (hour >= 8 && hour < 17) {
+        return false;
+      }
+      return true;
+    });
+  }, [slots, showBusinessHours, date]);
+
   // Load satellite config and all pitch allocations for sidebar
   useEffect(() => {
     const loadSatelliteAndAllocations = async () => {
