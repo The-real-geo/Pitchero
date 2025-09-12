@@ -988,7 +988,7 @@ function ShareView() {
             }
             
             const endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
-            const timeRangeLabel = `${s}-${endTime}`;
+            const timeRangeLabel = `${s} - ${endTime}`;
             
             return (
               <div key={s} style={{ marginBottom: isMobile ? '12px' : '8px' }}>
