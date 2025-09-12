@@ -2564,10 +2564,10 @@ useEffect(() => {
             alignItems: 'center',
             width: '100%'
           }}>
-            {slots.map(timeSlot => {
-              const slotAllocations = Object.entries(filteredAllocations).filter(([key]) =>
-                key.includes(`-${timeSlot}-`)
-              );
+            {getSlotsToDisplay().map(timeSlot => {
+  const slotAllocations = Object.entries(filteredAllocations).filter(([key]) =>
+    key.includes(`-${timeSlot}-`)
+  );
               const hasAllocations = slotAllocations.length > 0;
               
               return (
