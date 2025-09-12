@@ -1,17 +1,17 @@
 // src/components/satellite/ClubPitchMap.jsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings } from 'lucide-react';
+import { Settings, LogOut, Home, Map, Calendar } from 'lucide-react';
 import { auth, db } from '../../utils/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 const ClubPitchMap = ({ 
   onPitchClick 
 }) => {
   console.log('🔴🔴🔴 CLUBPITCHMAP COMPONENT LOADED - VERSION 5.0 🔴🔴🔴');
   console.log('Component mounted at:', new Date().toISOString());
-  console.log('🟢 VERSION 5.0 - With pitch names fix');
+  console.log('🟢 VERSION 5.0 - With pitch names fix and side navigation');
   
   const navigate = useNavigate();
   const canvasRef = useRef(null);
@@ -33,9 +33,22 @@ const ClubPitchMap = ({
     console.log('Component has mounted successfully');
   }, []);
 
-  // Handle navigation back to menu
+  // Handle navigation
   const handleBackToMenu = () => {
     navigate('/menu');
+  };
+
+  const handleSettings = () => {
+    navigate('/settings');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   // Load user and club data
@@ -276,333 +289,542 @@ const ClubPitchMap = ({
     }
   };
 
+  // Side Navigation Component
+  const SideNavigation = () => (
+    <div style={{
+      position: 'fixed',
+      left: 0,
+      top: 0,
+      height: '100vh',
+      width: '240px',
+      backgroundColor: '#1f2937',
+      boxShadow: '2px 0 10px rgba(0, 0, 0, 0.1)',
+      display: 'flex',
+      flexDirection: 'column',
+      zIndex: 1000
+    }}>
+      {/* Club Name Header */}
+      <div style={{
+        padding: '24px 20px',
+        borderBottom: '1px solid #374151'
+      }}>
+        <h3 style={{
+          color: '#ffffff',
+          fontSize: '18px',
+          fontWeight: '600',
+          margin: 0
+        }}>
+          {clubName || 'Club'}
+        </h3>
+      </div>
+
+      {/* Navigation Items */}
+      <nav style={{
+        flex: 1,
+        padding: '20px 0'
+      }}>
+        <button
+          onClick={handleBackToMenu}
+          style={{
+            width: '100%',
+            padding: '12px 20px',
+            backgroundColor: 'transparent',
+            color: '#d1d5db',
+            border: 'none',
+            borderRadius: '0',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            transition: 'all 0.2s',
+            textAlign: 'left'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#374151';
+            e.currentTarget.style.color = '#ffffff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#d1d5db';
+          }}
+        >
+          <Home size={20} />
+          Menu
+        </button>
+
+        <button
+          style={{
+            width: '100%',
+            padding: '12px 20px',
+            backgroundColor: '#374151',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '0',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            textAlign: 'left'
+          }}
+        >
+          <Map size={20} />
+          Pitch Map
+        </button>
+
+        <button
+          onClick={() => navigate('/allocator')}
+          style={{
+            width: '100%',
+            padding: '12px 20px',
+            backgroundColor: 'transparent',
+            color: '#d1d5db',
+            border: 'none',
+            borderRadius: '0',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            transition: 'all 0.2s',
+            textAlign: 'left'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#374151';
+            e.currentTarget.style.color = '#ffffff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#d1d5db';
+          }}
+        >
+          <Calendar size={20} />
+          Allocations
+        </button>
+      </nav>
+
+      {/* Bottom Actions */}
+      <div style={{
+        borderTop: '1px solid #374151',
+        padding: '20px 0'
+      }}>
+        <button
+          onClick={handleSettings}
+          style={{
+            width: '100%',
+            padding: '12px 20px',
+            backgroundColor: 'transparent',
+            color: '#d1d5db',
+            border: 'none',
+            borderRadius: '0',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            transition: 'all 0.2s',
+            textAlign: 'left'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#374151';
+            e.currentTarget.style.color = '#ffffff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#d1d5db';
+          }}
+        >
+          <Settings size={20} />
+          Settings
+        </button>
+
+        <button
+          onClick={handleLogout}
+          style={{
+            width: '100%',
+            padding: '12px 20px',
+            backgroundColor: 'transparent',
+            color: '#ef4444',
+            border: 'none',
+            borderRadius: '0',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            transition: 'all 0.2s',
+            textAlign: 'left'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#374151';
+            e.currentTarget.style.color = '#f87171';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#ef4444';
+          }}
+        >
+          <LogOut size={20} />
+          Log Out
+        </button>
+      </div>
+    </div>
+  );
+
   // Loading state
   if (loading) {
     return (
-      <div style={{
-        textAlign: 'center',
-        padding: '48px',
-        backgroundColor: '#f9fafb',
-        borderRadius: '12px',
-        margin: '0 auto',
-        maxWidth: '600px'
-      }}>
+      <>
+        <SideNavigation />
         <div style={{
-          animation: 'spin 1s linear infinite',
-          width: '50px',
-          height: '50px',
-          border: '4px solid #e5e7eb',
-          borderTop: '4px solid #3b82f6',
-          borderRadius: '50%',
-          margin: '0 auto 16px auto'
-        }}></div>
-        <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
-          Loading Satellite Map
-        </h3>
-        <p style={{ color: '#6b7280' }}>
-          Please wait while we load your facility map...
-        </p>
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
+          marginLeft: '240px',
+          padding: '48px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh'
+        }}>
+          <div style={{
+            textAlign: 'center',
+            backgroundColor: '#f9fafb',
+            borderRadius: '12px',
+            padding: '48px',
+            maxWidth: '600px'
+          }}>
+            <div style={{
+              animation: 'spin 1s linear infinite',
+              width: '50px',
+              height: '50px',
+              border: '4px solid #e5e7eb',
+              borderTop: '4px solid #3b82f6',
+              borderRadius: '50%',
+              margin: '0 auto 16px auto'
+            }}></div>
+            <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
+              Loading Satellite Map
+            </h3>
+            <p style={{ color: '#6b7280' }}>
+              Please wait while we load your facility map...
+            </p>
+            <style>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
+        </div>
+      </>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <div style={{
-        textAlign: 'center',
-        padding: '48px',
-        backgroundColor: '#fef2f2',
-        borderRadius: '12px',
-        margin: '0 auto',
-        maxWidth: '600px'
-      }}>
-        <Settings size={64} color="#ef4444" style={{ marginBottom: '16px' }} />
-        <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#dc2626', marginBottom: '8px' }}>
-          Error Loading Map
-        </h3>
-        <p style={{ color: '#7f1d1d', marginBottom: '16px' }}>
-          {error}
-        </p>
-      </div>
+      <>
+        <SideNavigation />
+        <div style={{
+          marginLeft: '250px',
+          padding: '48px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh'
+        }}>
+          <div style={{
+            textAlign: 'center',
+            backgroundColor: '#fef2f2',
+            borderRadius: '12px',
+            padding: '48px',
+            maxWidth: '600px'
+          }}>
+            <Settings size={64} color="#ef4444" style={{ marginBottom: '16px' }} />
+            <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#dc2626', marginBottom: '8px' }}>
+              Error Loading Map
+            </h3>
+            <p style={{ color: '#7f1d1d', marginBottom: '16px' }}>
+              {error}
+            </p>
+          </div>
+        </div>
+      </>
     );
   }
 
   // No satellite config
   if (!satelliteConfig) {
     return (
-      <div style={{
-        textAlign: 'center',
-        padding: '48px',
-        backgroundColor: '#fff3cd',
-        borderRadius: '12px',
-        margin: '0 auto',
-        maxWidth: '800px'
-      }}>
-        <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#856404', marginBottom: '16px' }}>
-          No Satellite Configuration
-        </h3>
-        <p style={{ color: '#856404' }}>
-          The satellite config is not loading. Please check Firebase configuration.
-        </p>
-        
-      </div>
+      <>
+        <SideNavigation />
+        <div style={{
+          marginLeft: '250px',
+          padding: '48px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh'
+        }}>
+          <div style={{
+            textAlign: 'center',
+            backgroundColor: '#fff3cd',
+            borderRadius: '12px',
+            padding: '48px',
+            maxWidth: '800px'
+          }}>
+            <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#856404', marginBottom: '16px' }}>
+              No Satellite Configuration
+            </h3>
+            <p style={{ color: '#856404' }}>
+              The satellite config is not loading. Please check Firebase configuration.
+            </p>
+          </div>
+        </div>
+      </>
     );
   }
 
   // No satellite image configured
   if (!satelliteConfig?.imageUrl) {
     return (
-      <div style={{
-        textAlign: 'center',
-        padding: '48px',
-        backgroundColor: '#f9fafb',
-        borderRadius: '12px',
-        margin: '0 auto',
-        maxWidth: '600px'
-      }}>
-        <Settings size={64} color="#9ca3af" style={{ marginBottom: '16px' }} />
-        <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
-          No Satellite Image
-        </h3>
-        <p style={{ color: '#6b7280', marginBottom: '16px' }}>
-          No satellite image has been configured for this facility yet. Please set up the satellite view in Settings.
-        </p>
-        <button
-          onClick={handleBackToMenu}
-          style={{
-            marginTop: '16px',
-            padding: '10px 20px',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer'
-          }}
-        >
-          ← Back to Menu
-        </button>
-      </div>
+      <>
+        <SideNavigation />
+        <div style={{
+          marginLeft: '250px',
+          padding: '48px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh'
+        }}>
+          <div style={{
+            textAlign: 'center',
+            backgroundColor: '#f9fafb',
+            borderRadius: '12px',
+            padding: '48px',
+            maxWidth: '600px'
+          }}>
+            <Settings size={64} color="#9ca3af" style={{ marginBottom: '16px' }} />
+            <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
+              No Satellite Image
+            </h3>
+            <p style={{ color: '#6b7280', marginBottom: '16px' }}>
+              No satellite image has been configured for this facility yet. Please set up the satellite view in Settings.
+            </p>
+          </div>
+        </div>
+      </>
     );
   }
 
   // Main render with map and legend
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px'
+    <>
+      <SideNavigation />
+      <div style={{ 
+        marginLeft: '240px',
+        padding: '24px',
+        minHeight: '100vh',
+        backgroundColor: '#f9fafb'
       }}>
-        <button
-          onClick={handleBackToMenu}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '500'
-          }}
-        >
-          ← Back to Menu
-        </button>
-        
-        <h2 style={{ 
-          fontSize: '32px', 
-          fontWeight: 'bold', 
-          color: '#1f2937', 
-          margin: 0 
-        }}>
-          {clubName} Facility Overview
-        </h2>
-        
-        <div style={{ width: '120px' }}></div>
-      </div>
-
-      {/* Main content container with map and TINY legend */}
-      <div style={{
-        display: 'flex',
-        gap: '12px',
-        alignItems: 'flex-start'
-      }}>
-        {/* Canvas Container */}
+        {/* Header */}
         <div style={{
-          flex: '1 1 auto',
-          position: 'relative',
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          border: '1px solid #e5e7eb',
-          overflow: 'hidden',
-          display: 'flex',
-          justifyContent: 'center'
+          marginBottom: '24px',
+          textAlign: 'center'
         }}>
-          <canvas
-            ref={canvasRef}
-            width={canvasSize.width}
-            height={canvasSize.height}
-            style={{ 
-              maxWidth: '100%', 
-              height: 'auto',
-              cursor: satelliteConfig.pitchBoundaries?.length > 0 ? 'pointer' : 'default'
-            }}
-            onClick={handleCanvasClick}
-          />
-          
-          {/* Hidden image element for loading */}
-          <img
-            ref={imageRef}
-            src={satelliteConfig.imageUrl}
-            onLoad={handleImageLoad}
-            style={{ display: 'none' }}
-            alt="Satellite view"
-          />
+          <h2 style={{ 
+            fontSize: '32px', 
+            fontWeight: 'bold', 
+            color: '#1f2937', 
+            margin: 0 
+          }}>
+            {clubName} Facility Overview
+          </h2>
         </div>
 
-        {/* Clean Legend - Non-clickable */}
-        {satelliteConfig?.pitchBoundaries?.length > 0 && (
+        {/* Main content container with map and TINY legend */}
+        <div style={{
+          display: 'flex',
+          gap: '12px',
+          alignItems: 'flex-start',
+          maxWidth: '1400px',
+          margin: '0 auto'
+        }}>
+          {/* Canvas Container */}
           <div style={{
-            minWidth: '200px',
+            flex: '1 1 auto',
+            position: 'relative',
             backgroundColor: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+            borderRadius: '12px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
             border: '1px solid #e5e7eb',
-            padding: '16px'
+            overflow: 'hidden',
+            display: 'flex',
+            justifyContent: 'center'
           }}>
+            <canvas
+              ref={canvasRef}
+              width={canvasSize.width}
+              height={canvasSize.height}
+              style={{ 
+                maxWidth: '100%', 
+                height: 'auto',
+                cursor: satelliteConfig.pitchBoundaries?.length > 0 ? 'pointer' : 'default'
+              }}
+              onClick={handleCanvasClick}
+            />
+            
+            {/* Hidden image element for loading */}
+            <img
+              ref={imageRef}
+              src={satelliteConfig.imageUrl}
+              onLoad={handleImageLoad}
+              style={{ display: 'none' }}
+              alt="Satellite view"
+            />
+          </div>
+
+          {/* Clean Legend - Non-clickable */}
+          {satelliteConfig?.pitchBoundaries?.length > 0 && (
             <div style={{
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#374151',
-              marginBottom: '12px'
+              minWidth: '200px',
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              border: '1px solid #e5e7eb',
+              padding: '16px'
             }}>
-              Pitch Legend
-              {Object.keys(pitchNames).length === 0 && (
-                <span style={{ fontSize: '10px', color: '#ef4444', marginLeft: '8px' }}>
-                  (Names not loaded)
-                </span>
-              )}
-            </div>
-            
-            {console.log('🎨 RENDERING LEGEND with pitchNames:', pitchNames)}
-            {console.log('🎨 PitchNames keys:', Object.keys(pitchNames))}
-            
-            {satelliteConfig.pitchBoundaries.map((pitch, index) => {
-              // Try multiple possible key formats to match the pitchNames
-              // This logic is from UnifiedPitchAllocator that works correctly
-              const pitchNumber = pitch.pitchNumber || (index + 1);
+              <div style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: '12px'
+              }}>
+                Pitch Legend
+                {Object.keys(pitchNames).length === 0 && (
+                  <span style={{ fontSize: '10px', color: '#ef4444', marginLeft: '8px' }}>
+                    (Names not loaded)
+                  </span>
+                )}
+              </div>
               
-              // Try different key formats - same as UnifiedPitchAllocator
-              const possibleKeys = [
-                `pitch-${pitchNumber}`,     // "pitch-1" (this is what's in Firebase)
-                `pitch${pitchNumber}`,      // "pitch1"
-                `Pitch ${pitchNumber}`,     // "Pitch 1"
-                `Pitch-${pitchNumber}`,     // "Pitch-1"
-                pitchNumber.toString(),     // "1"
-              ];
+              {console.log('🎨 RENDERING LEGEND with pitchNames:', pitchNames)}
+              {console.log('🎨 PitchNames keys:', Object.keys(pitchNames))}
               
-              // Find the first key that exists in pitchNames
-              let displayName = null;
-              for (const key of possibleKeys) {
-                if (pitchNames && pitchNames[key]) {
-                  displayName = pitchNames[key];
-                  console.log(`✔ Found custom name for key "${key}": ${displayName}`);
-                  break;
+              {satelliteConfig.pitchBoundaries.map((pitch, index) => {
+                // Try multiple possible key formats to match the pitchNames
+                // This logic is from UnifiedPitchAllocator that works correctly
+                const pitchNumber = pitch.pitchNumber || (index + 1);
+                
+                // Try different key formats - same as UnifiedPitchAllocator
+                const possibleKeys = [
+                  `pitch-${pitchNumber}`,     // "pitch-1" (this is what's in Firebase)
+                  `pitch${pitchNumber}`,      // "pitch1"
+                  `Pitch ${pitchNumber}`,     // "Pitch 1"
+                  `Pitch-${pitchNumber}`,     // "Pitch-1"
+                  pitchNumber.toString(),     // "1"
+                ];
+                
+                // Find the first key that exists in pitchNames
+                let displayName = null;
+                for (const key of possibleKeys) {
+                  if (pitchNames && pitchNames[key]) {
+                    displayName = pitchNames[key];
+                    console.log(`✔ Found custom name for key "${key}": ${displayName}`);
+                    break;
+                  }
                 }
-              }
-              
-              // Fallback if no custom name found
-              if (!displayName) {
-                displayName = `Pitch ${pitchNumber}`;
-                if (Object.keys(pitchNames).length > 0) {
-                  console.log(`✗ No custom name found for pitch ${pitchNumber}`);
-                  console.log('Tried keys:', possibleKeys);
-                  console.log('Available keys in pitchNames:', Object.keys(pitchNames));
+                
+                // Fallback if no custom name found
+                if (!displayName) {
+                  displayName = `Pitch ${pitchNumber}`;
+                  if (Object.keys(pitchNames).length > 0) {
+                    console.log(`✗ No custom name found for pitch ${pitchNumber}`);
+                    console.log('Tried keys:', possibleKeys);
+                    console.log('Available keys in pitchNames:', Object.keys(pitchNames));
+                  }
                 }
-              }
+                
+                return (
+                  <div 
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '8px',
+                      marginBottom: '4px',
+                      cursor: 'default',
+                      pointerEvents: 'none'  // Non-clickable
+                    }}
+                  >
+                    <div style={{
+                      width: '24px',
+                      height: '24px',
+                      backgroundColor: '#22c55e',
+                      color: 'white',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 'bold',
+                      fontSize: '12px',
+                      marginRight: '12px'
+                    }}>
+                      {pitchNumber}
+                    </div>
+                    
+                    <div style={{ 
+                      flex: 1,
+                      fontSize: '14px',
+                      color: '#374151'
+                    }}>
+                      {displayName}
+                    </div>
+                  </div>
+                );
+              })}
               
-              return (
-                <div 
-                  key={index}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '8px',
-                    marginBottom: '4px',
-                    cursor: 'default',
-                    pointerEvents: 'none'  // Non-clickable
-                  }}
-                >
-                  <div style={{
-                    width: '24px',
-                    height: '24px',
-                    backgroundColor: '#22c55e',
-                    color: 'white',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold',
-                    fontSize: '12px',
-                    marginRight: '12px'
-                  }}>
-                    {pitchNumber}
-                  </div>
-                  
-                  <div style={{ 
-                    flex: 1,
-                    fontSize: '14px',
-                    color: '#374151'
-                  }}>
-                    {displayName}
-                  </div>
-                </div>
-              );
-            })}
-            
-            <div style={{
-              padding: '8px',
-              backgroundColor: '#f0f9ff',
-              border: '1px solid #bfdbfe',
-              borderRadius: '4px',
-              fontSize: '12px',
-              color: '#1e40af',
-              textAlign: 'center',
-              maxWidth: '250px',
-              margin: '12px auto 0'
-            }}>
-              Click on a pitch on the map to view the training or game allocations for that specific pitch.
+              <div style={{
+                padding: '8px',
+                backgroundColor: '#f0f9ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '4px',
+                fontSize: '12px',
+                color: '#1e40af',
+                textAlign: 'center',
+                maxWidth: '250px',
+                margin: '12px auto 0'
+              }}>
+                Click on a pitch on the map to view the training or game allocations for that specific pitch.
+              </div>
             </div>
+          )}
+        </div>
+
+        {/* Bottom instruction if no pitches configured */}
+        {(!satelliteConfig?.pitchBoundaries || satelliteConfig.pitchBoundaries.length === 0) && (
+          <div style={{
+            backgroundColor: '#fff3cd',
+            border: '1px solid #fbbf24',
+            borderRadius: '8px',
+            padding: '16px',
+            marginTop: '24px',
+            textAlign: 'center',
+            maxWidth: '1400px',
+            margin: '24px auto 0'
+          }}>
+            <p style={{ color: '#92400e', margin: 0 }}>
+              No pitches have been configured. Please set up pitch boundaries in Settings.
+            </p>
           </div>
         )}
       </div>
-
-      {/* Bottom instruction if no pitches configured */}
-      {(!satelliteConfig?.pitchBoundaries || satelliteConfig.pitchBoundaries.length === 0) && (
-        <div style={{
-          backgroundColor: '#fff3cd',
-          border: '1px solid #fbbf24',
-          borderRadius: '8px',
-          padding: '16px',
-          marginTop: '24px',
-          textAlign: 'center'
-        }}>
-          <p style={{ color: '#92400e', margin: 0 }}>
-            No pitches have been configured. Please set up pitch boundaries in Settings.
-          </p>
-        </div>
-      )}
-    </div>
+    </>
   );
 };
 
