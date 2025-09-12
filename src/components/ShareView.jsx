@@ -485,8 +485,6 @@ function ShareView() {
   const date = sharedData?.date || new Date().toISOString().split('T')[0];
   const clubName = sharedData?.clubName || 'Soccer Club';
   const allocationType = sharedData?.type === 'match' ? 'Match Day' : sharedData?.type === 'training' ? 'Training' : 'Pitch';
-  const isMatch = sharedData?.type === 'match';
-  const isTraining = sharedData?.type === 'training';
   const pitches = sharedData?.pitches || [];
   const satelliteConfig = sharedData?.satelliteConfig;
   
