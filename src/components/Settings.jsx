@@ -4,7 +4,7 @@ import { ColorPicker } from './ColorPicker';
 import { auth, db } from '../utils/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import NavigationSidebar from 'src/components/NavigationSideBar';
+import NavigationSidebar from './NavigationSideBar';
 
 // Constants
 const SETTINGS_CONFIG = {
