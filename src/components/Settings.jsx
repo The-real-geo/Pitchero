@@ -732,7 +732,7 @@ function Settings() {
                 color: 'rgba(255,255,255,0.7)',
                 textAlign: 'center'
               }}>
-                To allocate teams to pitches, visit a pitch from the Map View
+                To allocate training sessions & Matches to pitches, visit Pitch allocations.
               </p>
             </div>
           )}
@@ -767,7 +767,7 @@ function Settings() {
                 e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
               }}
             >
-              🗺️ Go to Map View
+              Go to Pitch allocations
             </button>
           )}
           
@@ -793,7 +793,7 @@ function Settings() {
               e.currentTarget.style.backgroundColor = 'rgba(124, 58, 237, 0.2)';
             }}
           >
-            📡 Satellite Overview
+            Configure Club Pitch layout
           </button>
           
           <button
@@ -852,7 +852,7 @@ function Settings() {
                   color: '#6b7280',
                   marginTop: '4px'
                 }}>
-                  Configure teams and pitch settings for {clubInfo.name}
+                  In here you can Add new teams, configure teams, rename pitches and adjust pitch settings for {clubInfo.name}. These settings are restricted to club Admin users only.
                 </p>
               )}
             </div>
@@ -953,72 +953,6 @@ function Settings() {
               {errors.load}
             </div>
           )}
-
-          {/* Action Buttons */}
-          <div style={{
-            display: 'flex',
-            gap: '12px',
-            marginBottom: '32px',
-            flexWrap: 'wrap'
-          }}>
-            <button
-              onClick={handleExport}
-              disabled={isSavingSettings}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: isSavingSettings ? '#9ca3af' : '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                opacity: isSavingSettings ? 0.6 : 1
-              }}
-              aria-label="Export Settings"
-              aria-busy={isSavingSettings}
-            >
-              📤 Export Settings
-            </button>
-            <button
-              onClick={() => setShowImportModal(true)}
-              disabled={isSavingSettings}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: isSavingSettings ? '#9ca3af' : '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                opacity: isSavingSettings ? 0.6 : 1
-              }}
-              aria-label="Import Settings"
-              aria-busy={isSavingSettings}
-            >
-              📥 Import Settings
-            </button>
-            <button
-              onClick={resetToDefaults}
-              disabled={isSavingSettings}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: isSavingSettings ? '#9ca3af' : '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: isSavingSettings ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                opacity: isSavingSettings ? 0.6 : 1
-              }}
-              aria-label="Reset to Defaults"
-              aria-busy={isSavingSettings}
-            >
-              🔄 Reset to Defaults
-            </button>
-          </div>
 
           {/* Teams Configuration */}
           <div style={{
