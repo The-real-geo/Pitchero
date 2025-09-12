@@ -1074,12 +1074,13 @@ const UnifiedPitchAllocator = () => {
   };
 
   // Expand/Collapse all slots
-const setAllSlotsExpanded = (expanded) => {
-  const newExpanded = {};
-  slots.forEach(slot => {   // ✅ use slots instead of displaySlots
-    newExpanded[slot] = expanded;
-  });
-  setExpandedSlots(newExpanded);
+  const setAllSlotsExpanded = (expanded) => {
+    const newExpanded = {};
+    displaySlots.forEach(slot => {
+      newExpanded[slot] = expanded;
+    });
+    setExpandedSlots(newExpanded);
+  };
 
   // Share functionality
   const handleShare = async () => {
