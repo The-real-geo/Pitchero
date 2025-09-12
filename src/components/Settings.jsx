@@ -487,6 +487,7 @@ function Settings() {
   };
 
   // Import/Export functions
+  // eslint-disable-next-line no-unused-vars
   const handleExport = () => {
     const settings = {
       teams,
@@ -732,7 +733,7 @@ function Settings() {
                 color: 'rgba(255,255,255,0.7)',
                 textAlign: 'center'
               }}>
-                To allocate training sessions & Matches to pitches, visit Pitch allocations.
+                To allocate teams to pitches, visit a pitch from the Map View
               </p>
             </div>
           )}
@@ -767,7 +768,7 @@ function Settings() {
                 e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
               }}
             >
-              Go to Pitch allocations
+              🗺️ Go to Map View
             </button>
           )}
           
@@ -793,7 +794,7 @@ function Settings() {
               e.currentTarget.style.backgroundColor = 'rgba(124, 58, 237, 0.2)';
             }}
           >
-            Configure Club Pitch layout
+            📡 Satellite Overview
           </button>
           
           <button
@@ -852,7 +853,7 @@ function Settings() {
                   color: '#6b7280',
                   marginTop: '4px'
                 }}>
-                  In here you can Add new teams, configure teams, rename pitches and adjust pitch settings for {clubInfo.name}. These settings are restricted to club Admin users only.
+                  Configure teams and pitch settings for {clubInfo.name}
                 </p>
               )}
             </div>
