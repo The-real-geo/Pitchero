@@ -54,6 +54,7 @@ const UnifiedPitchAllocator = () => {
   const [savingAllocation, setSavingAllocation] = useState(false);
   const [deletingAllocation, setDeletingAllocation] = useState(false);
   const [deletingKeys, setDeletingKeys] = useState(new Set());
+  const [showBusinessHours, setShowBusinessHours] = useState(false);
   
   // Sidebar navigation state
   const [satelliteConfig, setSatelliteConfig] = useState(null);
