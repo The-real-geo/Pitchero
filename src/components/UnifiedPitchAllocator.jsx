@@ -922,6 +922,7 @@ const UnifiedPitchAllocator = () => {
   };
 
   // Export allocations
+  // eslint-disable-next-line no-unused-vars
   const exportAllocations = () => {
     const exportData = {
       club: clubInfo.name,
@@ -943,6 +944,7 @@ const UnifiedPitchAllocator = () => {
   };
 
   // Import allocations with comprehensive warnings
+  // eslint-disable-next-line no-unused-vars
   const importAllocations = async () => {
     if (userRole !== 'admin') {
       alert('Only administrators can import allocations');
