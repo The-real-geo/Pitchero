@@ -1835,6 +1835,29 @@ useEffect(() => {
             </button>
             
             <button
+            onClick={() => navigate('/settings')}
+            style={{
+              padding: '16px 24px',
+              backgroundColor: '#6b7280',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '18px',
+              fontWeight: '600',
+              transition: 'background-color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+            onMouseOver={(e) => e.target.style.backgroundColor = '#4b5563'}
+            onMouseOut={(e) => e.target.style.backgroundColor = '#6b7280'}
+          >
+            ⚙️ Settings
+          </button>
+            
+            <button
               onClick={handleLogout}
               style={{
                 width: '100%',
