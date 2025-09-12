@@ -2383,7 +2383,7 @@ useEffect(() => {
                       >
                         Collapse All
                       </button>
-                      {isWeekday(date) && (
+                     {isWeekday(date) && (
   <>
     <div style={{
       borderTop: '1px solid #e5e7eb',
@@ -2435,7 +2435,7 @@ useEffect(() => {
             <span style={{ color: 'white', fontSize: '12px', fontWeight: 'bold' }}>✓</span>
           )}
         </span>
-        <span>Show Business Hours</span>
+        <span>Show AM Hours</span>
       </button>
       <div style={{
         fontSize: '11px',
@@ -2444,7 +2444,7 @@ useEffect(() => {
         paddingTop: '4px',
         paddingBottom: '4px'
       }}>
-        Mon-Fri 8am-5pm
+        Shows 8am-5pm slots
       </div>
     </div>
     
