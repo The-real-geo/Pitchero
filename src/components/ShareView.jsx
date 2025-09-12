@@ -970,12 +970,25 @@ function ShareView() {
         </div>
         
         <div style={{ padding: '4px' }}>
-          {timeSlots.map((s) => {
+          {timeSlots.map((s, index) => {
             const hasAllocations = hasAllocationsForTimeSlot(s, pitchId);
             
             if (!hasAllocations && actualTimeSlots.size > 0 && !actualTimeSlots.has(s)) {
               return null;
             }
+            
+            // Calculate end time for the time slot
+            const [hours, minutes] = s.split(':').map(Number);
+            let endMinutes = minutes + timeInterval;
+            let endHours = hours;
+            
+            if (endMinutes >= 60) {
+              endMinutes = endMinutes - 60;
+              endHours = endHours + 1;
+            }
+            
+            const endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+            const timeRangeLabel = `${s}-${endTime}`;
             
             return (
               <div key={s} style={{ marginBottom: isMobile ? '12px' : '8px' }}>
@@ -995,7 +1008,7 @@ function ShareView() {
                     fontWeight: hasAllocations ? '500' : '400',
                     opacity: hasAllocations ? 1 : 0.6
                   }}>
-                    {s}
+                    {timeRangeLabel}
                   </span>
                 </h3>
                 
