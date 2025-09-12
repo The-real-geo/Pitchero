@@ -973,12 +973,12 @@ const UnifiedPitchAllocator = () => {
         const importCount = Object.keys(data.allocations).length;
         
         // Show warning confirmation
-        const confirmMessage = `⚠️ WARNING: Importing will OVERWRITE allocations!\n\n` +
+        const confirmMessage = `âš ï¸ WARNING: Importing will OVERWRITE allocations!\n\n` +
           `This action will:\n` +
-          `• Import ${importCount} allocation(s) from ${data.date}\n` +
-          `• Merge with ${existingCount} existing allocation(s)\n` +
-          `• Potentially create scheduling conflicts\n` +
-          `• Overwrite any conflicting time slots\n\n` +
+          `â€¢ Import ${importCount} allocation(s) from ${data.date}\n` +
+          `â€¢ Merge with ${existingCount} existing allocation(s)\n` +
+          `â€¢ Potentially create scheduling conflicts\n` +
+          `â€¢ Overwrite any conflicting time slots\n\n` +
           `Your current allocations CANNOT be recovered after import.\n\n` +
           `Are you absolutely sure you want to import these allocations?`;
         
@@ -988,7 +988,7 @@ const UnifiedPitchAllocator = () => {
         
         // Second confirmation for extra safety
         const finalConfirm = window.confirm(
-          '🔴 FINAL CONFIRMATION\n\n' +
+          'ðŸ"´ FINAL CONFIRMATION\n\n' +
           'Click OK to permanently import and merge these allocations.\n' +
           'Click Cancel to keep your current allocations unchanged.'
         );
@@ -1641,7 +1641,7 @@ const UnifiedPitchAllocator = () => {
                         transform: 'translateY(-50%)',
                         fontSize: '10px'
                       }}>
-                        ▶
+                        â–¶
                       </div>
                     )}
                     <div>{displayName}</div>
@@ -1686,6 +1686,31 @@ const UnifiedPitchAllocator = () => {
                 }}
               >
                 🗺️ Back to Map View
+              </button>
+              
+              <button
+                onClick={handleLogout}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  backgroundColor: '#fee2e2',
+                  border: '1px solid #fca5a5',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  color: '#dc2626',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease',
+                  marginTop: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#fecaca';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#fee2e2';
+                }}
+              >
+                🚪 Logout
               </button>
             </div>
           </div>
