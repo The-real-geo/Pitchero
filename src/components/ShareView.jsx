@@ -117,14 +117,13 @@ function ShareView() {
   const date = sharedData?.date || new Date().toISOString().split('T')[0];
   const clubName = sharedData?.clubName || 'Unknown Club';
   const allocationType = sharedData?.type === 'match' ? 'Match Day' : 'Training';
-  const isMatch = sharedData?.type === 'match';
   
   // Generate time slots based on allocation type
   const timeSlots = [];
-  const start = isMatch ? 8 : 17;
+  const start = sharedData?.type === 'match' ? 8 : 17;
   const end = 21;
   
-  if (isMatch) {
+  if (sharedData?.type === 'match') {
     for (let h = start; h < end; h++) {
       for (let m = 0; m < 60; m += 15) {
         const minutes = m.toString().padStart(2, '0');
@@ -145,7 +144,7 @@ function ShareView() {
   // Responsive styles
   const containerStyle = {
     padding: isMobile ? '12px' : '24px',
-    backgroundColor: isMatch ? '#059669' : '#f9fafb',
+    backgroundColor: sharedData?.type === 'match' ? '#059669' : '#f9fafb',
     minHeight: '100vh',
     fontFamily: 'system-ui, sans-serif'
   };
@@ -186,10 +185,10 @@ function ShareView() {
             }}>
               <span style={{
                 backgroundColor: hasAllocations 
-                  ? (isMatch ? '#fed7aa' : '#dbeafe')
+                  ? (sharedData?.type === 'match' ? '#fed7aa' : '#dbeafe')
                   : '#e5e7eb',
                 color: hasAllocations 
-                  ? (isMatch ? '#9a3412' : '#1e40af')
+                  ? (sharedData?.type === 'match' ? '#9a3412' : '#1e40af')
                   : '#9ca3af',
                 padding: isMobile ? '2px 6px' : '4px 8px',
                 borderRadius: '9999px',
@@ -300,14 +299,6 @@ function ShareView() {
               marginBottom: isMobile ? '12px' : 0
             }}>
               {allocationType} - {clubName}
-              <span style={{
-                marginLeft: '8px',
-                fontSize: isMobile ? '14px' : '18px',
-                color: '#6b7280',
-                fontWeight: 'normal'
-              }}>
-                {isMatch ? '(M)' : '(T)'}
-              </span>
             </h1>
             {!isMobile && (
               <button
@@ -350,22 +341,6 @@ function ShareView() {
           </div>
         </div>
 
-        {/* Allocation Explanation Notification */}
-        <div style={{
-          backgroundColor: isMatch ? '#fef3c7' : '#e0e7ff',
-          border: `1px solid ${isMatch ? '#fbbf24' : '#818cf8'}`,
-          borderRadius: '8px',
-          padding: isMobile ? '10px 12px' : '12px 16px',
-          marginBottom: '12px',
-          fontSize: isMobile ? '12px' : '14px',
-          color: isMatch ? '#78350f' : '#312e81'
-        }}>
-          <strong>ℹ️ Allocation View:</strong> Below is a representation of the {isMobile ? pitches.find(p => p.id === selectedPitch)?.name : 'pitch'} and the area allocated to each team in 15 minute intervals.
-          <span style={{ marginLeft: '8px', fontWeight: '600' }}>
-            {isMatch ? '(M) indicates Match' : '(T) indicates Training'}
-          </span>
-        </div>
-
         {/* Mobile Notice */}
         {isMobile && (
           <div style={{
@@ -377,7 +352,7 @@ function ShareView() {
             fontSize: '12px',
             color: '#1e40af'
           }}>
-            <strong>💡 Tip:</strong> Swipe or use tabs below to switch between pitches
+            <strong>ℹ️ Tip:</strong> Swipe or use tabs below to switch between pitches
           </div>
         )}
 
