@@ -1076,7 +1076,7 @@ const UnifiedPitchAllocator = () => {
   // Expand/Collapse all slots
   const setAllSlotsExpanded = (expanded) => {
     const newExpanded = {};
-    slots.forEach(slot => {
+    displaySlots.forEach(slot => {
       newExpanded[slot] = expanded;
     });
     setExpandedSlots(newExpanded);
