@@ -1331,67 +1331,69 @@ function ShareView() {
           )}
         </div>
 
-        {/* Allocation Information Notification */}
-        <div style={{
-          padding: isMobile ? '12px' : '16px',
-          backgroundColor: '#f0f9ff',
-          border: '1px solid #bfdbfe',
-          borderRadius: '4px',
-          fontSize: isMobile ? '12px' : '14px',
-          color: '#1e40af',
-          textAlign: 'center',
-          marginBottom: '16px',
-          maxWidth: '800px',
-          margin: '0 auto 16px'
-        }}>
-          <div style={{ marginBottom: '8px' }}>
-            Below is a representation of the {viewMode === 'pitch' && selectedPitch ? 
-              getPitchDisplayName(selectedPitch.pitchNumber, pitchNames, pitchNamesLoadingState) : 
-              'pitch'} and the area allocated to each team in 15 minute intervals.
-          </div>
-          <div style={{ 
-            display: 'flex', 
-            gap: '20px', 
-            justifyContent: 'center',
-            alignItems: 'center',
-            fontSize: isMobile ? '12px' : '13px'
+        {/* Allocation Information Notification - Only show when viewing a pitch, not the map */}
+        {viewMode === 'pitch' && (
+          <div style={{
+            padding: isMobile ? '12px' : '16px',
+            backgroundColor: '#f0f9ff',
+            border: '1px solid #bfdbfe',
+            borderRadius: '4px',
+            fontSize: isMobile ? '12px' : '14px',
+            color: '#1e40af',
+            textAlign: 'center',
+            marginBottom: '16px',
+            maxWidth: '800px',
+            margin: '0 auto 16px'
           }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{
-                width: isMobile ? '16px' : '18px',
-                height: isMobile ? '16px' : '18px',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                fontSize: isMobile ? '10px' : '11px',
-                fontWeight: 'bold',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '2px'
-              }}>
-                T
+            <div style={{ marginBottom: '8px' }}>
+              Below is a representation of the {selectedPitch ? 
+                getPitchDisplayName(selectedPitch.pitchNumber, pitchNames, pitchNamesLoadingState) : 
+                'pitch'} and the area allocated to each team in 15 minute intervals.
+            </div>
+            <div style={{ 
+              display: 'flex', 
+              gap: '20px', 
+              justifyContent: 'center',
+              alignItems: 'center',
+              fontSize: isMobile ? '12px' : '13px'
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{
+                  width: isMobile ? '16px' : '18px',
+                  height: isMobile ? '16px' : '18px',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  fontSize: isMobile ? '10px' : '11px',
+                  fontWeight: 'bold',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '2px'
+                }}>
+                  T
+                </span>
+                indicates Training
               </span>
-              indicates Training
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{
-                width: isMobile ? '16px' : '18px',
-                height: isMobile ? '16px' : '18px',
-                backgroundColor: '#ef4444',
-                color: 'white',
-                fontSize: isMobile ? '10px' : '11px',
-                fontWeight: 'bold',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '2px'
-              }}>
-                M
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{
+                  width: isMobile ? '16px' : '18px',
+                  height: isMobile ? '16px' : '18px',
+                  backgroundColor: '#ef4444',
+                  color: 'white',
+                  fontSize: isMobile ? '10px' : '11px',
+                  fontWeight: 'bold',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '2px'
+                }}>
+                  M
+                </span>
+                indicates Match
               </span>
-              indicates Match
-            </span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Main Content */}
         {viewMode === 'map' ? renderMapView() : renderPitchView()}
