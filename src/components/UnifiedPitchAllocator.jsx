@@ -198,7 +198,24 @@ const UnifiedPitchAllocator = () => {
     const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
     return brightness > 155;
   };
+  // Helper function to check if date is a weekday
+const isWeekday = (dateString) => {
+  const day = new Date(dateString).getDay();
+  return day >= 1 && day <= 5; // Monday = 1, Friday = 5
+};
 
+// Get filtered slots based on business hours setting
+const getSlotsToDisplay = () => {
+  if (showBusinessHours || !isWeekday(date)) {
+    return slots; // Show all slots on weekends or when toggled on
+  }
+  
+  // Filter out 08:00 to 16:45 on weekdays
+  return slots.filter(slot => {
+    const hour = parseInt(slot.split(':')[0]);
+    return hour < 8 || hour >= 17;
+  });
+};
   // Get default pitch area for team - reusing existing logic
   const getDefaultPitchAreaForTeam = useCallback((teamName) => {
     const ageMatch = teamName.match(/Under (\d+)/);
@@ -558,14 +575,15 @@ const UnifiedPitchAllocator = () => {
     loadAllocations();
   }, [loadAllocations]);
 
-  // Initialize expanded slots on mount
-  useEffect(() => {
-    const initialExpanded = {};
-    slots.forEach(slot => {
-      initialExpanded[slot] = true; // Start with all slots expanded
-    });
-    setExpandedSlots(initialExpanded);
-  }, [slots]);
+  / Initialize expanded slots on mount
+useEffect(() => {
+  const initialExpanded = {};
+  const slotsToShow = getSlotsToDisplay();
+  slotsToShow.forEach(slot => {
+    initialExpanded[slot] = true; // Start with all slots expanded
+  });
+  setExpandedSlots(initialExpanded);
+}, [slots, showBusinessHours, date]);
 
   // Early return for loading state - placed AFTER all hooks
   if (loading) {
@@ -1075,12 +1093,13 @@ const UnifiedPitchAllocator = () => {
 
   // Expand/Collapse all slots
   const setAllSlotsExpanded = (expanded) => {
-    const newExpanded = {};
-    slots.forEach(slot => {
-      newExpanded[slot] = expanded;
-    });
-    setExpandedSlots(newExpanded);
-  };
+  const newExpanded = {};
+  const slotsToShow = getSlotsToDisplay();
+  slotsToShow.forEach(slot => {
+    newExpanded[slot] = expanded;
+  });
+  setExpandedSlots(newExpanded);
+};
 
   // Share functionality
   const handleShare = async () => {
@@ -2018,7 +2037,7 @@ const UnifiedPitchAllocator = () => {
                     fontSize: '14px'
                   }}
                 >
-                  {slots.map(timeSlot => (
+                  {getSlotsToDisplay().map(timeSlot => (
                     <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
                   ))}
                 </select>
