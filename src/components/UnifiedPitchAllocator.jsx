@@ -581,7 +581,13 @@ useEffect(() => {
   const initialExpanded = {};
   const slotsToShow = getSlotsToDisplay();
   slotsToShow.forEach(slot => {
-    initialExpanded[slot] = true; // Start with all slots expanded
+    // If showing business hours and this is a morning slot, start collapsed
+    const hour = parseInt(slot.split(':')[0]);
+    if (showBusinessHours && hour >= 8 && hour < 17) {
+      initialExpanded[slot] = false; // Start collapsed for AM hours
+    } else {
+      initialExpanded[slot] = true; // Start expanded for evening hours
+    }
   });
   setExpandedSlots(initialExpanded);
 }, [slots, showBusinessHours, date]); // eslint-disable-line react-hooks/exhaustive-deps
