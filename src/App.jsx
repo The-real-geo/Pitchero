@@ -9,7 +9,6 @@ import TrainingPitchAllocator from "./components/TrainingPitchAllocator";
 import MatchDayPitchAllocator from "./components/MatchDayPitchAllocator";
 import Settings from "./components/Settings";
 import ShareView from "./components/ShareView";
-// NEW: Import SatelliteManager
 import SatelliteManager from "./components/satellite/SatelliteManager";
 import ClubPitchMap from './components/satellite/ClubPitchMap';
 import UnifiedPitchAllocator from './components/UnifiedPitchAllocator';
@@ -74,15 +73,15 @@ const PublicRoute = ({ children }) => {
     );
   }
 
-  // If user is already authenticated, redirect to menu
-  return user ? <Navigate to="/menu" replace /> : children;
+  // If user is already authenticated, redirect to club-pitch-map (main landing)
+  return user ? <Navigate to="/club-pitch-map" replace /> : children;
 };
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Public login route - redirects to menu if already authenticated */}
+        {/* Public login route - redirects to club-pitch-map if already authenticated */}
         <Route 
           path="/login" 
           element={
@@ -98,30 +97,37 @@ function App() {
           element={<ShareView />} 
         />
         
- {/* route to unified allocator */}
-        <Route path="/allocator/:pitchId" element={<UnifiedPitchAllocator />} />
-        
-        {/* Protected menu - this is your main dashboard */}
+        {/* Protected ClubPitchMap - Main landing page after login */}
         <Route
-          path="/menu"
+          path="/club-pitch-map"
           element={
             <PrivateRoute>
-              <Menu />
+              <ClubPitchMap />
             </PrivateRoute>
           }
         />
-{/* route to Capacity planner */}
 
+        {/* Protected UnifiedPitchAllocator */}
         <Route
-  path="/capacity-outlook"
-  element={
-    <PrivateRoute>
-      <CapacityOutlook />
-    </PrivateRoute>
-  }
-/>
-        
-        {/* NEW: Protected satellite route */}
+          path="/allocator/:pitchId"
+          element={
+            <PrivateRoute>
+              <UnifiedPitchAllocator />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Protected Capacity Outlook */}
+        <Route
+          path="/capacity-outlook"
+          element={
+            <PrivateRoute>
+              <CapacityOutlook />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Protected SatelliteManager */}
         <Route
           path="/satellite"
           element={
@@ -130,30 +136,8 @@ function App() {
             </PrivateRoute>
           }
         />
- {/* Protected training/Matchday - Satellite view page */}
-        <Route path="/club-pitch-map" element={<ClubPitchMap />} />
-        
-        {/* Protected training page */}
-        <Route
-          path="/training"
-          element={
-            <PrivateRoute>
-              <TrainingPitchAllocator />
-            </PrivateRoute>
-          }
-        />
 
-        {/* Protected match day page */}
-        <Route
-          path="/matchday"
-          element={
-            <PrivateRoute>
-              <MatchDayPitchAllocator />
-            </PrivateRoute>
-          }
-        />
-
-        {/* Protected settings page */}
+        {/* Protected Settings */}
         <Route
           path="/settings"
           element={
@@ -163,16 +147,48 @@ function App() {
           }
         />
 
-        {/* Root route - redirects based on authentication status */}
-        <Route 
-          path="/" 
-          element={<Navigate to="/menu" replace />}
+        {/* Legacy Routes - Keep for backward compatibility but may phase out */}
+        
+        {/* Protected menu - legacy dashboard */}
+        <Route
+          path="/menu"
+          element={
+            <PrivateRoute>
+              <Menu />
+            </PrivateRoute>
+          }
         />
 
-        {/* Catch-all route for 404s */}
+        {/* Protected training page - legacy */}
+        <Route
+          path="/training"
+          element={
+            <PrivateRoute>
+              <TrainingPitchAllocator />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Protected match day page - legacy */}
+        <Route
+          path="/matchday"
+          element={
+            <PrivateRoute>
+              <MatchDayPitchAllocator />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Root route - redirects to club-pitch-map (main landing) */}
+        <Route 
+          path="/" 
+          element={<Navigate to="/club-pitch-map" replace />}
+        />
+
+        {/* Catch-all route for 404s - redirects to club-pitch-map */}
         <Route 
           path="*" 
-          element={<Navigate to="/menu" replace />}
+          element={<Navigate to="/club-pitch-map" replace />}
         />
       </Routes>
     </Router>
