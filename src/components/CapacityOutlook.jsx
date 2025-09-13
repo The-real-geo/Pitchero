@@ -1,4 +1,4 @@
-// src/components/capacityoutlook.jsx
+// src/components/CapacityOutlook.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../utils/firebase';
@@ -719,4 +719,4 @@ const CapacityOutlook = () => {
   );
 };
 
-export default capacityoutlook;
+export default CapacityOutlook;
