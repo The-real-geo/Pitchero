@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../utils/firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -15,10 +15,44 @@ const CapacityOutlook = () => {
   const [clubId, setClubId] = useState(null);
   const [clubName, setClubName] = useState('');
   const [pitches, setPitches] = useState([]);
-  const [allocations, setAllocations] = useState({});
+  const [pitchNames, setPitchNames] = useState({});
   const [loading, setLoading] = useState(true);
   const [currentWeekStart, setCurrentWeekStart] = useState(null);
   const [capacityData, setCapacityData] = useState({});
+
+  // Helper function to normalize pitch ID (same as UnifiedPitchAllocator)
+  const normalizePitchId = (pitchId) => {
+    if (!pitchId) return '';
+    const id = String(pitchId);
+    if (!id.startsWith('pitch')) {
+      return `pitch${id}`;
+    }
+    return id.replace('pitch-', 'pitch');
+  };
+
+  // Helper function to get pitch display name (same logic as UnifiedPitchAllocator)
+  const getPitchDisplayName = (pitchNumber, pitchNamesData) => {
+    const normalizedId = normalizePitchId(pitchNumber);
+    
+    // Try multiple possible key formats
+    const possibleKeys = [
+      normalizedId,                // e.g., 'pitch1'
+      `pitch${pitchNumber}`,       // e.g., 'pitch1'
+      `pitch-${pitchNumber}`,      // e.g., 'pitch-1'
+      `Pitch ${pitchNumber}`,      // e.g., 'Pitch 1'
+      `Pitch-${pitchNumber}`,      // e.g., 'Pitch-1'
+      pitchNumber.toString(),      // e.g., '1'
+    ];
+    
+    for (const key of possibleKeys) {
+      if (pitchNamesData && pitchNamesData[key]) {
+        return pitchNamesData[key];
+      }
+    }
+    
+    // Fallback to default name
+    return `Pitch ${pitchNumber}`;
+  };
 
   // Initialize to current week's Monday
   useEffect(() => {
@@ -58,16 +92,45 @@ const CapacityOutlook = () => {
               const clubDoc = await getDoc(doc(db, 'clubs', userData.clubId));
               if (clubDoc.exists()) {
                 const clubData = clubDoc.data();
-                setClubName(clubData.name || 'Club');
+                
+                // Get club name with fallbacks
+                const name = clubData.name || 
+                           clubData.Name || 
+                           clubData.clubName || 
+                           clubData.ClubName || 
+                           `Club ${userData.clubId}`;
+                setClubName(name);
                 
                 // Get pitches from satellite config
                 if (clubData.satelliteConfig?.pitchBoundaries) {
                   const pitchList = clubData.satelliteConfig.pitchBoundaries.map((boundary, index) => ({
                     id: boundary.pitchNumber || `${index + 1}`,
-                    name: `Pitch ${boundary.pitchNumber || index + 1}`
+                    name: `Pitch ${boundary.pitchNumber || index + 1}` // Will be updated with custom names
                   }));
                   setPitches(pitchList);
                 }
+              }
+
+              // Load settings including pitch names
+              try {
+                const settingsRef = doc(db, 'clubs', userData.clubId, 'settings', 'general');
+                const settingsDoc = await getDoc(settingsRef);
+                
+                if (settingsDoc.exists()) {
+                  const settingsData = settingsDoc.data();
+                  console.log('Loaded settings with pitch names:', settingsData.pitchNames);
+                  
+                  if (settingsData.pitchNames) {
+                    setPitchNames(settingsData.pitchNames);
+                  }
+                  
+                  // Update club name if it exists in settings
+                  if (settingsData.clubName) {
+                    setClubName(settingsData.clubName);
+                  }
+                }
+              } catch (error) {
+                console.error('Error loading settings:', error);
               }
             }
           }
@@ -82,173 +145,136 @@ const CapacityOutlook = () => {
     return () => unsubscribe();
   }, [navigate]);
 
+  // Calculate capacity for a specific pitch and date
+  const calculatePitchCapacity = async (clubId, date, pitchNumber, isAM = true) => {
+    const normalizedPitchId = normalizePitchId(pitchNumber);
+    
+    try {
+      // Load both training and match allocations
+      const trainingDocRef = doc(db, 'trainingAllocations', `${clubId}-${date}`);
+      const matchDocRef = doc(db, 'matchAllocations', `${clubId}-${date}`);
+      
+      const [trainingDoc, matchDoc] = await Promise.all([
+        getDoc(trainingDocRef),
+        getDoc(matchDocRef)
+      ]);
+      
+      let allocationsCount = 0;
+      
+      // Define time slots based on AM/PM
+      const amSlots = [];
+      const pmSlots = [];
+      
+      // AM slots: 8:00 AM to 5:00 PM (business hours)
+      for (let h = 8; h < 17; h++) {
+        for (let m = 0; m < 60; m += 15) {
+          amSlots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+        }
+      }
+      
+      // PM slots: 5:00 PM to 9:30 PM
+      for (let h = 17; h <= 21; h++) {
+        for (let m = 0; m < 60; m += 15) {
+          if (h === 21 && m > 30) break; // Stop at 9:30 PM
+          pmSlots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+        }
+      }
+      
+      const relevantSlots = isAM ? amSlots : pmSlots;
+      const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+      
+      // Calculate total possible slots (slots * sections)
+      const totalSlots = relevantSlots.length * sections.length;
+      
+      // Count allocations from training document
+      if (trainingDoc.exists()) {
+        const trainingData = trainingDoc.data();
+        Object.keys(trainingData).forEach(key => {
+          // Key format: "date-time-pitchX-section"
+          if (key.includes(`-${normalizedPitchId}-`) && typeof trainingData[key] === 'object') {
+            const parts = key.split('-');
+            if (parts.length >= 4) {
+              const time = parts[1]; // Time is already in HH:MM format in the key
+              if (relevantSlots.includes(time)) {
+                allocationsCount++;
+              }
+            }
+          }
+        });
+      }
+      
+      // Count allocations from match document
+      if (matchDoc.exists()) {
+        const matchData = matchDoc.data();
+        Object.keys(matchData).forEach(key => {
+          if (key.includes(`-${normalizedPitchId}-`) && typeof matchData[key] === 'object') {
+            const parts = key.split('-');
+            if (parts.length >= 4) {
+              const time = parts[1]; // Time is already in HH:MM format in the key
+              if (relevantSlots.includes(time)) {
+                allocationsCount++;
+              }
+            }
+          }
+        });
+      }
+      
+      // Calculate capacity percentage
+      const usedPercentage = totalSlots > 0 ? Math.round((allocationsCount / totalSlots) * 100) : 0;
+      
+      console.log(`Pitch ${pitchNumber} on ${date} (${isAM ? 'AM' : 'PM'}): ${allocationsCount}/${totalSlots} slots = ${usedPercentage}%`);
+      
+      return usedPercentage;
+    } catch (error) {
+      console.error('Error calculating capacity:', error);
+      return 0;
+    }
+  };
+
   // Load allocations when club and week change
   useEffect(() => {
-    if (!clubId || !currentWeekStart) return;
+    if (!clubId || !currentWeekStart || pitches.length === 0) return;
 
-    const loadAllocations = async () => {
+    const loadCapacityData = async () => {
       setLoading(true);
       try {
-        // Calculate week end (Sunday)
-        const weekEnd = new Date(currentWeekStart);
-        weekEnd.setDate(weekEnd.getDate() + 6);
-        weekEnd.setHours(23, 59, 59, 999);
+        const newCapacityData = {};
 
-        // Query allocations for the week
-        const allocationsRef = collection(db, 'clubs', clubId, 'allocations');
-        const q = query(
-          allocationsRef,
-          where('date', '>=', currentWeekStart.toISOString().split('T')[0]),
-          where('date', '<=', weekEnd.toISOString().split('T')[0])
-        );
+        // Generate dates for the week
+        const dates = [];
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(currentWeekStart);
+          date.setDate(date.getDate() + i);
+          dates.push(date.toISOString().split('T')[0]);
+        }
 
-        const snapshot = await getDocs(q);
-        const allocs = {};
-        
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          const dateKey = data.date;
-          if (!allocs[dateKey]) {
-            allocs[dateKey] = {};
-          }
+        // Calculate capacity for each pitch and date
+        for (const pitch of pitches) {
+          newCapacityData[pitch.id] = {};
           
-          // Group by pitch and time period (AM/PM)
-          const pitchId = data.pitchId || data.pitch;
-          if (!allocs[dateKey][pitchId]) {
-            allocs[dateKey][pitchId] = { am: [], pm: [] };
+          for (const date of dates) {
+            // Calculate AM and PM capacity
+            const amCapacity = await calculatePitchCapacity(clubId, date, pitch.id, true);
+            const pmCapacity = await calculatePitchCapacity(clubId, date, pitch.id, false);
+            
+            newCapacityData[pitch.id][date] = {
+              am: amCapacity,
+              pm: pmCapacity
+            };
           }
-          
-          // Determine if AM or PM based on time
-          const startTime = parseInt(data.startTime.split(':')[0]);
-          const period = startTime < 12 ? 'am' : 'pm';
-          allocs[dateKey][pitchId][period].push(data);
-        });
+        }
 
-        setAllocations(allocs);
-        calculateCapacity(allocs);
+        console.log('Final capacity data:', newCapacityData);
+        setCapacityData(newCapacityData);
       } catch (error) {
-        console.error('Error loading allocations:', error);
+        console.error('Error loading capacity data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadAllocations();
-  }, [clubId, currentWeekStart]);
-
-  // Calculate capacity percentages
-  const calculateCapacity = (allocs) => {
-    const capacity = {};
-    
-    // Define slot duration (e.g., 30 minutes per slot)
-    const slotDuration = 0.5; // 30 minutes in hours
-    
-    // Calculate total available slots
-    const amStartHour = 8;
-    const amEndHour = 17;
-    const pmStartHour = 17;
-    const pmEndHour = 22; // Assuming evening activities end at 10pm
-    
-    const totalAMSlots = (amEndHour - amStartHour) / slotDuration; // 9 hours = 18 slots of 30 min
-    const totalPMSlots = (pmEndHour - pmStartHour) / slotDuration; // 5 hours = 10 slots of 30 min
-
-    // Generate dates for the week
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(currentWeekStart);
-      date.setDate(date.getDate() + i);
-      dates.push(date.toISOString().split('T')[0]);
-    }
-
-    console.log('Calculating capacity for pitches:', pitches);
-    console.log('Available allocations:', allocs);
-
-    // Calculate capacity for each pitch, date, and period
-    pitches.forEach(pitch => {
-      capacity[pitch.id] = {};
-      
-      dates.forEach(date => {
-        capacity[pitch.id][date] = {
-          am: 0,
-          pm: 0
-        };
-
-        // Try different pitch ID formats to find matching allocations
-        // Based on your database structure, "pitch-X" with hyphen is the standard
-        const possiblePitchIds = [
-          `pitch-${pitch.id}`,       // "pitch-1" (PRIMARY FORMAT from your database)
-          `pitch${pitch.id}`,        // "pitch1"
-          pitch.id,                  // "1"
-          pitch.id.toString(),       // ensure string
-          `Pitch ${pitch.id}`,       // "Pitch 1"
-          `Pitch-${pitch.id}`,       // "Pitch-1"
-        ];
-
-        let pitchAllocs = [];
-        
-        // Find allocations for this pitch using any of the possible ID formats
-        for (const pitchIdFormat of possiblePitchIds) {
-          if (allocs[date] && allocs[date][pitchIdFormat]) {
-            pitchAllocs = allocs[date][pitchIdFormat];
-            console.log(`Found allocations for pitch ${pitch.id} using format: ${pitchIdFormat}`);
-            break;
-          }
-        }
-        
-        if (pitchAllocs.length > 0) {
-          let amSlotsUsed = 0;
-          let pmSlotsUsed = 0;
-          
-          pitchAllocs.forEach(alloc => {
-            // Parse time properly, handling both HH:MM and decimal formats
-            const parseTime = (timeStr) => {
-              if (typeof timeStr === 'string' && timeStr.includes(':')) {
-                const [hours, minutes] = timeStr.split(':').map(Number);
-                return hours + (minutes || 0) / 60;
-              }
-              return parseFloat(timeStr) || 0;
-            };
-            
-            const startHour = parseTime(alloc.startTime);
-            const endHour = parseTime(alloc.endTime);
-            
-            console.log(`Allocation: ${alloc.startTime} - ${alloc.endTime} (${startHour} - ${endHour})`);
-            
-            // Calculate slots used in AM period (8:00-17:00)
-            if (startHour < amEndHour) {
-              const amStart = Math.max(startHour, amStartHour);
-              const amEnd = Math.min(endHour, amEndHour);
-              if (amEnd > amStart) {
-                const slotsUsed = (amEnd - amStart) / slotDuration;
-                amSlotsUsed += slotsUsed;
-                console.log(`AM slots used: ${slotsUsed}`);
-              }
-            }
-            
-            // Calculate slots used in PM period (17:00-22:00)
-            if (endHour > pmStartHour) {
-              const pmStart = Math.max(startHour, pmStartHour);
-              const pmEnd = Math.min(endHour, pmEndHour);
-              if (pmEnd > pmStart) {
-                const slotsUsed = (pmEnd - pmStart) / slotDuration;
-                pmSlotsUsed += slotsUsed;
-                console.log(`PM slots used: ${slotsUsed}`);
-              }
-            }
-          });
-          
-          // Calculate capacity percentages based on slots
-          capacity[pitch.id][date].am = Math.min((amSlotsUsed / totalAMSlots) * 100, 100);
-          capacity[pitch.id][date].pm = Math.min((pmSlotsUsed / totalPMSlots) * 100, 100);
-          
-          console.log(`Pitch ${pitch.id} on ${date}: AM ${capacity[pitch.id][date].am}%, PM ${capacity[pitch.id][date].pm}%`);
-        }
-      });
-    });
-
-    console.log('Final capacity data:', capacity);
-    setCapacityData(capacity);
-  };
+    loadCapacityData();
+  }, [clubId, currentWeekStart, pitches]);
 
   // Get traffic light color based on capacity
   const getTrafficLightColor = (percentage) => {
@@ -665,80 +691,109 @@ const CapacityOutlook = () => {
               </tr>
             </thead>
             <tbody>
-              {pitches.map((pitch, index) => (
-                <tr key={pitch.id}>
-                  <td style={{
-                    padding: '12px',
-                    borderBottom: index === pitches.length - 1 ? 'none' : '1px solid #e5e7eb',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#1f2937'
-                  }}>
-                    {pitch.name}
-                  </td>
-                  {dayHeaders.map(header => {
-                    const amCapacity = capacityData[pitch.id]?.[header.fullDate]?.am || 0;
-                    const pmCapacity = capacityData[pitch.id]?.[header.fullDate]?.pm || 0;
-                    
-                    return (
-                      <React.Fragment key={`${pitch.id}-${header.fullDate}`}>
-                        <td style={{
-                          padding: '8px',
-                          textAlign: 'center',
-                          borderBottom: index === pitches.length - 1 ? 'none' : '1px solid #e5e7eb',
-                          borderLeft: '1px solid #e5e7eb'
-                        }}>
-                          <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            backgroundColor: getTrafficLightColor(amCapacity),
-                            margin: '0 auto',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                          }}>
-                            <span style={{
-                              fontSize: '10px',
-                              color: 'white',
-                              fontWeight: '600'
+              {pitches.map((pitch, index) => {
+                // Get the custom pitch name
+                const displayName = getPitchDisplayName(pitch.id, pitchNames);
+                
+                return (
+                  <tr key={pitch.id}>
+                    <td style={{
+                      padding: '12px',
+                      borderBottom: index === pitches.length - 1 ? 'none' : '1px solid #e5e7eb',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#1f2937'
+                    }}>
+                      {displayName}
+                    </td>
+                    {dayHeaders.map(header => {
+                      const amCapacity = capacityData[pitch.id]?.[header.fullDate]?.am || 0;
+                      const pmCapacity = capacityData[pitch.id]?.[header.fullDate]?.pm || 0;
+                      
+                      return (
+                        <React.Fragment key={`${pitch.id}-${header.fullDate}`}>
+                          <td 
+                            style={{
+                              padding: '8px',
+                              textAlign: 'center',
+                              borderBottom: index === pitches.length - 1 ? 'none' : '1px solid #e5e7eb',
+                              borderLeft: '1px solid #e5e7eb',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => navigate(`/allocator/${pitch.id}`)}
+                            title={`Click to view allocations for ${displayName}`}
+                          >
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              backgroundColor: getTrafficLightColor(amCapacity),
+                              margin: '0 auto',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                              transition: 'transform 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'scale(1.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'scale(1)';
                             }}>
-                              {Math.round(amCapacity)}%
-                            </span>
-                          </div>
-                        </td>
-                        <td style={{
-                          padding: '8px',
-                          textAlign: 'center',
-                          borderBottom: index === pitches.length - 1 ? 'none' : '1px solid #e5e7eb',
-                          borderLeft: '1px solid #e5e7eb'
-                        }}>
-                          <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            backgroundColor: getTrafficLightColor(pmCapacity),
-                            margin: '0 auto',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                          }}>
-                            <span style={{
-                              fontSize: '10px',
-                              color: 'white',
-                              fontWeight: '600'
+                              <span style={{
+                                fontSize: '10px',
+                                color: 'white',
+                                fontWeight: '600'
+                              }}>
+                                {Math.round(amCapacity)}%
+                              </span>
+                            </div>
+                          </td>
+                          <td 
+                            style={{
+                              padding: '8px',
+                              textAlign: 'center',
+                              borderBottom: index === pitches.length - 1 ? 'none' : '1px solid #e5e7eb',
+                              borderLeft: '1px solid #e5e7eb',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => navigate(`/allocator/${pitch.id}`)}
+                            title={`Click to view allocations for ${displayName}`}
+                          >
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              backgroundColor: getTrafficLightColor(pmCapacity),
+                              margin: '0 auto',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                              transition: 'transform 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'scale(1.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'scale(1)';
                             }}>
-                              {Math.round(pmCapacity)}%
-                            </span>
-                          </div>
-                        </td>
-                      </React.Fragment>
-                    );
-                  })}
-                </tr>
-              ))}
+                              <span style={{
+                                fontSize: '10px',
+                                color: 'white',
+                                fontWeight: '600'
+                              }}>
+                                {Math.round(pmCapacity)}%
+                              </span>
+                            </div>
+                          </td>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
