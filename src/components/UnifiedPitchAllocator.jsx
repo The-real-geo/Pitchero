@@ -2170,6 +2170,17 @@ const UnifiedPitchAllocator = () => {
                   textAlign: 'center'
                 }}>
                   Duration
+                  {allocationType === 'game' && team && (
+                    <span style={{
+                      fontSize: '12px',
+                      color: '#6b7280',
+                      fontWeight: 'normal',
+                      display: 'block',
+                      marginTop: '2px'
+                    }}>
+                      (Match: {getMatchDayDuration(team)} mins)
+                    </span>
+                  )}
                 </label>
                 <select
                   value={duration}
