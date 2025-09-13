@@ -339,12 +339,19 @@ const CapacityOutlook = () => {
       </div>
 
       {/* Main Content */}
-      <div style={{ flex: 1, padding: '24px', overflowX: 'auto' }}>
+      <div style={{ flex: 1, padding: '12px 24px 24px', overflowX: 'auto' }}>
         {/* Header */}
-        <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>Capacity Outlook</h1>
+        </div>
 
-          {/* Week Navigation */}
+        {/* Week Bar */}
+        <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ padding: '8px 16px', backgroundColor: '#f3f4f6', borderRadius: '6px', fontWeight: '600', fontSize: '14px', color: '#1f2937' }}>
+              {formatDateRange()}
+            </div>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button
               onClick={goToPreviousWeek}
@@ -353,11 +360,6 @@ const CapacityOutlook = () => {
               <ChevronLeft size={16} />
               Previous 7 Days
             </button>
-
-            <div style={{ padding: '8px 16px', backgroundColor: '#f3f4f6', borderRadius: '6px', fontWeight: '600', fontSize: '14px', color: '#1f2937' }}>
-              {formatDateRange()}
-            </div>
-
             <button
               onClick={goToNextWeek}
               style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 12px', backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', color: '#374151' }}
