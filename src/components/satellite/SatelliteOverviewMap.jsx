@@ -318,32 +318,28 @@ const SatelliteOverviewMap = ({
           {isSetupMode ? 'Setup Pitch Boundaries' : `${clubName} Facility Overview`}
         </h2>
         
-        <div style={{ display: 'flex', gap: '12px' }}>
-          {isSetupMode ? (
-            <>
-              <button
-                onClick={handleSaveConfiguration}
-                disabled={tempBoundaries.length === 0}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '12px 20px',
-                  backgroundColor: tempBoundaries.length === 0 ? '#9ca3af' : '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: tempBoundaries.length === 0 ? 'not-allowed' : 'pointer',
-                  fontWeight: '600'
-                }}
-              >
-                <Eye size={16} />
-                Save & Exit Setup
-              </button>
-            </>
-          ) : (
-          )}
-        </div>
+        {/* Only show Save & Exit Setup button when in setup mode */}
+        {isSetupMode && (
+          <button
+            onClick={handleSaveConfiguration}
+            disabled={tempBoundaries.length === 0}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 20px',
+              backgroundColor: tempBoundaries.length === 0 ? '#9ca3af' : '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: tempBoundaries.length === 0 ? 'not-allowed' : 'pointer',
+              fontWeight: '600'
+            }}
+          >
+            <Eye size={16} />
+            Save & Exit Setup
+          </button>
+        )}
       </div>
 
       {/* Instructions */}
