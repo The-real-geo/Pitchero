@@ -24,21 +24,33 @@ const MATCH_AREA_OPTIONS = [
   'Full Pitch'         // All 8 sections
 ];
 
-// Default teams configuration with match areas
+// Duration options
+const DURATION_OPTIONS = [
+  '20 mins',
+  '25 mins',
+  '30 mins',
+  '35 mins',
+  '40 mins',
+  '45 mins',
+  '50 mins',
+  '60 mins'
+];
+
+// Default teams configuration with match areas and durations
 const DEFAULT_TEAMS = [
-  { name: "Under 6", color: "#00FFFF", matchArea: "Under 6 & 7 size" },
-  { name: "Under 8", color: "#FF0000", matchArea: "Quarter pitch" },
-  { name: "Under 9", color: "#0000FF", matchArea: "Quarter pitch" },
-  { name: "Under 10", color: "#00AA00", matchArea: "Half Pitch" },
-  { name: "Under 11 - Red", color: "#CC0000", matchArea: "Half Pitch" },
-  { name: "Under 11 - Black", color: "#000000", matchArea: "Half Pitch" },
-  { name: "Under 12 YPL", color: "#FFD700", matchArea: "Half Pitch" },
-  { name: "Under 12 YSL", color: "#FF6600", matchArea: "Half Pitch" },
-  { name: "Under 13 YCC", color: "#8B00FF", matchArea: "Half Pitch" },
-  { name: "Under 14 YCC", color: "#FF1493", matchArea: "Full Pitch" },
-  { name: "Under 14 YSL", color: "#00CED1", matchArea: "Full Pitch" },
-  { name: "Under 15 YCC", color: "#8B4513", matchArea: "Full Pitch" },
-  { name: "Under 16 YCC", color: "#696969", matchArea: "Full Pitch" }
+  { name: "Under 6", color: "#00FFFF", matchArea: "Under 6 & 7 size", duration: "20 mins" },
+  { name: "Under 8", color: "#FF0000", matchArea: "Quarter pitch", duration: "25 mins" },
+  { name: "Under 9", color: "#0000FF", matchArea: "Quarter pitch", duration: "30 mins" },
+  { name: "Under 10", color: "#00AA00", matchArea: "Half Pitch", duration: "40 mins" },
+  { name: "Under 11 - Red", color: "#CC0000", matchArea: "Half Pitch", duration: "40 mins" },
+  { name: "Under 11 - Black", color: "#000000", matchArea: "Half Pitch", duration: "40 mins" },
+  { name: "Under 12 YPL", color: "#FFD700", matchArea: "Half Pitch", duration: "45 mins" },
+  { name: "Under 12 YSL", color: "#FF6600", matchArea: "Half Pitch", duration: "45 mins" },
+  { name: "Under 13 YCC", color: "#8B00FF", matchArea: "Half Pitch", duration: "50 mins" },
+  { name: "Under 14 YCC", color: "#FF1493", matchArea: "Full Pitch", duration: "60 mins" },
+  { name: "Under 14 YSL", color: "#00CED1", matchArea: "Full Pitch", duration: "60 mins" },
+  { name: "Under 15 YCC", color: "#8B4513", matchArea: "Full Pitch", duration: "60 mins" },
+  { name: "Under 16 YCC", color: "#696969", matchArea: "Full Pitch", duration: "60 mins" }
 ];
 
 // Utility functions
@@ -82,7 +94,7 @@ const validateImportData = (data) => {
     if (!team.color || typeof team.color !== 'string') {
       throw new Error(`Invalid team at position ${index + 1}: missing color`);
     }
-    // Match area is optional for backward compatibility
+    // Match area and duration are optional for backward compatibility
   });
   
   // Check version compatibility
@@ -125,6 +137,7 @@ function Settings() {
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamColor, setNewTeamColor] = useState(SETTINGS_CONFIG.DEFAULT_TEAM_COLOR);
   const [newTeamMatchArea, setNewTeamMatchArea] = useState('Under 6 & 7 size');
+  const [newTeamDuration, setNewTeamDuration] = useState('30 mins');
   
   // Dynamic pitch states
   const [configuredPitches, setConfiguredPitches] = useState([]);
@@ -324,12 +337,13 @@ function Settings() {
         console.log('Loaded settings from Firestore:', data);
         
         if (data.teams) {
-          // Ensure all teams have a matchArea, use default if missing
-          const teamsWithMatchArea = data.teams.map(team => ({
+          // Ensure all teams have matchArea and duration, use defaults if missing
+          const teamsWithDefaults = data.teams.map(team => ({
             ...team,
-            matchArea: team.matchArea || 'Under 6 & 7 size'
+            matchArea: team.matchArea || 'Under 6 & 7 size',
+            duration: team.duration || '30 mins'
           }));
-          setTeams(teamsWithMatchArea);
+          setTeams(teamsWithDefaults);
         }
         if (data.pitchOrientations) setPitchOrientations(data.pitchOrientations);
         if (data.showGrassArea) setShowGrassArea(data.showGrassArea);
@@ -369,12 +383,14 @@ function Settings() {
     const updatedTeams = [...teams, { 
       name: trimmedName, 
       color: newTeamColor,
-      matchArea: newTeamMatchArea
+      matchArea: newTeamMatchArea,
+      duration: newTeamDuration
     }];
     setTeams(updatedTeams);
     setNewTeamName('');
     setNewTeamColor(SETTINGS_CONFIG.DEFAULT_TEAM_COLOR);
     setNewTeamMatchArea('Under 6 & 7 size');
+    setNewTeamDuration('30 mins');
     setErrors({});
     
     const success = await saveSettingsToFirestore({
@@ -426,6 +442,20 @@ function Settings() {
     setTeams(updatedTeams);
     
     // Use debounced save for match area changes
+    debouncedSave({
+      teams: updatedTeams,
+      pitchOrientations,
+      showGrassArea,
+      pitchNames
+    });
+  };
+
+  const updateTeamDuration = (index, duration) => {
+    const updatedTeams = [...teams];
+    updatedTeams[index].duration = duration;
+    setTeams(updatedTeams);
+    
+    // Use debounced save for duration changes
     debouncedSave({
       teams: updatedTeams,
       pitchOrientations,
@@ -549,12 +579,13 @@ function Settings() {
       
       // Apply imported settings
       if (settings.teams) {
-        // Ensure imported teams have matchArea
-        const teamsWithMatchArea = settings.teams.map(team => ({
+        // Ensure imported teams have matchArea and duration
+        const teamsWithDefaults = settings.teams.map(team => ({
           ...team,
-          matchArea: team.matchArea || 'Under 6 & 7 size'
+          matchArea: team.matchArea || 'Under 6 & 7 size',
+          duration: team.duration || '30 mins'
         }));
-        setTeams(teamsWithMatchArea);
+        setTeams(teamsWithDefaults);
       }
       if (settings.pitchOrientations) setPitchOrientations(settings.pitchOrientations);
       if (settings.showGrassArea) setShowGrassArea(settings.showGrassArea);
@@ -948,7 +979,7 @@ function Settings() {
             role="status"
             aria-live="polite"
             >
-              ✔ {successMessage}
+              ✓ {successMessage}
             </div>
           )}
 
@@ -1084,6 +1115,23 @@ function Settings() {
                 ))}
               </select>
               
+              <select
+                value={newTeamDuration}
+                onChange={(e) => setNewTeamDuration(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  minWidth: '100px'
+                }}
+                aria-label="Match duration"
+              >
+                {DURATION_OPTIONS.map(duration => (
+                  <option key={duration} value={duration}>{duration}</option>
+                ))}
+              </select>
+              
               <ColorPicker
                 color={newTeamColor}
                 onChange={setNewTeamColor}
@@ -1178,6 +1226,23 @@ function Settings() {
                   >
                     {MATCH_AREA_OPTIONS.map(area => (
                       <option key={area} value={area}>{area}</option>
+                    ))}
+                  </select>
+                  
+                  <select
+                    value={team.duration || '30 mins'}
+                    onChange={(e) => updateTeamDuration(index, e.target.value)}
+                    style={{
+                      padding: '6px 10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      minWidth: '90px'
+                    }}
+                    aria-label={`Duration for ${team.name}`}
+                  >
+                    {DURATION_OPTIONS.map(duration => (
+                      <option key={duration} value={duration}>{duration}</option>
                     ))}
                   </select>
                   
