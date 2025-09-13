@@ -341,7 +341,7 @@ function Settings() {
           const teamsWithDefaults = data.teams.map(team => ({
             ...team,
             matchArea: team.matchArea || 'Under 6 & 7 size',
-            duration: team.duration || '30 mins'
+            duration: team.duration || '50 minutes'
           }));
           setTeams(teamsWithDefaults);
         }
