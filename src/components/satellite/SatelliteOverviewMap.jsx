@@ -342,24 +342,6 @@ const SatelliteOverviewMap = ({
               </button>
             </>
           ) : (
-            <button
-              onClick={onEnterSetupMode}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 20px',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '600'
-              }}
-            >
-              <Edit3 size={16} />
-              Setup Pitches
-            </button>
           )}
         </div>
       </div>
