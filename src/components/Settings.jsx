@@ -1016,6 +1016,27 @@ function Settings() {
               Teams Configuration
             </h2>
 
+            {/* Column Headers for Team List */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '8px 12px',
+              marginBottom: '8px',
+              fontSize: '12px',
+              fontWeight: '600',
+              color: '#6b7280',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              <div style={{ width: '24px' }}></div>
+              <div style={{ flex: 1, minWidth: '120px' }}>Team Name</div>
+              <div style={{ minWidth: '140px' }}>Match Area</div>
+              <div style={{ minWidth: '90px' }}>Duration</div>
+              <div style={{ minWidth: '80px' }}>Color</div>
+              <div style={{ width: '70px' }}>Action</div>
+            </div>
+
             {/* Add Team Form */}
             <div style={{
               display: 'flex',
