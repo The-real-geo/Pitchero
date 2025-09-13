@@ -5,6 +5,7 @@ import { auth, db } from '../utils/firebase';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
+
 // Reusing constants from existing allocators
 const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
@@ -80,7 +81,11 @@ const UnifiedPitchAllocator = () => {
   
   // Time slots - reusing existing pattern
   const slots = useMemo(() => timeSlots(), []);
-
+  
+// Add this to read the date from URL
+const searchParams = new URLSearchParams(window.location.search);
+const dateFromUrl = searchParams.get('date');
+  
   // Normalize pitch ID to ensure consistency - MUST BE DEFINED EARLY
   const normalizedPitchId = useMemo(() => {
     if (!pitchId) return '';
@@ -92,7 +97,12 @@ const UnifiedPitchAllocator = () => {
     // Also handle cases like 'pitch-10' -> 'pitch10'
     return id.replace('pitch-', 'pitch');
   }, [pitchId]);
-
+  
+// Update the date state initialization
+const [date, setDate] = useState(() => {
+  return dateFromUrl || new Date().toISOString().split("T")[0];
+});
+  
   // Match day pitch area requirements - reusing existing logic
   const matchDayPitchAreaRequired = useMemo(() => ({
     'Under 6': 'Under 6 & 7',
