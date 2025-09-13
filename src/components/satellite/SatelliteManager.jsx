@@ -92,13 +92,20 @@ const SatelliteManager = () => {
     setView('setup');
   };
 
-  // Handle pitch click - navigate to training/match day allocator
+  // Handle pitch click - navigate to UnifiedPitchAllocator
   const handlePitchClick = (pitch) => {
     console.log('Navigating to pitch:', pitch.pitchId, pitch);
     
-    // Navigate to training allocator with pitch information
-    // You can modify this to go to match day allocator based on your needs
-    navigate(`/training?pitch=${pitch.pitchId}&pitchNumber=${pitch.pitchNumber}`);
+    // Extract pitch number from pitchId or use pitchNumber
+    // pitchId format is typically "pitch-1", so we extract the number
+    let pitchNum = pitch.pitchNumber;
+    if (!pitchNum && pitch.pitchId) {
+      const match = pitch.pitchId.match(/\d+/);
+      pitchNum = match ? match[0] : '1';
+    }
+    
+    // Navigate to UnifiedPitchAllocator with the pitch number
+    navigate(`/allocator/${pitchNum}`);
   };
 
   // Save pitch boundary configuration
