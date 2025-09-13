@@ -296,6 +296,39 @@ const SatelliteManager = () => {
             >
               🗺️ Overview
             </button>
+
+            <button
+              onClick={() => setView('setup')}
+              style={{
+                width: '100%',
+                padding: '10px',
+                backgroundColor: view === 'setup' 
+                  ? 'rgba(59, 130, 246, 0.3)' 
+                  : 'rgba(255,255,255,0.1)',
+                border: view === 'setup'
+                  ? '1px solid rgba(59, 130, 246, 0.5)'
+                  : '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: 'white',
+                cursor: 'pointer',
+                fontWeight: '500',
+                transition: 'all 0.2s ease',
+                marginBottom: '8px'
+              }}
+              onMouseEnter={(e) => {
+                if (view !== 'setup') {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== 'setup') {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                }
+              }}
+            >
+              ⚙️ Setup Pitches
+            </button>
           </div>
         )}
 
