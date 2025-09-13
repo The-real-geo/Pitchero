@@ -490,7 +490,6 @@ const SatelliteManager = () => {
               satelliteConfig={satelliteConfig}
               isSetupMode={false}
               onPitchClick={handlePitchClick}
-              onEnterSetupMode={() => setView('setup')}
             />
           )}
         </div>
