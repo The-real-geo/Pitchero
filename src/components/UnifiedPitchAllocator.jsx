@@ -101,19 +101,21 @@ const UnifiedPitchAllocator = () => {
     return id.replace('pitch-', 'pitch');
   }, [pitchId]);
   
-  // Match day pitch area requirements - reusing existing logic
-  const matchDayPitchAreaRequired = useMemo(() => ({
-    'Under 6': 'Under 6 & 7',
-    'Under 8': 'Under 8 & 9',
-    'Under 9': 'Under 8 & 9', 
-    'Under 10': 'Under 10-13',
-    'Under 11': 'Under 10-13',
-    'Under 12': 'Under 10-13',
-    'Under 13': 'Under 10-13',
-    'Under 14': 'Under 14+',
-    'Under 15': 'Under 14+',
-    'Under 16': 'Under 14+'
-  }), []);
+  // Dynamic match day pitch area requirements from settings
+  const matchDayPitchAreaRequired = useMemo(() => {
+    const requirements = {};
+    teams.forEach(team => {
+      // Map the new pitch size names to the old internal format for compatibility
+      const matchAreaMap = {
+        'Under 6 & 7 size': 'Under 6 & 7',
+        'Quarter pitch': 'Under 8 & 9',
+        'Half Pitch': 'Under 10-13',
+        'Full Pitch': 'Under 14+'
+      };
+      requirements[team.name] = matchAreaMap[team.matchArea] || 'Under 6 & 7';
+    });
+    return requirements;
+  }, [teams]);
 
   // Filtered allocations based on filter type
   const filteredAllocations = useMemo(() => {
@@ -227,8 +229,22 @@ const UnifiedPitchAllocator = () => {
     });
   };
   
-  // Get default pitch area for team - reusing existing logic
+  // Get default pitch area for team with dynamic configuration
   const getDefaultPitchAreaForTeam = useCallback((teamName) => {
+    // First check if we have a specific configuration for this team
+    const teamConfig = teams.find(t => t.name === teamName);
+    if (teamConfig && teamConfig.matchArea) {
+      // Map the new pitch size names to the old internal format
+      const matchAreaMap = {
+        'Under 6 & 7 size': 'Under 6 & 7',
+        'Quarter pitch': 'Under 8 & 9',
+        'Half Pitch': 'Under 10-13',
+        'Full Pitch': 'Under 14+'
+      };
+      return matchAreaMap[teamConfig.matchArea] || 'Under 6 & 7';
+    }
+    
+    // Fallback to age-based defaults if no config found
     const ageMatch = teamName.match(/Under (\d+)/);
     if (ageMatch) {
       const age = parseInt(ageMatch[1]);
@@ -238,7 +254,7 @@ const UnifiedPitchAllocator = () => {
       return 'Under 14+';
     }
     return 'Under 6 & 7';
-  }, []);
+  }, [teams]);
 
   // Get match day duration - reusing existing logic
   const getMatchDayDuration = useCallback((teamName) => {
@@ -2473,7 +2489,7 @@ const UnifiedPitchAllocator = () => {
           backgroundColor: showBusinessHours ? '#15803d' : 'white'
         }}>
           {showBusinessHours && (
-            <span style={{ color: 'white', fontSize: '12px', fontWeight: 'bold' }}>✓</span>
+            <span style={{ color: 'white', fontSize: '12px', fontWeight: 'bold' }}>✔</span>
           )}
         </span>
         <span>Show AM Hours</span>
