@@ -450,7 +450,8 @@ const SatelliteOverviewMap = ({
         }}>
           <p style={{ color: '#0c4a6e', margin: 0 }}>
             Hint: Click a pitch area to navigate to view, edit or add Training & Match allocations for that pitch.
-            Or if you want to edit the number of pitches, or the layout, click Setup pitches.
+            \n 
+            \n Or if you want to edit the number of pitches, or the layout, click Setup pitches.
             
           </p>
         </div>
