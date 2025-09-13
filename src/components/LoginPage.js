@@ -82,8 +82,8 @@ function LoginPage() {
         await createUserProfile(userCredential.user.uid, email, clubId, role);
         console.log('✅ User profile created successfully');
       }
-      console.log('✅ Success! Navigating to menu...');
-      navigate("/menu");
+      console.log('✅ Success! Navigating to club pitch map...');
+      navigate("/clubpitchmap");  // Changed from "/menu" to "/clubpitchmap"
     } catch (err) {
       console.error('❌ Error in handleSubmit:', err);
       setError(err.message);
