@@ -20,73 +20,45 @@ const CapacityOutlook = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState(null);
   const [capacityData, setCapacityData] = useState({});
 
-  // Helper to format date in local timezone (not UTC)
-  const formatLocalDate = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  // Helper to get timezone offset in hours
-  const getTimezoneOffsetHours = () => {
-    return new Date().getTimezoneOffset() / -60;
-  };
-
-  // Helper function to normalize pitch ID (same as UnifiedPitchAllocator)
+  // ---------- utils ----------
   const normalizePitchId = (pitchId) => {
     if (!pitchId) return '';
     const id = String(pitchId);
-    if (!id.startsWith('pitch')) {
-      return `pitch${id}`;
-    }
+    if (!id.startsWith('pitch')) return `pitch${id}`;
     return id.replace('pitch-', 'pitch');
   };
 
-  // Helper function to get pitch display name (same logic as UnifiedPitchAllocator)
+  // local YYYY-MM-DD (avoids UTC shift from toISOString)
+  const toLocalYMD = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   const getPitchDisplayName = (pitchNumber, pitchNamesData) => {
     const normalizedId = normalizePitchId(pitchNumber);
-    
-    // Try multiple possible key formats
     const possibleKeys = [
-      normalizedId,                // e.g., 'pitch1'
-      `pitch${pitchNumber}`,       // e.g., 'pitch1'
-      `pitch-${pitchNumber}`,      // e.g., 'pitch-1'
-      `Pitch ${pitchNumber}`,      // e.g., 'Pitch 1'
-      `Pitch-${pitchNumber}`,      // e.g., 'Pitch-1'
-      pitchNumber.toString(),      // e.g., '1'
+      normalizedId,
+      `pitch${pitchNumber}`,
+      `pitch-${pitchNumber}`,
+      `Pitch ${pitchNumber}`,
+      `Pitch-${pitchNumber}`,
+      pitchNumber.toString(),
     ];
-    
     for (const key of possibleKeys) {
-      if (pitchNamesData && pitchNamesData[key]) {
-        return pitchNamesData[key];
-      }
+      if (pitchNamesData && pitchNamesData[key]) return pitchNamesData[key];
     }
-    
-    // Fallback to default name
     return `Pitch ${pitchNumber}`;
   };
 
-  // Initialize to current week's Monday with timezone awareness
+  // Initialize to current week's Monday (local)
   useEffect(() => {
     const today = new Date();
-    console.log('=== Timezone Debug ===');
-    console.log('Local time:', today.toString());
-    console.log('UTC time:', today.toUTCString());
-    console.log('Timezone offset (hours from UTC):', getTimezoneOffsetHours());
-    console.log('Local date:', formatLocalDate(today));
-    console.log('UTC date (toISOString):', today.toISOString().split('T')[0]);
-    
     const dayOfWeek = today.getDay();
-    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - daysToSubtract);
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const monday = new Date(today.setDate(diff));
     monday.setHours(0, 0, 0, 0);
-    
-    console.log('Calculated Monday (local):', formatLocalDate(monday));
-    console.log('Calculated Monday (UTC):', monday.toISOString().split('T')[0]);
-    
     setCurrentWeekStart(monday);
   }, []);
 
@@ -110,28 +82,26 @@ const CapacityOutlook = () => {
           if (userDoc.exists()) {
             const userData = userDoc.data();
             setUserRole(userData.role || 'user');
-            
             if (userData.clubId) {
               setClubId(userData.clubId);
-              
+
               // Fetch club data
               const clubDoc = await getDoc(doc(db, 'clubs', userData.clubId));
               if (clubDoc.exists()) {
                 const clubData = clubDoc.data();
-                
-                // Get club name with fallbacks
-                const name = clubData.name || 
-                           clubData.Name || 
-                           clubData.clubName || 
-                           clubData.ClubName || 
-                           `Club ${userData.clubId}`;
+                const name =
+                  clubData.name ||
+                  clubData.Name ||
+                  clubData.clubName ||
+                  clubData.ClubName ||
+                  `Club ${userData.clubId}`;
                 setClubName(name);
-                
-                // Get pitches from satellite config
+
+                // Pitches from satellite config
                 if (clubData.satelliteConfig?.pitchBoundaries) {
                   const pitchList = clubData.satelliteConfig.pitchBoundaries.map((boundary, index) => ({
                     id: boundary.pitchNumber || `${index + 1}`,
-                    name: `Pitch ${boundary.pitchNumber || index + 1}` // Will be updated with custom names
+                    name: `Pitch ${boundary.pitchNumber || index + 1}`,
                   }));
                   setPitches(pitchList);
                 }
@@ -141,19 +111,11 @@ const CapacityOutlook = () => {
               try {
                 const settingsRef = doc(db, 'clubs', userData.clubId, 'settings', 'general');
                 const settingsDoc = await getDoc(settingsRef);
-                
                 if (settingsDoc.exists()) {
                   const settingsData = settingsDoc.data();
                   console.log('Loaded settings with pitch names:', settingsData.pitchNames);
-                  
-                  if (settingsData.pitchNames) {
-                    setPitchNames(settingsData.pitchNames);
-                  }
-                  
-                  // Update club name if it exists in settings
-                  if (settingsData.clubName) {
-                    setClubName(settingsData.clubName);
-                  }
+                  if (settingsData.pitchNames) setPitchNames(settingsData.pitchNames);
+                  if (settingsData.clubName) setClubName(settingsData.clubName);
                 }
               } catch (error) {
                 console.error('Error loading settings:', error);
@@ -167,162 +129,70 @@ const CapacityOutlook = () => {
         navigate('/login');
       }
     });
-
     return () => unsubscribe();
   }, [navigate]);
 
-  // Enhanced calculate capacity with timezone awareness and debugging
+  // Parse the allocation key robustly from the end (handles dates with hyphens)
+  const parseAllocationKey = (key) => {
+    const parts = String(key).split('-');
+    const [timeToken, pitchToken, section] = parts.slice(-3);
+    return { timeToken, pitchToken, section };
+  };
+
+  // Calculate capacity for a specific pitch and date
   const calculatePitchCapacity = async (clubId, date, pitchNumber, isAM = true) => {
     const normalizedPitchId = normalizePitchId(pitchNumber);
-    
-    console.log(`\n=== Calculating capacity ===`);
-    console.log(`Pitch: ${pitchNumber} (${normalizedPitchId})`);
-    console.log(`Date: ${date}`);
-    console.log(`Period: ${isAM ? 'AM' : 'PM'}`);
-    
+
     try {
-      // Try both the provided date AND the UTC equivalent in case of mismatch
-      const localDate = new Date(date + 'T00:00:00'); // Force local timezone interpretation
-      const utcDateStr = localDate.toISOString().split('T')[0];
-      
-      console.log(`Checking Firebase docs:`);
-      console.log(`- Primary: ${clubId}-${date}`);
-      if (utcDateStr !== date) {
-        console.log(`- Also trying UTC variant: ${clubId}-${utcDateStr}`);
-      }
-      
-      // Try loading with the provided date first
       const trainingDocRef = doc(db, 'trainingAllocations', `${clubId}-${date}`);
       const matchDocRef = doc(db, 'matchAllocations', `${clubId}-${date}`);
-      
       const [trainingDoc, matchDoc] = await Promise.all([
         getDoc(trainingDocRef),
-        getDoc(matchDocRef)
+        getDoc(matchDocRef),
       ]);
-      
-      // If documents don't exist and UTC date is different, try UTC date
-      let trainingData = null;
-      let matchData = null;
-      
-      if (trainingDoc.exists()) {
-        trainingData = trainingDoc.data();
-        console.log(`✓ Training doc found for ${date}`);
-      } else if (utcDateStr !== date) {
-        // Try UTC date as fallback
-        const utcTrainingDoc = await getDoc(doc(db, 'trainingAllocations', `${clubId}-${utcDateStr}`));
-        if (utcTrainingDoc.exists()) {
-          trainingData = utcTrainingDoc.data();
-          console.log(`✓ Training doc found for UTC date ${utcDateStr}`);
-        } else {
-          console.log(`✗ No training doc found for ${date} or ${utcDateStr}`);
-        }
-      } else {
-        console.log(`✗ No training doc found for ${date}`);
-      }
-      
-      if (matchDoc.exists()) {
-        matchData = matchDoc.data();
-        console.log(`✓ Match doc found for ${date}`);
-      } else if (utcDateStr !== date) {
-        // Try UTC date as fallback
-        const utcMatchDoc = await getDoc(doc(db, 'matchAllocations', `${clubId}-${utcDateStr}`));
-        if (utcMatchDoc.exists()) {
-          matchData = utcMatchDoc.data();
-          console.log(`✓ Match doc found for UTC date ${utcDateStr}`);
-        } else {
-          console.log(`✗ No match doc found for ${date} or ${utcDateStr}`);
-        }
-      } else {
-        console.log(`✗ No match doc found for ${date}`);
-      }
-      
+
       let allocationsCount = 0;
-      
-      // Define time slots based on AM/PM
+
+      // time windows
       const amSlots = [];
       const pmSlots = [];
-      
-      // AM slots: 8:00 AM to 5:00 PM
       for (let h = 8; h < 17; h++) {
         for (let m = 0; m < 60; m += 15) {
-          amSlots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+          amSlots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
         }
       }
-      
-      // PM slots: 5:00 PM to 9:30 PM
       for (let h = 17; h <= 21; h++) {
         for (let m = 0; m < 60; m += 15) {
-          if (h === 21 && m > 30) break;
-          pmSlots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+          if (h === 21 && m > 30) break; // 21:45 excluded
+          pmSlots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
         }
       }
-      
       const relevantSlots = isAM ? amSlots : pmSlots;
       const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
       const totalSlots = relevantSlots.length * sections.length;
-      
-      // Process training data if exists
-      if (trainingData) {
-        const keys = Object.keys(trainingData);
-        console.log(`Training doc has ${keys.length} keys`);
-        if (keys.length > 0) {
-          console.log('Sample keys:', keys.slice(0, 3));
+
+      const countFromDoc = (snap) => {
+        if (!snap.exists()) return 0;
+        const data = snap.data();
+        let count = 0;
+        for (const key of Object.keys(data)) {
+          const value = data[key];
+          if (typeof value !== 'object') continue; // why: ignore placeholders/flags
+          const { timeToken, pitchToken } = parseAllocationKey(key);
+          const normalizedKeyPitch = normalizePitchId(pitchToken);
+          if (normalizedKeyPitch !== normalizedPitchId) continue; // accept pitch-1 or pitch1
+          if (relevantSlots.includes(timeToken)) count++;
         }
-        
-        keys.forEach(key => {
-          // Check various pitch ID formats
-          const pitchIdentifiers = [
-            normalizedPitchId,
-            `pitch${pitchNumber}`,
-            `pitch-${pitchNumber}`,
-            `pitch_${pitchNumber}`,
-            pitchNumber.toString()
-          ];
-          
-          if (pitchIdentifiers.some(id => key.includes(id))) {
-            const parts = key.split('-');
-            if (parts.length >= 4) {
-              const time = parts[1];
-              if (relevantSlots.includes(time)) {
-                allocationsCount++;
-              }
-            }
-          }
-        });
-      }
-      
-      // Process match data if exists
-      if (matchData) {
-        const keys = Object.keys(matchData);
-        console.log(`Match doc has ${keys.length} keys`);
-        if (keys.length > 0) {
-          console.log('Sample keys:', keys.slice(0, 3));
-        }
-        
-        keys.forEach(key => {
-          const pitchIdentifiers = [
-            normalizedPitchId,
-            `pitch${pitchNumber}`,
-            `pitch-${pitchNumber}`,
-            `pitch_${pitchNumber}`,
-            pitchNumber.toString()
-          ];
-          
-          if (pitchIdentifiers.some(id => key.includes(id))) {
-            const parts = key.split('-');
-            if (parts.length >= 4) {
-              const time = parts[1];
-              if (relevantSlots.includes(time)) {
-                allocationsCount++;
-              }
-            }
-          }
-        });
-      }
-      
+        return count;
+      };
+
+      allocationsCount += countFromDoc(trainingDoc);
+      allocationsCount += countFromDoc(matchDoc);
+
       const usedPercentage = totalSlots > 0 ? Math.round((allocationsCount / totalSlots) * 100) : 0;
-      console.log(`Result: ${allocationsCount}/${totalSlots} slots = ${usedPercentage}%`);
-      
+      console.log(
+        `Pitch ${pitchNumber} on ${date} (${isAM ? 'AM' : 'PM'}): ${allocationsCount}/${totalSlots} slots = ${usedPercentage}%`
+      );
       return usedPercentage;
     } catch (error) {
       console.error('Error calculating capacity:', error);
@@ -330,7 +200,7 @@ const CapacityOutlook = () => {
     }
   };
 
-  // Load allocations when club and week change - with timezone fix
+  // Load allocations when club and week change
   useEffect(() => {
     if (!clubId || !currentWeekStart || pitches.length === 0) return;
 
@@ -339,35 +209,21 @@ const CapacityOutlook = () => {
       try {
         const newCapacityData = {};
 
-        // Generate dates for the week using LOCAL dates, not UTC
+        // Generate local dates for the week (Mon..Sun)
         const dates = [];
-        console.log('=== Generating dates for capacity calculation ===');
         for (let i = 0; i < 7; i++) {
-          const date = new Date(currentWeekStart);
-          date.setDate(date.getDate() + i);
-          
-          // Use local date format instead of UTC
-          const localDateStr = formatLocalDate(date);
-          const utcDateStr = date.toISOString().split('T')[0];
-          
-          console.log(`Day ${i}: Local=${localDateStr}, UTC=${utcDateStr}`);
-          dates.push(localDateStr); // Use local date
+          const d = new Date(currentWeekStart);
+          d.setDate(d.getDate() + i);
+          dates.push(toLocalYMD(d)); // why: avoid UTC day-1 shift
         }
-        console.log('Dates to check:', dates);
 
         // Calculate capacity for each pitch and date
         for (const pitch of pitches) {
           newCapacityData[pitch.id] = {};
-          
           for (const date of dates) {
-            // Calculate AM and PM capacity
             const amCapacity = await calculatePitchCapacity(clubId, date, pitch.id, true);
             const pmCapacity = await calculatePitchCapacity(clubId, date, pitch.id, false);
-            
-            newCapacityData[pitch.id][date] = {
-              am: amCapacity,
-              pm: pmCapacity
-            };
+            newCapacityData[pitch.id][date] = { am: amCapacity, pm: pmCapacity };
           }
         }
 
@@ -383,66 +239,47 @@ const CapacityOutlook = () => {
     loadCapacityData();
   }, [clubId, currentWeekStart, pitches]);
 
-  // Get traffic light color based on capacity
   const getTrafficLightColor = (percentage) => {
-    if (percentage >= 90) return '#ef4444'; // Red
-    if (percentage >= 70) return '#f97316'; // Orange
-    if (percentage >= 50) return '#eab308'; // Yellow
-    return '#22c55e'; // Green
+    if (percentage >= 90) return '#ef4444';
+    if (percentage >= 70) return '#f97316';
+    if (percentage >= 50) return '#eab308';
+    return '#22c55e';
   };
 
-  // Navigate to previous week
   const goToPreviousWeek = () => {
     const newDate = new Date(currentWeekStart);
     newDate.setDate(newDate.getDate() - 7);
     setCurrentWeekStart(newDate);
   };
 
-  // Navigate to next week
   const goToNextWeek = () => {
     const newDate = new Date(currentWeekStart);
     newDate.setDate(newDate.getDate() + 7);
     setCurrentWeekStart(newDate);
   };
 
-  // Format date for display
   const formatDateRange = () => {
     if (!currentWeekStart) return '';
     const weekEnd = new Date(currentWeekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
-    
     const options = { month: 'short', day: 'numeric', year: 'numeric' };
     return `${currentWeekStart.toLocaleDateString('en-US', options)} - ${weekEnd.toLocaleDateString('en-US', options)}`;
   };
 
-  // Get day abbreviations with local date formatting
   const getDayHeaders = () => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const headers = [];
-    
     for (let i = 0; i < 7; i++) {
-      const date = new Date(currentWeekStart);
-      date.setDate(date.getDate() + i);
-      const dayNum = date.getDate();
-      headers.push({
-        day: days[i],
-        date: dayNum,
-        fullDate: formatLocalDate(date) // Use local date format
-      });
+      const d = new Date(currentWeekStart);
+      d.setDate(d.getDate() + i);
+      headers.push({ day: days[i], date: d.getDate(), fullDate: toLocalYMD(d) });
     }
-    
     return headers;
   };
 
   if (loading || !currentWeekStart) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        backgroundColor: '#f9fafb'
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f9fafb' }}>
         <div>Loading capacity data...</div>
       </div>
     );
@@ -451,138 +288,50 @@ const CapacityOutlook = () => {
   const dayHeaders = getDayHeaders();
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#f9fafb',
-      fontFamily: 'system-ui, sans-serif',
-      display: 'flex',
-      gap: '0'
-    }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', fontFamily: 'system-ui, sans-serif', display: 'flex', gap: '0' }}>
       {/* Sidebar */}
-      <div style={{
-        width: '250px',
-        flexShrink: 0,
-        backgroundColor: '#243665',
-        height: '100vh',
-        position: 'sticky',
-        top: 0,
-        left: 0,
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
+      <div style={{ width: '250px', flexShrink: 0, backgroundColor: '#243665', height: '100vh', position: 'sticky', top: 0, left: 0, display: 'flex', flexDirection: 'column' }}>
         {/* User Info Section */}
-        <div style={{
-          padding: '20px 16px',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
-          backgroundColor: 'rgba(0,0,0,0.1)'
-        }}>
-          <div style={{
-            fontSize: '18px',
-            fontWeight: 'bold',
-            color: 'white',
-            marginBottom: '12px'
-          }}>
+        <div style={{ padding: '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.1)' }}>
+          <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'white', marginBottom: '12px' }}>
             {clubName || 'Loading...'}
           </div>
-          <div style={{
-            fontSize: '13px',
-            color: 'rgba(255,255,255,0.9)',
-            marginBottom: '4px'
-          }}>
+          <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', marginBottom: '4px' }}>
             {user?.email || 'Not logged in'}
           </div>
-          <div style={{
-            fontSize: '12px',
-            color: 'rgba(255,255,255,0.7)',
-            padding: '4px 8px',
-            backgroundColor: userRole === 'admin' ? '#10b981' : '#6b7280',
-            borderRadius: '4px',
-            display: 'inline-block',
-            marginTop: '4px'
-          }}>
+          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', padding: '4px 8px', backgroundColor: userRole === 'admin' ? '#10b981' : '#6b7280', borderRadius: '4px', display: 'inline-block', marginTop: '4px' }}>
             {userRole === 'admin' ? 'Administrator' : userRole === 'viewer' ? 'Viewer' : 'User'}
           </div>
         </div>
 
         {/* Spacer */}
-        <div style={{ flex: 1 }}></div>
+        <div style={{ flex: 1 }} />
 
         {/* Bottom navigation buttons */}
-        <div style={{
-          padding: '16px',
-          borderTop: '1px solid rgba(255,255,255,0.1)',
-          backgroundColor: 'rgba(0,0,0,0.1)'
-        }}>
+        <div style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.1)' }}>
           <button
             onClick={() => navigate('/club-pitch-map')}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: '6px',
-              fontSize: '14px',
-              color: 'white',
-              cursor: 'pointer',
-              fontWeight: '500',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-            }}
+            style={{ width: '100%', padding: '10px', backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', fontSize: '14px', color: 'white', cursor: 'pointer', fontWeight: '500', transition: 'all 0.2s ease' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
           >
             🗺️ Pitch Map
           </button>
 
           <button
             onClick={() => navigate('/settings')}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: '6px',
-              fontSize: '14px',
-              color: 'white',
-              cursor: 'pointer',
-              fontWeight: '500',
-              transition: 'all 0.2s ease',
-              marginTop: '8px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-            }}
+            style={{ width: '100%', padding: '10px', backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', fontSize: '14px', color: 'white', cursor: 'pointer', fontWeight: '500', transition: 'all 0.2s ease', marginTop: '8px' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
           >
             ⚙️ Settings
           </button>
 
           <button
             onClick={handleLogout}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: 'rgba(239, 68, 68, 0.2)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              borderRadius: '6px',
-              fontSize: '14px',
-              color: '#fca5a5',
-              cursor: 'pointer',
-              fontWeight: '500',
-              transition: 'all 0.2s ease',
-              marginTop: '8px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
-            }}
+            style={{ width: '100%', padding: '10px', backgroundColor: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', fontSize: '14px', color: '#fca5a5', cursor: 'pointer', fontWeight: '500', transition: 'all 0.2s ease', marginTop: '8px' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.3)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'; }}
           >
             🚪 Logout
           </button>
@@ -592,71 +341,26 @@ const CapacityOutlook = () => {
       {/* Main Content */}
       <div style={{ flex: 1, padding: '24px', overflowX: 'auto' }}>
         {/* Header */}
-        <div style={{
-          marginBottom: '24px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <h1 style={{
-            fontSize: '32px',
-            fontWeight: 'bold',
-            color: '#1f2937',
-            margin: 0
-          }}>
-            Capacity Outlook
-          </h1>
+        <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>Capacity Outlook</h1>
 
           {/* Week Navigation */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px'
-          }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button
               onClick={goToPreviousWeek}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '8px 12px',
-                backgroundColor: 'white',
-                border: '1px solid #e5e7eb',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                color: '#374151'
-              }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 12px', backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', color: '#374151' }}
             >
               <ChevronLeft size={16} />
               Previous 7 Days
             </button>
 
-            <div style={{
-              padding: '8px 16px',
-              backgroundColor: '#f3f4f6',
-              borderRadius: '6px',
-              fontWeight: '600',
-              fontSize: '14px',
-              color: '#1f2937'
-            }}>
+            <div style={{ padding: '8px 16px', backgroundColor: '#f3f4f6', borderRadius: '6px', fontWeight: '600', fontSize: '14px', color: '#1f2937' }}>
               {formatDateRange()}
             </div>
 
             <button
               onClick={goToNextWeek}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '8px 12px',
-                backgroundColor: 'white',
-                border: '1px solid #e5e7eb',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                color: '#374151'
-              }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 12px', backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', color: '#374151' }}
             >
               Next 7 Days
               <ChevronRight size={16} />
@@ -665,237 +369,103 @@ const CapacityOutlook = () => {
         </div>
 
         {/* Legend */}
-        <div style={{
-          marginBottom: '20px',
-          padding: '12px',
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          border: '1px solid #e5e7eb',
-          display: 'flex',
-          gap: '24px',
-          alignItems: 'center'
-        }}>
+        <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e5e7eb', display: 'flex', gap: '24px', alignItems: 'center' }}>
           <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>Capacity:</span>
           <div style={{ display: 'flex', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{
-                width: '20px',
-                height: '20px',
-                borderRadius: '50%',
-                backgroundColor: '#22c55e'
-              }}></div>
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
               <span style={{ fontSize: '13px', color: '#6b7280' }}>≤50% (Available)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{
-                width: '20px',
-                height: '20px',
-                borderRadius: '50%',
-                backgroundColor: '#eab308'
-              }}></div>
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#eab308' }} />
               <span style={{ fontSize: '13px', color: '#6b7280' }}>50-70% (Moderate)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{
-                width: '20px',
-                height: '20px',
-                borderRadius: '50%',
-                backgroundColor: '#f97316'
-              }}></div>
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#f97316' }} />
               <span style={{ fontSize: '13px', color: '#6b7280' }}>70-90% (Busy)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{
-                width: '20px',
-                height: '20px',
-                borderRadius: '50%',
-                backgroundColor: '#ef4444'
-              }}></div>
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
               <span style={{ fontSize: '13px', color: '#6b7280' }}>90%+ (Full)</span>
             </div>
           </div>
         </div>
 
         {/* Capacity Table */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          overflow: 'hidden'
-        }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse'
-          }}>
+        <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{
-                  padding: '12px',
-                  textAlign: 'left',
-                  backgroundColor: '#f9fafb',
-                  borderBottom: '2px solid #e5e7eb',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
+                <th style={{ padding: '12px', textAlign: 'left', backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
                   Pitch
                 </th>
-                {dayHeaders.map(header => (
-                  <th key={header.fullDate} colSpan="2" style={{
-                    padding: '12px 8px',
-                    textAlign: 'center',
-                    backgroundColor: '#f9fafb',
-                    borderBottom: '2px solid #e5e7eb',
-                    borderLeft: '1px solid #e5e7eb',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: '#374151'
-                  }}>
+                {dayHeaders.map((header) => (
+                  <th key={header.fullDate} colSpan="2" style={{ padding: '12px 8px', textAlign: 'center', backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb', borderLeft: '1px solid #e5e7eb', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
                     <div>{header.day}</div>
-                    <div style={{ fontSize: '12px', fontWeight: '400', color: '#6b7280' }}>
-                      {header.date}
-                    </div>
+                    <div style={{ fontSize: '12px', fontWeight: '400', color: '#6b7280' }}>{header.date}</div>
                   </th>
                 ))}
               </tr>
               <tr>
-                <th style={{
-                  padding: '8px 12px',
-                  backgroundColor: '#f9fafb',
-                  borderBottom: '1px solid #e5e7eb',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  color: '#6b7280'
-                }}></th>
-                {dayHeaders.map(header => (
+                <th style={{ padding: '8px 12px', backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: '500', color: '#6b7280' }}></th>
+                {dayHeaders.map((header) => (
                   <React.Fragment key={`${header.fullDate}-periods`}>
-                    <th style={{
-                      padding: '8px',
-                      textAlign: 'center',
-                      backgroundColor: '#f9fafb',
-                      borderBottom: '1px solid #e5e7eb',
-                      borderLeft: '1px solid #e5e7eb',
-                      fontSize: '11px',
-                      fontWeight: '500',
-                      color: '#6b7280'
-                    }}>
-                      AM
-                    </th>
-                    <th style={{
-                      padding: '8px',
-                      textAlign: 'center',
-                      backgroundColor: '#f9fafb',
-                      borderBottom: '1px solid #e5e7eb',
-                      borderLeft: '1px solid #e5e7eb',
-                      fontSize: '11px',
-                      fontWeight: '500',
-                      color: '#6b7280'
-                    }}>
-                      PM
-                    </th>
+                    <th style={{ padding: '8px', textAlign: 'center', backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb', borderLeft: '1px solid #e5e7eb', fontSize: '11px', fontWeight: '500', color: '#6b7280' }}>AM</th>
+                    <th style={{ padding: '8px', textAlign: 'center', backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb', borderLeft: '1px solid #e5e7eb', fontSize: '11px', fontWeight: '500', color: '#6b7280' }}>PM</th>
                   </React.Fragment>
                 ))}
               </tr>
             </thead>
             <tbody>
               {pitches.map((pitch, index) => {
-                // Get the custom pitch name
                 const displayName = getPitchDisplayName(pitch.id, pitchNames);
-                
                 return (
                   <tr key={pitch.id}>
-                    <td style={{
-                      padding: '12px',
-                      borderBottom: index === pitches.length - 1 ? 'none' : '1px solid #e5e7eb',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      color: '#1f2937'
-                    }}>
+                    <td style={{ padding: '12px', borderBottom: index === pitches.length - 1 ? 'none' : '1px solid #e5e7eb', fontSize: '14px', fontWeight: '500', color: '#1f2937' }}>
                       {displayName}
                     </td>
-                    {dayHeaders.map(header => {
+                    {dayHeaders.map((header) => {
                       const amCapacity = capacityData[pitch.id]?.[header.fullDate]?.am || 0;
                       const pmCapacity = capacityData[pitch.id]?.[header.fullDate]?.pm || 0;
-                      
                       return (
                         <React.Fragment key={`${pitch.id}-${header.fullDate}`}>
-                          <td 
-                            style={{
-                              padding: '8px',
-                              textAlign: 'center',
-                              borderBottom: index === pitches.length - 1 ? 'none' : '1px solid #e5e7eb',
-                              borderLeft: '1px solid #e5e7eb',
-                              cursor: 'pointer'
-                            }}
+                          <td
+                            style={{ padding: '8px', textAlign: 'center', borderBottom: index === pitches.length - 1 ? 'none' : '1px solid #e5e7eb', borderLeft: '1px solid #e5e7eb', cursor: 'pointer' }}
                             onClick={() => {
-                              // Navigate to the allocator with the correct date
                               navigate(`/allocator/${pitch.id}?date=${header.fullDate}`);
                             }}
                             title={`Click to view allocations for ${displayName} on ${header.fullDate}`}
                           >
-                            <div style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '50%',
-                              backgroundColor: getTrafficLightColor(amCapacity),
-                              margin: '0 auto',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                              transition: 'transform 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.transform = 'scale(1.1)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.transform = 'scale(1)';
-                            }}>
-                              <span style={{
-                                fontSize: '10px',
-                                color: 'white',
-                                fontWeight: '600'
-                              }}>
-                                {Math.round(amCapacity)}%
-                              </span>
+                            <div
+                              style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: getTrafficLightColor(amCapacity), margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)', transition: 'transform 0.2s ease' }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                              }}
+                            >
+                              <span style={{ fontSize: '10px', color: 'white', fontWeight: '600' }}>{Math.round(amCapacity)}%</span>
                             </div>
                           </td>
-                          <td 
-                            style={{
-                              padding: '8px',
-                              textAlign: 'center',
-                              borderBottom: index === pitches.length - 1 ? 'none' : '1px solid #e5e7eb',
-                              borderLeft: '1px solid #e5e7eb',
-                              cursor: 'pointer'
+                          <td
+                            style={{ padding: '8px', textAlign: 'center', borderBottom: index === pitches.length - 1 ? 'none' : '1px solid #e5e7eb', borderLeft: '1px solid #e5e7eb', cursor: 'pointer' }}
+                            onClick={() => {
+                              // keep date consistent with AM
+                              navigate(`/allocator/${pitch.id}?date=${header.fullDate}`);
                             }}
-                            onClick={() => navigate(`/allocator/${pitch.id}`)}
-                            title={`Click to view allocations for ${displayName}`}
+                            title={`Click to view allocations for ${displayName} on ${header.fullDate}`}
                           >
-                            <div style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '50%',
-                              backgroundColor: getTrafficLightColor(pmCapacity),
-                              margin: '0 auto',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                              transition: 'transform 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.transform = 'scale(1.1)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.transform = 'scale(1)';
-                            }}>
-                              <span style={{
-                                fontSize: '10px',
-                                color: 'white',
-                                fontWeight: '600'
-                              }}>
-                                {Math.round(pmCapacity)}%
-                              </span>
+                            <div
+                              style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: getTrafficLightColor(pmCapacity), margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)', transition: 'transform 0.2s ease' }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                              }}
+                            >
+                              <span style={{ fontSize: '10px', color: 'white', fontWeight: '600' }}>{Math.round(pmCapacity)}%</span>
                             </div>
                           </td>
                         </React.Fragment>
@@ -908,11 +478,7 @@ const CapacityOutlook = () => {
           </table>
 
           {pitches.length === 0 && (
-            <div style={{
-              padding: '48px',
-              textAlign: 'center',
-              color: '#6b7280'
-            }}>
+            <div style={{ padding: '48px', textAlign: 'center', color: '#6b7280' }}>
               No pitches configured. Please set up pitches in the satellite configuration.
             </div>
           )}
