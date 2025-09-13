@@ -20,6 +20,19 @@ const CapacityOutlook = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState(null);
   const [capacityData, setCapacityData] = useState({});
 
+  // Helper to format date in local timezone (not UTC)
+  const formatLocalDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Helper to get timezone offset in hours
+  const getTimezoneOffsetHours = () => {
+    return new Date().getTimezoneOffset() / -60;
+  };
+
   // Helper function to normalize pitch ID (same as UnifiedPitchAllocator)
   const normalizePitchId = (pitchId) => {
     if (!pitchId) return '';
@@ -54,13 +67,26 @@ const CapacityOutlook = () => {
     return `Pitch ${pitchNumber}`;
   };
 
-  // Initialize to current week's Monday
+  // Initialize to current week's Monday with timezone awareness
   useEffect(() => {
     const today = new Date();
+    console.log('=== Timezone Debug ===');
+    console.log('Local time:', today.toString());
+    console.log('UTC time:', today.toUTCString());
+    console.log('Timezone offset (hours from UTC):', getTimezoneOffsetHours());
+    console.log('Local date:', formatLocalDate(today));
+    console.log('UTC date (toISOString):', today.toISOString().split('T')[0]);
+    
     const dayOfWeek = today.getDay();
-    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
-    const monday = new Date(today.setDate(diff));
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - daysToSubtract);
     monday.setHours(0, 0, 0, 0);
+    
+    console.log('Calculated Monday (local):', formatLocalDate(monday));
+    console.log('Calculated Monday (UTC):', monday.toISOString().split('T')[0]);
+    
     setCurrentWeekStart(monday);
   }, []);
 
@@ -145,12 +171,27 @@ const CapacityOutlook = () => {
     return () => unsubscribe();
   }, [navigate]);
 
-  // Calculate capacity for a specific pitch and date
+  // Enhanced calculate capacity with timezone awareness and debugging
   const calculatePitchCapacity = async (clubId, date, pitchNumber, isAM = true) => {
     const normalizedPitchId = normalizePitchId(pitchNumber);
     
+    console.log(`\n=== Calculating capacity ===`);
+    console.log(`Pitch: ${pitchNumber} (${normalizedPitchId})`);
+    console.log(`Date: ${date}`);
+    console.log(`Period: ${isAM ? 'AM' : 'PM'}`);
+    
     try {
-      // Load both training and match allocations
+      // Try both the provided date AND the UTC equivalent in case of mismatch
+      const localDate = new Date(date + 'T00:00:00'); // Force local timezone interpretation
+      const utcDateStr = localDate.toISOString().split('T')[0];
+      
+      console.log(`Checking Firebase docs:`);
+      console.log(`- Primary: ${clubId}-${date}`);
+      if (utcDateStr !== date) {
+        console.log(`- Also trying UTC variant: ${clubId}-${utcDateStr}`);
+      }
+      
+      // Try loading with the provided date first
       const trainingDocRef = doc(db, 'trainingAllocations', `${clubId}-${date}`);
       const matchDocRef = doc(db, 'matchAllocations', `${clubId}-${date}`);
       
@@ -159,13 +200,49 @@ const CapacityOutlook = () => {
         getDoc(matchDocRef)
       ]);
       
+      // If documents don't exist and UTC date is different, try UTC date
+      let trainingData = null;
+      let matchData = null;
+      
+      if (trainingDoc.exists()) {
+        trainingData = trainingDoc.data();
+        console.log(`✓ Training doc found for ${date}`);
+      } else if (utcDateStr !== date) {
+        // Try UTC date as fallback
+        const utcTrainingDoc = await getDoc(doc(db, 'trainingAllocations', `${clubId}-${utcDateStr}`));
+        if (utcTrainingDoc.exists()) {
+          trainingData = utcTrainingDoc.data();
+          console.log(`✓ Training doc found for UTC date ${utcDateStr}`);
+        } else {
+          console.log(`✗ No training doc found for ${date} or ${utcDateStr}`);
+        }
+      } else {
+        console.log(`✗ No training doc found for ${date}`);
+      }
+      
+      if (matchDoc.exists()) {
+        matchData = matchDoc.data();
+        console.log(`✓ Match doc found for ${date}`);
+      } else if (utcDateStr !== date) {
+        // Try UTC date as fallback
+        const utcMatchDoc = await getDoc(doc(db, 'matchAllocations', `${clubId}-${utcDateStr}`));
+        if (utcMatchDoc.exists()) {
+          matchData = utcMatchDoc.data();
+          console.log(`✓ Match doc found for UTC date ${utcDateStr}`);
+        } else {
+          console.log(`✗ No match doc found for ${date} or ${utcDateStr}`);
+        }
+      } else {
+        console.log(`✗ No match doc found for ${date}`);
+      }
+      
       let allocationsCount = 0;
       
       // Define time slots based on AM/PM
       const amSlots = [];
       const pmSlots = [];
       
-      // AM slots: 8:00 AM to 5:00 PM (business hours)
+      // AM slots: 8:00 AM to 5:00 PM
       for (let h = 8; h < 17; h++) {
         for (let m = 0; m < 60; m += 15) {
           amSlots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
@@ -175,26 +252,37 @@ const CapacityOutlook = () => {
       // PM slots: 5:00 PM to 9:30 PM
       for (let h = 17; h <= 21; h++) {
         for (let m = 0; m < 60; m += 15) {
-          if (h === 21 && m > 30) break; // Stop at 9:30 PM
+          if (h === 21 && m > 30) break;
           pmSlots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
         }
       }
       
       const relevantSlots = isAM ? amSlots : pmSlots;
       const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-      
-      // Calculate total possible slots (slots * sections)
       const totalSlots = relevantSlots.length * sections.length;
       
-      // Count allocations from training document
-      if (trainingDoc.exists()) {
-        const trainingData = trainingDoc.data();
-        Object.keys(trainingData).forEach(key => {
-          // Key format: "date-time-pitchX-section"
-          if (key.includes(`-${normalizedPitchId}-`) && typeof trainingData[key] === 'object') {
+      // Process training data if exists
+      if (trainingData) {
+        const keys = Object.keys(trainingData);
+        console.log(`Training doc has ${keys.length} keys`);
+        if (keys.length > 0) {
+          console.log('Sample keys:', keys.slice(0, 3));
+        }
+        
+        keys.forEach(key => {
+          // Check various pitch ID formats
+          const pitchIdentifiers = [
+            normalizedPitchId,
+            `pitch${pitchNumber}`,
+            `pitch-${pitchNumber}`,
+            `pitch_${pitchNumber}`,
+            pitchNumber.toString()
+          ];
+          
+          if (pitchIdentifiers.some(id => key.includes(id))) {
             const parts = key.split('-');
             if (parts.length >= 4) {
-              const time = parts[1]; // Time is already in HH:MM format in the key
+              const time = parts[1];
               if (relevantSlots.includes(time)) {
                 allocationsCount++;
               }
@@ -203,14 +291,27 @@ const CapacityOutlook = () => {
         });
       }
       
-      // Count allocations from match document
-      if (matchDoc.exists()) {
-        const matchData = matchDoc.data();
-        Object.keys(matchData).forEach(key => {
-          if (key.includes(`-${normalizedPitchId}-`) && typeof matchData[key] === 'object') {
+      // Process match data if exists
+      if (matchData) {
+        const keys = Object.keys(matchData);
+        console.log(`Match doc has ${keys.length} keys`);
+        if (keys.length > 0) {
+          console.log('Sample keys:', keys.slice(0, 3));
+        }
+        
+        keys.forEach(key => {
+          const pitchIdentifiers = [
+            normalizedPitchId,
+            `pitch${pitchNumber}`,
+            `pitch-${pitchNumber}`,
+            `pitch_${pitchNumber}`,
+            pitchNumber.toString()
+          ];
+          
+          if (pitchIdentifiers.some(id => key.includes(id))) {
             const parts = key.split('-');
             if (parts.length >= 4) {
-              const time = parts[1]; // Time is already in HH:MM format in the key
+              const time = parts[1];
               if (relevantSlots.includes(time)) {
                 allocationsCount++;
               }
@@ -219,10 +320,8 @@ const CapacityOutlook = () => {
         });
       }
       
-      // Calculate capacity percentage
       const usedPercentage = totalSlots > 0 ? Math.round((allocationsCount / totalSlots) * 100) : 0;
-      
-      console.log(`Pitch ${pitchNumber} on ${date} (${isAM ? 'AM' : 'PM'}): ${allocationsCount}/${totalSlots} slots = ${usedPercentage}%`);
+      console.log(`Result: ${allocationsCount}/${totalSlots} slots = ${usedPercentage}%`);
       
       return usedPercentage;
     } catch (error) {
@@ -231,7 +330,7 @@ const CapacityOutlook = () => {
     }
   };
 
-  // Load allocations when club and week change
+  // Load allocations when club and week change - with timezone fix
   useEffect(() => {
     if (!clubId || !currentWeekStart || pitches.length === 0) return;
 
@@ -240,13 +339,21 @@ const CapacityOutlook = () => {
       try {
         const newCapacityData = {};
 
-        // Generate dates for the week
+        // Generate dates for the week using LOCAL dates, not UTC
         const dates = [];
+        console.log('=== Generating dates for capacity calculation ===');
         for (let i = 0; i < 7; i++) {
           const date = new Date(currentWeekStart);
           date.setDate(date.getDate() + i);
-          dates.push(date.toISOString().split('T')[0]);
+          
+          // Use local date format instead of UTC
+          const localDateStr = formatLocalDate(date);
+          const utcDateStr = date.toISOString().split('T')[0];
+          
+          console.log(`Day ${i}: Local=${localDateStr}, UTC=${utcDateStr}`);
+          dates.push(localDateStr); // Use local date
         }
+        console.log('Dates to check:', dates);
 
         // Calculate capacity for each pitch and date
         for (const pitch of pitches) {
@@ -308,7 +415,7 @@ const CapacityOutlook = () => {
     return `${currentWeekStart.toLocaleDateString('en-US', options)} - ${weekEnd.toLocaleDateString('en-US', options)}`;
   };
 
-  // Get day abbreviations
+  // Get day abbreviations with local date formatting
   const getDayHeaders = () => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const headers = [];
@@ -320,7 +427,7 @@ const CapacityOutlook = () => {
       headers.push({
         day: days[i],
         date: dayNum,
-        fullDate: date.toISOString().split('T')[0]
+        fullDate: formatLocalDate(date) // Use local date format
       });
     }
     
