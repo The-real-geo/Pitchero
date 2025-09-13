@@ -1,9 +1,10 @@
 // src/components/satellite/SatelliteManager.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { auth, db, getUserProfile } from '../../utils/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { signOut } from 'firebase/auth';
 import SatelliteImageUpload from './SatelliteImageUpload';
 import SatelliteOverviewMap from './SatelliteOverviewMap';
 
@@ -15,8 +16,20 @@ const SatelliteManager = () => {
   // State
   const [satelliteConfig, setSatelliteConfig] = useState(null);
   const [clubId, setClubId] = useState(null);
+  const [clubName, setClubName] = useState('');
+  const [userRole, setUserRole] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState(searchParams.get('view') || 'overview');
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   // Get user profile and club ID
   useEffect(() => {
@@ -25,7 +38,16 @@ const SatelliteManager = () => {
         try {
           const profile = await getUserProfile(user.uid);
           setClubId(profile?.clubId);
+          setUserRole(profile?.role || 'user');
           console.log('User club ID:', profile?.clubId);
+          
+          // Fetch club name
+          if (profile?.clubId) {
+            const clubDoc = await getDoc(doc(db, 'clubs', profile.clubId));
+            if (clubDoc.exists()) {
+              setClubName(clubDoc.data().name || 'Club');
+            }
+          }
         } catch (error) {
           console.error('Error fetching user profile:', error);
         }
@@ -169,139 +191,301 @@ const SatelliteManager = () => {
           <p style={{ color: '#6b7280', marginBottom: '16px' }}>
             {error ? 'Authentication error' : 'No club found for your account'}
           </p>
-          <button
-            onClick={() => navigate('/menu')}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer'
-            }}
-          >
-            Return to Menu
-          </button>
         </div>
       </div>
     );
   }
 
-  // Main component render
+  // Main component render with sidebar
   return (
     <div style={{
       minHeight: '100vh',
       backgroundColor: '#f9fafb',
-      padding: '20px'
+      fontFamily: 'system-ui, sans-serif',
+      display: 'flex',
+      gap: '0'
     }}>
-      {/* Header with back button */}
+      {/* Left Sidebar */}
       <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        marginBottom: '20px'
+        width: '250px',
+        flexShrink: 0,
+        backgroundColor: '#243665',
+        height: '100vh',
+        position: 'sticky',
+        top: 0,
+        left: 0,
+        display: 'flex',
+        flexDirection: 'column'
       }}>
-        <button
-          onClick={() => navigate('/menu')}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px'
-          }}
-        >
-          ← Back to Menu
-        </button>
-      </div>
-
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto'
-      }}>
-        {/* View: Upload satellite image */}
-        {(view === 'upload' || !satelliteConfig?.imageUrl) && (
-          <SatelliteImageUpload
-            clubId={clubId}
-            onImageUploaded={handleImageUploaded}
-          />
-        )}
-
-        {/* View: Setup pitch boundaries */}
-        {view === 'setup' && satelliteConfig?.imageUrl && (
-          <SatelliteOverviewMap
-            clubId={clubId}
-            satelliteConfig={satelliteConfig}
-            isSetupMode={true}
-            onSaveConfiguration={handleSaveConfiguration}
-          />
-        )}
-
-        {/* View: Overview map (navigation mode) */}
-        {view === 'overview' && satelliteConfig?.imageUrl && (
-          <SatelliteOverviewMap
-            clubId={clubId}
-            satelliteConfig={satelliteConfig}
-            isSetupMode={false}
-            onPitchClick={handlePitchClick}
-            onEnterSetupMode={() => setView('setup')}
-          />
-        )}
-
-        {/* Navigation Controls */}
+        {/* User Info Section at the top */}
         <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          marginTop: '24px',
-          gap: '16px'
+          padding: '20px 16px',
+          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          backgroundColor: 'rgba(0,0,0,0.1)'
         }}>
-          {satelliteConfig?.imageUrl && (
-            <>
-              <button
-                onClick={() => setView('overview')}
-                style={{
-                  padding: '12px 24px',
-                  backgroundColor: view === 'overview' ? '#3b82f6' : '#e5e7eb',
-                  color: view === 'overview' ? 'white' : '#374151',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: '600'
-                }}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setView('setup')}
-                style={{
-                  padding: '12px 24px',
-                  backgroundColor: view === 'setup' ? '#3b82f6' : '#e5e7eb',
-                  color: view === 'setup' ? 'white' : '#374151',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: '600'
-                }}
-              >
-                Setup Pitches
-              </button>
-            </>
-          )}
+          <div style={{
+            fontSize: '18px',
+            fontWeight: 'bold',
+            color: 'white',
+            marginBottom: '12px'
+          }}>
+            {clubName || 'Loading...'}
+          </div>
+          <div style={{
+            fontSize: '13px',
+            color: 'rgba(255,255,255,0.9)',
+            marginBottom: '4px'
+          }}>
+            {user?.email || 'Not logged in'}
+          </div>
+          <div style={{
+            fontSize: '12px',
+            color: 'rgba(255,255,255,0.7)',
+            padding: '4px 8px',
+            backgroundColor: userRole === 'admin' ? '#10b981' : '#6b7280',
+            borderRadius: '4px',
+            display: 'inline-block',
+            marginTop: '4px'
+          }}>
+            {userRole === 'admin' ? 'Administrator' : userRole === 'viewer' ? 'Viewer' : 'User'}
+          </div>
+        </div>
+
+        {/* Satellite Configuration Buttons */}
+        {satelliteConfig?.imageUrl && (
+          <div style={{
+            padding: '16px',
+            borderBottom: '1px solid rgba(255,255,255,0.1)'
+          }}>
+            <button
+              onClick={() => setView('overview')}
+              style={{
+                width: '100%',
+                padding: '10px',
+                backgroundColor: view === 'overview' 
+                  ? 'rgba(59, 130, 246, 0.3)' 
+                  : 'rgba(255,255,255,0.1)',
+                border: view === 'overview'
+                  ? '1px solid rgba(59, 130, 246, 0.5)'
+                  : '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: 'white',
+                cursor: 'pointer',
+                fontWeight: '500',
+                transition: 'all 0.2s ease',
+                marginBottom: '8px'
+              }}
+              onMouseEnter={(e) => {
+                if (view !== 'overview') {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== 'overview') {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                }
+              }}
+            >
+              🗺️ Overview
+            </button>
+
+            <button
+              onClick={() => setView('setup')}
+              style={{
+                width: '100%',
+                padding: '10px',
+                backgroundColor: view === 'setup' 
+                  ? 'rgba(59, 130, 246, 0.3)' 
+                  : 'rgba(255,255,255,0.1)',
+                border: view === 'setup'
+                  ? '1px solid rgba(59, 130, 246, 0.5)'
+                  : '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: 'white',
+                cursor: 'pointer',
+                fontWeight: '500',
+                transition: 'all 0.2s ease',
+                marginBottom: '8px'
+              }}
+              onMouseEnter={(e) => {
+                if (view !== 'setup') {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== 'setup') {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                }
+              }}
+            >
+              ⚙️ Setup Pitches
+            </button>
+          </div>
+        )}
+
+        <div style={{
+          padding: '16px'
+        }}>
           <button
             onClick={() => setView('upload')}
             style={{
-              padding: '12px 24px',
-              backgroundColor: view === 'upload' ? '#3b82f6' : '#e5e7eb',
-              color: view === 'upload' ? 'white' : '#374151',
-              border: 'none',
-              borderRadius: '8px',
+              width: '100%',
+              padding: '10px',
+              backgroundColor: view === 'upload' 
+                ? 'rgba(59, 130, 246, 0.3)' 
+                : 'rgba(255,255,255,0.1)',
+              border: view === 'upload'
+                ? '1px solid rgba(59, 130, 246, 0.5)'
+                : '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '6px',
+              fontSize: '14px',
+              color: 'white',
               cursor: 'pointer',
-              fontWeight: '600'
+              fontWeight: '500',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              if (view !== 'upload') {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (view !== 'upload') {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+              }
             }}
           >
-            Change Image
+            📷 Change Image
           </button>
+        </div>
+        
+        {/* Spacer to push bottom buttons down */}
+        <div style={{
+          flex: 1
+        }}></div>
+        
+        {/* Bottom navigation buttons */}
+        <div style={{
+          padding: '16px',
+          borderTop: '1px solid rgba(255,255,255,0.1)',
+          backgroundColor: 'rgba(0,0,0,0.1)'
+        }}>
+          <button
+            onClick={() => navigate('/club-pitch-map')}
+            style={{
+              width: '100%',
+              padding: '10px',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '6px',
+              fontSize: '14px',
+              color: 'white',
+              cursor: 'pointer',
+              fontWeight: '500',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+            }}
+          >
+            🗺️ Back to Map View
+          </button>
+          
+          <button
+            onClick={() => navigate('/settings')}
+            style={{
+              width: '100%',
+              padding: '10px',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '6px',
+              fontSize: '14px',
+              color: 'white',
+              cursor: 'pointer',
+              fontWeight: '500',
+              transition: 'all 0.2s ease',
+              marginTop: '8px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+            }}
+          >
+            ⚙️ Settings
+          </button>
+          
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%',
+              padding: '10px',
+              backgroundColor: 'rgba(239, 68, 68, 0.2)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '6px',
+              fontSize: '14px',
+              color: '#fca5a5',
+              cursor: 'pointer',
+              fontWeight: '500',
+              transition: 'all 0.2s ease',
+              marginTop: '8px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+            }}
+          >
+            🚪 Logout
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div style={{
+        flex: 1,
+        padding: '20px',
+        overflowY: 'auto'
+      }}>
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto'
+        }}>
+          {/* View: Upload satellite image */}
+          {(view === 'upload' || !satelliteConfig?.imageUrl) && (
+            <SatelliteImageUpload
+              clubId={clubId}
+              onImageUploaded={handleImageUploaded}
+            />
+          )}
+
+          {/* View: Setup pitch boundaries */}
+          {view === 'setup' && satelliteConfig?.imageUrl && (
+            <SatelliteOverviewMap
+              clubId={clubId}
+              satelliteConfig={satelliteConfig}
+              isSetupMode={true}
+              onSaveConfiguration={handleSaveConfiguration}
+            />
+          )}
+
+          {/* View: Overview map (navigation mode) */}
+          {view === 'overview' && satelliteConfig?.imageUrl && (
+            <SatelliteOverviewMap
+              clubId={clubId}
+              satelliteConfig={satelliteConfig}
+              isSetupMode={false}
+              onPitchClick={handlePitchClick}
+              onEnterSetupMode={() => setView('setup')}
+            />
+          )}
         </div>
       </div>
     </div>
