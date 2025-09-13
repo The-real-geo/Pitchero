@@ -160,6 +160,9 @@ const CapacityOutlook = () => {
       dates.push(date.toISOString().split('T')[0]);
     }
 
+    console.log('Calculating capacity for pitches:', pitches);
+    console.log('Available allocations:', allocs);
+
     // Calculate capacity for each pitch, date, and period
     pitches.forEach(pitch => {
       capacity[pitch.id] = {};
@@ -170,25 +173,55 @@ const CapacityOutlook = () => {
           pm: 0
         };
 
-        if (allocs[date] && allocs[date][`pitch${pitch.id}`]) {
-          const pitchAllocs = allocs[date][`pitch${pitch.id}`];
-          
-          // Get all allocations for this pitch on this date
-          const dayAllocs = [...(pitchAllocs.am || []), ...(pitchAllocs.pm || [])];
-          
+        // Try different pitch ID formats to find matching allocations
+        // Based on your database structure, "pitch-X" with hyphen is the standard
+        const possiblePitchIds = [
+          `pitch-${pitch.id}`,       // "pitch-1" (PRIMARY FORMAT from your database)
+          `pitch${pitch.id}`,        // "pitch1"
+          pitch.id,                  // "1"
+          pitch.id.toString(),       // ensure string
+          `Pitch ${pitch.id}`,       // "Pitch 1"
+          `Pitch-${pitch.id}`,       // "Pitch-1"
+        ];
+
+        let pitchAllocs = [];
+        
+        // Find allocations for this pitch using any of the possible ID formats
+        for (const pitchIdFormat of possiblePitchIds) {
+          if (allocs[date] && allocs[date][pitchIdFormat]) {
+            pitchAllocs = allocs[date][pitchIdFormat];
+            console.log(`Found allocations for pitch ${pitch.id} using format: ${pitchIdFormat}`);
+            break;
+          }
+        }
+        
+        if (pitchAllocs.length > 0) {
           let amSlotsUsed = 0;
           let pmSlotsUsed = 0;
           
-          dayAllocs.forEach(alloc => {
-            const startHour = parseFloat(alloc.startTime.split(':')[0]) + parseFloat(alloc.startTime.split(':')[1]) / 60;
-            const endHour = parseFloat(alloc.endTime.split(':')[0]) + parseFloat(alloc.endTime.split(':')[1]) / 60;
+          pitchAllocs.forEach(alloc => {
+            // Parse time properly, handling both HH:MM and decimal formats
+            const parseTime = (timeStr) => {
+              if (typeof timeStr === 'string' && timeStr.includes(':')) {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                return hours + (minutes || 0) / 60;
+              }
+              return parseFloat(timeStr) || 0;
+            };
+            
+            const startHour = parseTime(alloc.startTime);
+            const endHour = parseTime(alloc.endTime);
+            
+            console.log(`Allocation: ${alloc.startTime} - ${alloc.endTime} (${startHour} - ${endHour})`);
             
             // Calculate slots used in AM period (8:00-17:00)
             if (startHour < amEndHour) {
               const amStart = Math.max(startHour, amStartHour);
               const amEnd = Math.min(endHour, amEndHour);
               if (amEnd > amStart) {
-                amSlotsUsed += (amEnd - amStart) / slotDuration;
+                const slotsUsed = (amEnd - amStart) / slotDuration;
+                amSlotsUsed += slotsUsed;
+                console.log(`AM slots used: ${slotsUsed}`);
               }
             }
             
@@ -197,7 +230,9 @@ const CapacityOutlook = () => {
               const pmStart = Math.max(startHour, pmStartHour);
               const pmEnd = Math.min(endHour, pmEndHour);
               if (pmEnd > pmStart) {
-                pmSlotsUsed += (pmEnd - pmStart) / slotDuration;
+                const slotsUsed = (pmEnd - pmStart) / slotDuration;
+                pmSlotsUsed += slotsUsed;
+                console.log(`PM slots used: ${slotsUsed}`);
               }
             }
           });
@@ -205,10 +240,13 @@ const CapacityOutlook = () => {
           // Calculate capacity percentages based on slots
           capacity[pitch.id][date].am = Math.min((amSlotsUsed / totalAMSlots) * 100, 100);
           capacity[pitch.id][date].pm = Math.min((pmSlotsUsed / totalPMSlots) * 100, 100);
+          
+          console.log(`Pitch ${pitch.id} on ${date}: AM ${capacity[pitch.id][date].am}%, PM ${capacity[pitch.id][date].pm}%`);
         }
       });
     });
 
+    console.log('Final capacity data:', capacity);
     setCapacityData(capacity);
   };
 
