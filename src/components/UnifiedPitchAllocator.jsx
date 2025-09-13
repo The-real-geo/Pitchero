@@ -1,10 +1,9 @@
 // src/components/UnifiedPitchAllocator.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { auth, db } from '../utils/firebase';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-
 
 // Reusing constants from existing allocators
 const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -40,6 +39,11 @@ const durationOptions = [
 const UnifiedPitchAllocator = () => {
   const { pitchId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get date from URL query params
+  const searchParams = new URLSearchParams(location.search);
+  const dateFromUrl = searchParams.get('date');
   
   // User and club data
   const [user, setUser] = useState(null);
@@ -62,7 +66,10 @@ const UnifiedPitchAllocator = () => {
   const [allPitchAllocations, setAllPitchAllocations] = useState({});
   
   // Form state - following existing allocator patterns
-  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+  // Initialize date from URL if provided, otherwise use today
+  const [date, setDate] = useState(() => {
+    return dateFromUrl || new Date().toISOString().split("T")[0];
+  });
   const [allocationType, setAllocationType] = useState('training');
   const [team, setTeam] = useState('');
   const [section, setSection] = useState('A');
@@ -82,10 +89,6 @@ const UnifiedPitchAllocator = () => {
   // Time slots - reusing existing pattern
   const slots = useMemo(() => timeSlots(), []);
   
-// Add this to read the date from URL
-const searchParams = new URLSearchParams(window.location.search);
-const dateFromUrl = searchParams.get('date');
-  
   // Normalize pitch ID to ensure consistency - MUST BE DEFINED EARLY
   const normalizedPitchId = useMemo(() => {
     if (!pitchId) return '';
@@ -97,11 +100,6 @@ const dateFromUrl = searchParams.get('date');
     // Also handle cases like 'pitch-10' -> 'pitch10'
     return id.replace('pitch-', 'pitch');
   }, [pitchId]);
-  
-// Update the date state initialization
-const [date, setDate] = useState(() => {
-  return dateFromUrl || new Date().toISOString().split("T")[0];
-});
   
   // Match day pitch area requirements - reusing existing logic
   const matchDayPitchAreaRequired = useMemo(() => ({
@@ -209,24 +207,26 @@ const [date, setDate] = useState(() => {
     const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
     return brightness > 155;
   };
-  // Helper function to check if date is a weekday
-const isWeekday = (dateString) => {
-  const day = new Date(dateString).getDay();
-  return day >= 1 && day <= 5; // Monday = 1, Friday = 5
-};
-
-// Get filtered slots based on business hours setting
-const getSlotsToDisplay = () => {
-  if (showBusinessHours || !isWeekday(date)) {
-    return slots; // Show all slots on weekends or when toggled on
-  }
   
-  // Filter out 08:00 to 16:45 on weekdays
-  return slots.filter(slot => {
-    const hour = parseInt(slot.split(':')[0]);
-    return hour < 8 || hour >= 17;
-  });
-};
+  // Helper function to check if date is a weekday
+  const isWeekday = (dateString) => {
+    const day = new Date(dateString).getDay();
+    return day >= 1 && day <= 5; // Monday = 1, Friday = 5
+  };
+
+  // Get filtered slots based on business hours setting
+  const getSlotsToDisplay = () => {
+    if (showBusinessHours || !isWeekday(date)) {
+      return slots; // Show all slots on weekends or when toggled on
+    }
+    
+    // Filter out 08:00 to 16:45 on weekdays
+    return slots.filter(slot => {
+      const hour = parseInt(slot.split(':')[0]);
+      return hour < 8 || hour >= 17;
+    });
+  };
+  
   // Get default pitch area for team - reusing existing logic
   const getDefaultPitchAreaForTeam = useCallback((teamName) => {
     const ageMatch = teamName.match(/Under (\d+)/);
@@ -587,20 +587,20 @@ const getSlotsToDisplay = () => {
   }, [loadAllocations]);
 
   // Initialize expanded slots on mount
-useEffect(() => {
-  const initialExpanded = {};
-  const slotsToShow = getSlotsToDisplay();
-  slotsToShow.forEach(slot => {
-    // If showing business hours and this is a morning slot, start collapsed
-    const hour = parseInt(slot.split(':')[0]);
-    if (showBusinessHours && hour >= 8 && hour < 17) {
-      initialExpanded[slot] = false; // Start collapsed for AM hours
-    } else {
-      initialExpanded[slot] = true; // Start expanded for evening hours
-    }
-  });
-  setExpandedSlots(initialExpanded);
-}, [slots, showBusinessHours, date]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const initialExpanded = {};
+    const slotsToShow = getSlotsToDisplay();
+    slotsToShow.forEach(slot => {
+      // If showing business hours and this is a morning slot, start collapsed
+      const hour = parseInt(slot.split(':')[0]);
+      if (showBusinessHours && hour >= 8 && hour < 17) {
+        initialExpanded[slot] = false; // Start collapsed for AM hours
+      } else {
+        initialExpanded[slot] = true; // Start expanded for evening hours
+      }
+    });
+    setExpandedSlots(initialExpanded);
+  }, [slots, showBusinessHours, date]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Early return for loading state - placed AFTER all hooks
   if (loading) {
@@ -1110,13 +1110,13 @@ useEffect(() => {
 
   // Expand/Collapse all slots
   const setAllSlotsExpanded = (expanded) => {
-  const newExpanded = {};
-  const slotsToShow = getSlotsToDisplay();
-  slotsToShow.forEach(slot => {
-    newExpanded[slot] = expanded;
-  });
-  setExpandedSlots(newExpanded);
-};
+    const newExpanded = {};
+    const slotsToShow = getSlotsToDisplay();
+    slotsToShow.forEach(slot => {
+      newExpanded[slot] = expanded;
+    });
+    setExpandedSlots(newExpanded);
+  };
 
   // Share functionality
   const handleShare = async () => {
@@ -1849,21 +1849,21 @@ useEffect(() => {
             style={{
                 width: '100%',
                 padding: '10px',
-                backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
                 borderRadius: '6px',
                 fontSize: '14px',
-                color: '#fca5a5',
+                color: 'white',
                 cursor: 'pointer',
                 fontWeight: '500',
                 transition: 'all 0.2s ease',
                 marginTop: '8px'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
               }}
             >
             ⚙️ Settings
