@@ -16,21 +16,29 @@ const SETTINGS_CONFIG = {
   SAVE_DELAY: 500
 };
 
-// Default teams configuration
+// Match area options based on pitch sizes
+const MATCH_AREA_OPTIONS = [
+  'Under 6 & 7 size',  // Individual sections
+  'Quarter pitch',     // 2 sections (A+C, B+D, etc.)
+  'Half Pitch',        // 4 sections (A+B+C+D, etc.)
+  'Full Pitch'         // All 8 sections
+];
+
+// Default teams configuration with match areas
 const DEFAULT_TEAMS = [
-  { name: "Under 6", color: "#00FFFF" },
-  { name: "Under 8", color: "#FF0000" },
-  { name: "Under 9", color: "#0000FF" },
-  { name: "Under 10", color: "#00AA00" },
-  { name: "Under 11 - Red", color: "#CC0000" },
-  { name: "Under 11 - Black", color: "#000000" },
-  { name: "Under 12 YPL", color: "#FFD700" },
-  { name: "Under 12 YSL", color: "#FF6600" },
-  { name: "Under 13 YCC", color: "#8B00FF" },
-  { name: "Under 14 YCC", color: "#FF1493" },
-  { name: "Under 14 YSL", color: "#00CED1" },
-  { name: "Under 15 YCC", color: "#8B4513" },
-  { name: "Under 16 YCC", color: "#696969" }
+  { name: "Under 6", color: "#00FFFF", matchArea: "Under 6 & 7 size" },
+  { name: "Under 8", color: "#FF0000", matchArea: "Quarter pitch" },
+  { name: "Under 9", color: "#0000FF", matchArea: "Quarter pitch" },
+  { name: "Under 10", color: "#00AA00", matchArea: "Half Pitch" },
+  { name: "Under 11 - Red", color: "#CC0000", matchArea: "Half Pitch" },
+  { name: "Under 11 - Black", color: "#000000", matchArea: "Half Pitch" },
+  { name: "Under 12 YPL", color: "#FFD700", matchArea: "Half Pitch" },
+  { name: "Under 12 YSL", color: "#FF6600", matchArea: "Half Pitch" },
+  { name: "Under 13 YCC", color: "#8B00FF", matchArea: "Half Pitch" },
+  { name: "Under 14 YCC", color: "#FF1493", matchArea: "Full Pitch" },
+  { name: "Under 14 YSL", color: "#00CED1", matchArea: "Full Pitch" },
+  { name: "Under 15 YCC", color: "#8B4513", matchArea: "Full Pitch" },
+  { name: "Under 16 YCC", color: "#696969", matchArea: "Full Pitch" }
 ];
 
 // Utility functions
@@ -74,6 +82,7 @@ const validateImportData = (data) => {
     if (!team.color || typeof team.color !== 'string') {
       throw new Error(`Invalid team at position ${index + 1}: missing color`);
     }
+    // Match area is optional for backward compatibility
   });
   
   // Check version compatibility
@@ -115,6 +124,7 @@ function Settings() {
   const [teams, setTeams] = useState(DEFAULT_TEAMS);
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamColor, setNewTeamColor] = useState(SETTINGS_CONFIG.DEFAULT_TEAM_COLOR);
+  const [newTeamMatchArea, setNewTeamMatchArea] = useState('Under 6 & 7 size');
   
   // Dynamic pitch states
   const [configuredPitches, setConfiguredPitches] = useState([]);
@@ -313,7 +323,14 @@ function Settings() {
         const data = settingsDoc.data();
         console.log('Loaded settings from Firestore:', data);
         
-        if (data.teams) setTeams(data.teams);
+        if (data.teams) {
+          // Ensure all teams have a matchArea, use default if missing
+          const teamsWithMatchArea = data.teams.map(team => ({
+            ...team,
+            matchArea: team.matchArea || 'Under 6 & 7 size'
+          }));
+          setTeams(teamsWithMatchArea);
+        }
         if (data.pitchOrientations) setPitchOrientations(data.pitchOrientations);
         if (data.showGrassArea) setShowGrassArea(data.showGrassArea);
         if (data.pitchNames) {
@@ -349,10 +366,15 @@ function Settings() {
       return;
     }
     
-    const updatedTeams = [...teams, { name: trimmedName, color: newTeamColor }];
+    const updatedTeams = [...teams, { 
+      name: trimmedName, 
+      color: newTeamColor,
+      matchArea: newTeamMatchArea
+    }];
     setTeams(updatedTeams);
     setNewTeamName('');
     setNewTeamColor(SETTINGS_CONFIG.DEFAULT_TEAM_COLOR);
+    setNewTeamMatchArea('Under 6 & 7 size');
     setErrors({});
     
     const success = await saveSettingsToFirestore({
@@ -390,6 +412,20 @@ function Settings() {
     setTeams(updatedTeams);
     
     // Use debounced save for color changes
+    debouncedSave({
+      teams: updatedTeams,
+      pitchOrientations,
+      showGrassArea,
+      pitchNames
+    });
+  };
+
+  const updateTeamMatchArea = (index, matchArea) => {
+    const updatedTeams = [...teams];
+    updatedTeams[index].matchArea = matchArea;
+    setTeams(updatedTeams);
+    
+    // Use debounced save for match area changes
     debouncedSave({
       teams: updatedTeams,
       pitchOrientations,
@@ -512,7 +548,14 @@ function Settings() {
       validateImportData(settings);
       
       // Apply imported settings
-      if (settings.teams) setTeams(settings.teams);
+      if (settings.teams) {
+        // Ensure imported teams have matchArea
+        const teamsWithMatchArea = settings.teams.map(team => ({
+          ...team,
+          matchArea: team.matchArea || 'Under 6 & 7 size'
+        }));
+        setTeams(teamsWithMatchArea);
+      }
       if (settings.pitchOrientations) setPitchOrientations(settings.pitchOrientations);
       if (settings.showGrassArea) setShowGrassArea(settings.showGrassArea);
       if (settings.pitchNames) {
@@ -905,7 +948,7 @@ function Settings() {
             role="status"
             aria-live="polite"
             >
-              ✓ {successMessage}
+              ✔ {successMessage}
             </div>
           )}
 
@@ -1002,10 +1045,29 @@ function Settings() {
                 aria-describedby={errors.teamName ? "team-error" : undefined}
                 maxLength={SETTINGS_CONFIG.MAX_TEAM_NAME_LENGTH}
               />
+              
+              <select
+                value={newTeamMatchArea}
+                onChange={(e) => setNewTeamMatchArea(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  minWidth: '150px'
+                }}
+                aria-label="Match area requirement"
+              >
+                {MATCH_AREA_OPTIONS.map(area => (
+                  <option key={area} value={area}>{area}</option>
+                ))}
+              </select>
+              
               <ColorPicker
                 color={newTeamColor}
                 onChange={setNewTeamColor}
               />
+              
               <button
                 onClick={handleAddTeam}
                 disabled={isSavingSettings}
@@ -1071,6 +1133,7 @@ function Settings() {
                     }}
                     aria-label={`Team color: ${team.color}`}
                   />
+                  
                   <span style={{
                     flex: 1,
                     fontSize: '14px',
@@ -1079,10 +1142,29 @@ function Settings() {
                   }}>
                     {team.name}
                   </span>
+                  
+                  <select
+                    value={team.matchArea || 'Under 6 & 7 size'}
+                    onChange={(e) => updateTeamMatchArea(index, e.target.value)}
+                    style={{
+                      padding: '6px 10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      minWidth: '140px'
+                    }}
+                    aria-label={`Match area for ${team.name}`}
+                  >
+                    {MATCH_AREA_OPTIONS.map(area => (
+                      <option key={area} value={area}>{area}</option>
+                    ))}
+                  </select>
+                  
                   <ColorPicker
                     color={team.color}
                     onChange={(color) => updateTeamColor(index, color)}
                   />
+                  
                   <button
                     onClick={() => removeTeam(index)}
                     disabled={isSavingSettings}
@@ -1114,7 +1196,7 @@ function Settings() {
               fontSize: '13px',
               color: '#0369a1'
             }}>
-              💡 Total teams configured: {teams.length}
+              💡 Total teams configured: {teams.length}. Match area determines the pitch sections allocated during match bookings.
             </div>
           </div>
 
