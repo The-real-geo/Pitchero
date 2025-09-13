@@ -720,8 +720,11 @@ const CapacityOutlook = () => {
                               borderLeft: '1px solid #e5e7eb',
                               cursor: 'pointer'
                             }}
-                            onClick={() => navigate(`/allocator/${pitch.id}`)}
-                            title={`Click to view allocations for ${displayName}`}
+                            onClick={() => {
+                              // Navigate to the allocator with the correct date
+                              navigate(`/allocator/${pitch.id}?date=${header.fullDate}`);
+                            }}
+                            title={`Click to view allocations for ${displayName} on ${header.fullDate}`}
                           >
                             <div style={{
                               width: '32px',
