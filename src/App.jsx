@@ -13,6 +13,7 @@ import ShareView from "./components/ShareView";
 import SatelliteManager from "./components/satellite/SatelliteManager";
 import ClubPitchMap from './components/satellite/ClubPitchMap';
 import UnifiedPitchAllocator from './components/UnifiedPitchAllocator';
+import CapacityOutlook from './components/CapacityOutlook';
 
 // Protected Route Component
 const PrivateRoute = ({ children }) => {
@@ -109,7 +110,17 @@ function App() {
             </PrivateRoute>
           }
         />
+{/* route to Capacity planner */}
 
+        <Route
+  path="/capacity-outlook"
+  element={
+    <PrivateRoute>
+      <CapacityOutlook />
+    </PrivateRoute>
+  }
+/>
+        
         {/* NEW: Protected satellite route */}
         <Route
           path="/satellite"
