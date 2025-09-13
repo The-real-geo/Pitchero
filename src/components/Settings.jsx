@@ -26,14 +26,12 @@ const MATCH_AREA_OPTIONS = [
 
 // Duration options
 const DURATION_OPTIONS = [
-  '20 mins',
-  '25 mins',
-  '30 mins',
-  '35 mins',
   '40 mins',
-  '45 mins',
   '50 mins',
-  '60 mins'
+  '60 mins',
+  '70 mins',
+  '80 mins',
+  '90 mins'
 ];
 
 // Default teams configuration with match areas and durations
